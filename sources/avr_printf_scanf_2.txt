@@ -1,0 +1,330 @@
+##############################################################
+## Add this to avr boards.txt (~\Arduino\hardware\arduino\avr)
+## to select printf- & scanf-version from the Tools menu
+## https://github.com/arduino/Arduino/issues/5033#issuecomment-234335079
+##############################################################
+
+menu.printf=AVR printf Version
+menu.scanf=AVR scanf Version
+
+yun.menu.printf.default=Default printf
+yun.menu.printf.default.avr_printf_flags=
+yun.menu.printf.full=Full printf
+yun.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+yun.menu.printf.minimal=Minimal printf
+yun.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+yun.menu.scanf.default=Default scanf
+yun.menu.scanf.default.avr_scanf_flags=
+yun.menu.scanf.full=Full scanf
+yun.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+yun.menu.scanf.minimal=Minimal scanf
+yun.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+yun.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+uno.menu.printf.default=Default printf
+uno.menu.printf.default.avr_printf_flags=
+uno.menu.printf.full=Full printf
+uno.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+uno.menu.printf.minimal=Minimal printf
+uno.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+uno.menu.scanf.default=Default scanf
+uno.menu.scanf.default.avr_scanf_flags=
+uno.menu.scanf.full=Full scanf
+uno.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+uno.menu.scanf.minimal=Minimal scanf
+uno.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+uno.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+diecimila.menu.printf.default=Default printf
+diecimila.menu.printf.default.avr_printf_flags=
+diecimila.menu.printf.full=Full printf
+diecimila.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+diecimila.menu.printf.minimal=Minimal printf
+diecimila.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+diecimila.menu.scanf.default=Default scanf
+diecimila.menu.scanf.default.avr_scanf_flags=
+diecimila.menu.scanf.full=Full scanf
+diecimila.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+diecimila.menu.scanf.minimal=Minimal scanf
+diecimila.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+diecimila.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+nano.menu.printf.default=Default printf
+nano.menu.printf.default.avr_printf_flags=
+nano.menu.printf.full=Full printf
+nano.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+nano.menu.printf.minimal=Minimal printf
+nano.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+nano.menu.scanf.default=Default scanf
+nano.menu.scanf.default.avr_scanf_flags=
+nano.menu.scanf.full=Full scanf
+nano.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+nano.menu.scanf.minimal=Minimal scanf
+nano.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+nano.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+mega.menu.printf.default=Default printf
+mega.menu.printf.default.avr_printf_flags=
+mega.menu.printf.full=Full printf
+mega.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+mega.menu.printf.minimal=Minimal printf
+mega.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+mega.menu.scanf.default=Default scanf
+mega.menu.scanf.default.avr_scanf_flags=
+mega.menu.scanf.full=Full scanf
+mega.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+mega.menu.scanf.minimal=Minimal scanf
+mega.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+mega.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+megaADK.menu.printf.default=Default printf
+megaADK.menu.printf.default.avr_printf_flags=
+megaADK.menu.printf.full=Full printf
+megaADK.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+megaADK.menu.printf.minimal=Minimal printf
+megaADK.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+megaADK.menu.scanf.default=Default scanf
+megaADK.menu.scanf.default.avr_scanf_flags=
+megaADK.menu.scanf.full=Full scanf
+megaADK.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+megaADK.menu.scanf.minimal=Minimal scanf
+megaADK.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+megaADK.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+leonardo.menu.printf.default=Default printf
+leonardo.menu.printf.default.avr_printf_flags=
+leonardo.menu.printf.full=Full printf
+leonardo.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+leonardo.menu.printf.minimal=Minimal printf
+leonardo.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+leonardo.menu.scanf.default=Default scanf
+leonardo.menu.scanf.default.avr_scanf_flags=
+leonardo.menu.scanf.full=Full scanf
+leonardo.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+leonardo.menu.scanf.minimal=Minimal scanf
+leonardo.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+leonardo.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+micro.menu.printf.default=Default printf
+micro.menu.printf.default.avr_printf_flags=
+micro.menu.printf.full=Full printf
+micro.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+micro.menu.printf.minimal=Minimal printf
+micro.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+micro.menu.scanf.default=Default scanf
+micro.menu.scanf.default.avr_scanf_flags=
+micro.menu.scanf.full=Full scanf
+micro.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+micro.menu.scanf.minimal=Minimal scanf
+micro.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+micro.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+esplora.menu.printf.default=Default printf
+esplora.menu.printf.default.avr_printf_flags=
+esplora.menu.printf.full=Full printf
+esplora.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+esplora.menu.printf.minimal=Minimal printf
+esplora.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+esplora.menu.scanf.default=Default scanf
+esplora.menu.scanf.default.avr_scanf_flags=
+esplora.menu.scanf.full=Full scanf
+esplora.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+esplora.menu.scanf.minimal=Minimal scanf
+esplora.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+esplora.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+mini.menu.printf.default=Default printf
+mini.menu.printf.default.avr_printf_flags=
+mini.menu.printf.full=Full printf
+mini.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+mini.menu.printf.minimal=Minimal printf
+mini.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+mini.menu.scanf.default=Default scanf
+mini.menu.scanf.default.avr_scanf_flags=
+mini.menu.scanf.full=Full scanf
+mini.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+mini.menu.scanf.minimal=Minimal scanf
+mini.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+mini.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+ethernet.menu.printf.default=Default printf
+ethernet.menu.printf.default.avr_printf_flags=
+ethernet.menu.printf.full=Full printf
+ethernet.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+ethernet.menu.printf.minimal=Minimal printf
+ethernet.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+ethernet.menu.scanf.default=Default scanf
+ethernet.menu.scanf.default.avr_scanf_flags=
+ethernet.menu.scanf.full=Full scanf
+ethernet.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+ethernet.menu.scanf.minimal=Minimal scanf
+ethernet.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+ethernet.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+fio.menu.printf.default=Default printf
+fio.menu.printf.default.avr_printf_flags=
+fio.menu.printf.full=Full printf
+fio.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+fio.menu.printf.minimal=Minimal printf
+fio.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+fio.menu.scanf.default=Default scanf
+fio.menu.scanf.default.avr_scanf_flags=
+fio.menu.scanf.full=Full scanf
+fio.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+fio.menu.scanf.minimal=Minimal scanf
+fio.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+fio.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+bt.menu.printf.default=Default printf
+bt.menu.printf.default.avr_printf_flags=
+bt.menu.printf.full=Full printf
+bt.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+bt.menu.printf.minimal=Minimal printf
+bt.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+bt.menu.scanf.default=Default scanf
+bt.menu.scanf.default.avr_scanf_flags=
+bt.menu.scanf.full=Full scanf
+bt.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+bt.menu.scanf.minimal=Minimal scanf
+bt.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+bt.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+LilyPadUSB.menu.printf.default=Default printf
+LilyPadUSB.menu.printf.default.avr_printf_flags=
+LilyPadUSB.menu.printf.full=Full printf
+LilyPadUSB.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+LilyPadUSB.menu.printf.minimal=Minimal printf
+LilyPadUSB.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+LilyPadUSB.menu.scanf.default=Default scanf
+LilyPadUSB.menu.scanf.default.avr_scanf_flags=
+LilyPadUSB.menu.scanf.full=Full scanf
+LilyPadUSB.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+LilyPadUSB.menu.scanf.minimal=Minimal scanf
+LilyPadUSB.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+LilyPadUSB.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+lilypad.menu.printf.default=Default printf
+lilypad.menu.printf.default.avr_printf_flags=
+lilypad.menu.printf.full=Full printf
+lilypad.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+lilypad.menu.printf.minimal=Minimal printf
+lilypad.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+lilypad.menu.scanf.default=Default scanf
+lilypad.menu.scanf.default.avr_scanf_flags=
+lilypad.menu.scanf.full=Full scanf
+lilypad.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+lilypad.menu.scanf.minimal=Minimal scanf
+lilypad.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+lilypad.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+pro.menu.printf.default=Default printf
+pro.menu.printf.default.avr_printf_flags=
+pro.menu.printf.full=Full printf
+pro.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+pro.menu.printf.minimal=Minimal printf
+pro.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+pro.menu.scanf.default=Default scanf
+pro.menu.scanf.default.avr_scanf_flags=
+pro.menu.scanf.full=Full scanf
+pro.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+pro.menu.scanf.minimal=Minimal scanf
+pro.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+pro.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+atmegang.menu.printf.default=Default printf
+atmegang.menu.printf.default.avr_printf_flags=
+atmegang.menu.printf.full=Full printf
+atmegang.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+atmegang.menu.printf.minimal=Minimal printf
+atmegang.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+atmegang.menu.scanf.default=Default scanf
+atmegang.menu.scanf.default.avr_scanf_flags=
+atmegang.menu.scanf.full=Full scanf
+atmegang.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+atmegang.menu.scanf.minimal=Minimal scanf
+atmegang.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+atmegang.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+robotControl.menu.printf.default=Default printf
+robotControl.menu.printf.default.avr_printf_flags=
+robotControl.menu.printf.full=Full printf
+robotControl.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+robotControl.menu.printf.minimal=Minimal printf
+robotControl.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+robotControl.menu.scanf.default=Default scanf
+robotControl.menu.scanf.default.avr_scanf_flags=
+robotControl.menu.scanf.full=Full scanf
+robotControl.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+robotControl.menu.scanf.minimal=Minimal scanf
+robotControl.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+robotControl.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+robotMotor.menu.printf.default=Default printf
+robotMotor.menu.printf.default.avr_printf_flags=
+robotMotor.menu.printf.full=Full printf
+robotMotor.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+robotMotor.menu.printf.minimal=Minimal printf
+robotMotor.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+robotMotor.menu.scanf.default=Default scanf
+robotMotor.menu.scanf.default.avr_scanf_flags=
+robotMotor.menu.scanf.full=Full scanf
+robotMotor.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+robotMotor.menu.scanf.minimal=Minimal scanf
+robotMotor.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+robotMotor.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+gemma.menu.printf.default=Default printf
+gemma.menu.printf.default.avr_printf_flags=
+gemma.menu.printf.full=Full printf
+gemma.menu.printf.full.avr_printf_flags=-Wl,-u,vfprintf -lprintf_flt
+gemma.menu.printf.minimal=Minimal printf
+gemma.menu.printf.minimal.avr_printf_flags=-Wl,-u,vfprintf -lprintf_min
+
+gemma.menu.scanf.default=Default scanf
+gemma.menu.scanf.default.avr_scanf_flags=
+gemma.menu.scanf.full=Full scanf
+gemma.menu.scanf.full.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_flt
+gemma.menu.scanf.minimal=Minimal scanf
+gemma.menu.scanf.minimal.avr_scanf_flags=-Wl,-u,vfscanf -lscanf_min
+
+gemma.compiler.c.elf.extra_flags={avr_printf_flags} {avr_scanf_flags}
+
+##############################################################
