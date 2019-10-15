@@ -1,0 +1,9 @@
+
+Links to font creators:
+
+https://rop.nl/truetype2gfx/
+
+https://blog.squix.org/2016/10/font-creator-now-creates-adafruit-gfx-fonts.html
+
+
+as to Adafruit-GFX-compatible fonts, copy font files to ..\libraries\Adafruit-GFX-Library\Fonts 
