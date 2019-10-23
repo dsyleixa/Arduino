@@ -93,7 +93,7 @@ void setup(void)
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, !LOW);  // inverted LED_BUILTIN signal logic
   
-  btnUp.init(D6, INPUT_PULLUP);
+  btnUp.init(D7, INPUT_PULLUP);
   btnDown.init(D3, INPUT_PULLUP);
   btnEnter.init(D4, INPUT_PULLUP);    
   

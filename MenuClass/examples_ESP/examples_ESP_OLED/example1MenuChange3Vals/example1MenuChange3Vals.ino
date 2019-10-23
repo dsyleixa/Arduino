@@ -128,7 +128,7 @@ void setup(void)
   delay(3000); // wait for Serial()
   Serial.println("Serial started");
   
-  btnUp.init(D6, INPUT_PULLUP);
+  btnUp.init(D7, INPUT_PULLUP);
   btnDown.init(D3, INPUT_PULLUP);
   btnEnter.init(D4, INPUT_PULLUP);    
   
