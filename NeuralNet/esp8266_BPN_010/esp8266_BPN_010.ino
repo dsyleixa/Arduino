@@ -21,7 +21,7 @@
 
 
 // debug mode: uncomment, regular mode: outcomment!
-#define  DEBUG
+//#define  DEBUG
 
 
 #define  REPORT_N   20    // for terminal log
