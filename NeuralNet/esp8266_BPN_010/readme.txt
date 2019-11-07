@@ -1,6 +1,6 @@
 Ausgehend von 
 http://robotics.hobbizine.com/arduinoann.html
-habe ich den Artificial Neural Net Code sumgeschrieben und erweitert.
+habe ich den Artificial Neural Net Code umgeschrieben und erweitert.
 
 Als MCU ist mindestens ein ESP8266 notwendig.
 
