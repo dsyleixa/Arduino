@@ -36,7 +36,6 @@ Geduld während des Trainings ist nötig, es kann (je nach Mustern) etliche Stun
 
 Testläufe mit Input-Mustern sind jetzt ebenfalls möglich, und per #define DEBUG kann das Lerntraining zu Debug-Zwecken abgekürzt werden.
 
-Eine Möglichkeit zur Werteeingabe während der Laufzeit will ich evt noch irgendwann zusätzlich versuchen einzubauen.
 
 
 share and enjoy!
