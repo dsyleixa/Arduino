@@ -7,7 +7,7 @@ Als MCU ist mindestens ein ESP8266 notwendig.
 
 Topologie wie bisher, nur (etwas) vergrößert:
 Als Inputs können jetzt 120 Bit-Werte eingegeben werden (0/1),
-Die Inputs werden direkt 1:1 der Inputschickt zugeordnet (InputLayer= IL).
+Die Inputs werden direkt 1:1 der Inputschicht zugeordnet (InputLayer= IL).
 Dann wird der Ausgang jedes IL-Neurons an jedes Neuron der Zwischenschicht geleitet (HiddenLayer=HL, mit derzeit 14 Neuronen zu je 120 Eingängen; d.h. 120x14=1680 neuronale Verknüpfungen),
 jedes HL Neuron hat wieder nur 1 Ausgang.
 Dann wird der Ausgang jedes HL-Neurons an die Eingänge von jedem Output-Neuron geleitet (OutputLayer=OL, mit 10 Neuronen zu je 14 Eingängen; d.h. 14x10= 140 neuronale Verknüpfungen):
