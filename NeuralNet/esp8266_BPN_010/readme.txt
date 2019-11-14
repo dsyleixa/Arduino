@@ -38,4 +38,3 @@ References, Resources:
 Hobbizine: http://robotics.hobbizine.com/arduinoann.html
 John Bullinaria: www.cs.bham.ac.uk/~jxb/NN/nn.html. 
 additional resources at TEK271.com: http://www.tek271.com/?about=docs/neuralNet/IntoToNeuralNets.html 
-Robotics Society of Southern California: http://www.rssc.org/content/introduction-neural-nets-part-1. 
