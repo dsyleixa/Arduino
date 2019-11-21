@@ -2,8 +2,8 @@
 // extended C-string manipulation
 //
 // (C) dsyleixa 2015-2019
-// freie Verwendung für private Zwecke
-// für kommerzielle Zwecke nur nach Genehmigung durch den Autor.
+// freie Verwendung fÃ¼r private Zwecke
+// fÃ¼r kommerzielle Zwecke nur nach Genehmigung durch den Autor.
 // Programming language: Arduino Sketch C/C++ (IDE 1.6.1 - 1.8.9)
 // protected under the friendly Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // http://creativecommons.org/licenses/by-nc-sa/3.0/   //   
@@ -18,7 +18,7 @@
 //------------------------------------------------------------
 
 char * sprintDouble();
-String millis_to_strF();
+char * millis_to_strF();
 char * strinsert();
 char * strdelnpos();
 char * strpatch();
