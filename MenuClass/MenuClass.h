@@ -47,8 +47,9 @@ class tMenu {
      tMenu  * preMenu;
      int16_t  actln; 
      int32_t  ID;  
-     int16_t  tagged;     
-
+     int16_t  tagged; 
+     
+     
 
      
      tMenu (int16_t menulen, int16_t linelen,    // constructor
@@ -81,10 +82,15 @@ class tMenu {
               if (extlist[i][len-1] =='<') list[i][LINELEN-2] ='<';
               list[i][LINELEN-1]='\0';   
            }
-        }
+        } 
+        
      }       
+
+     
+     ~tMenu() { }
     
 
+    
      void initscr(int16_t vislnum, uint8_t fonthi, uint8_t fontwi) 
      { 
         VISLNUM = vislnum;  // number of visible menu options
@@ -208,6 +214,8 @@ class tMenu {
         }
         return -1;         
      }
+
+
 }; 
 
 
