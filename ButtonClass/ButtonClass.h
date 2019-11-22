@@ -45,7 +45,8 @@
 class tButton {
   
    //---------------------------------------------------------- 
-   protected:   
+   protected:  
+   
     
     int16_t  pin;
     int32_t  mode;
@@ -134,6 +135,8 @@ class tButton {
       oldbtnstate(0), btnstate(0)  
       { }
    
+    ~tButton () { }
+    
 
     //-------------------------------------
     void init(int16_t _pin, int32_t _mode, uint32_t _minpressms=40) {      
