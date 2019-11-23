@@ -2,6 +2,21 @@
 
 #pragma once
 
+/*
+dynamic 2D array conversion:
+https://www.raspberrypi.org/forums/viewtopic.php?f=33&t=257284&p=1570347#p1570069 
+
+2-dim array static:
+double array2D[LINE][ROW]; 
+
+2-dim dynamic arrays for C++:
+double(*array2D)[LINE] = new double[ROW][LINE]; // rearranged!
+
+2-dim dynamic arrays for ISO C:     
+static double (*array2D)[LINE] = NULL;          // rearranged!
+array2D= malloc((LINE) * sizeof(double[ROW]));
+*/
+
 
 template <typename variant>  void bubblesort(variant *array, int length);
 template<typename variant>   void shellsort(variant *array, int length);
