@@ -8,7 +8,7 @@
 
 // modified, extended, and enhanced by dsylexia
 // required MCUs: ESP8266, ESP32
-// version 0.1.1
+// version 0.1.1a
 
 // (C) 2018 by dsyleixa
 // (C) of processed 3rd party code: see original sources.
@@ -1045,10 +1045,12 @@ RESTART:
     // if captured in local minimum or oscillating:
     if ( Error > 1.0 && TrainingCycle > 3000 ) {
       initializeWeights();
+      TrainingCycle = 1;
       goto RESTART;
     }
     if ( Error > 0.6 && TrainingCycle > 20000 ) {
       initializeWeights();
+      TrainingCycle = 1;
       goto RESTART;
     }
     
