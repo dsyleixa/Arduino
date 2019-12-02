@@ -630,12 +630,13 @@ int BP_Learning() {
   //--------------------------------------------------
   //  Begin training
   //--------------------------------------------------
+   
+ RESTART:  
   for ( TrainingCycle = 1 ; TrainingCycle < MAXLOOPS ; TrainingCycle++) {
 
     //--------------------------------------------------
     //  Randomize order of training patterns
     //--------------------------------------------------
-RESTART:
     for ( p = 0 ; p < MAX_PATTERNS ; p++) {
       q = random(MAX_PATTERNS);
       r = RandomizedIndex[p] ;
