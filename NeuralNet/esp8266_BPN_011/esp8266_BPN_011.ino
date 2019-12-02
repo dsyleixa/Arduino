@@ -41,9 +41,9 @@ uint32_t timestamp;       // for terminal log
    Network Configuration, customizable
  ******************************************************************/
 
-const int MAX_PATTERNS = 40;  //
+const int MAX_PATTERNS = 60;  //
 const int NUM_INPUTS   = 120;
-const int NUM_HIDDEN   = 35;
+const int NUM_HIDDEN   = 35;  // esp8266: 35
 const int NUM_OUTPUTS  = 10;
 
 
@@ -533,7 +533,19 @@ byte Input[MAX_PATTERNS + 1][NUM_INPUTS] = {
   { TEN_0 },
   { TEN_0 },
   { TEN_0 },
-  { TEN_0 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // 36="1"
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, X, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, X, 0, 0, 0, 0, 0, 0
+  },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // 37="1"
     0, 0, 0, 0, 0, X, X, 0, 0, 0,
     0, 0, 0, 0, 0, 0, X, 0, 0, 0, 
@@ -620,7 +632,7 @@ byte Target[MAX_PATTERNS + 1][NUM_OUTPUTS] = {
   { TEN_0 },
   { TEN_0 },
   { TEN_0 },
-  { TEN_0 },
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }, //36
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }  //39
@@ -744,7 +756,7 @@ const char* lnDn="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 //  tool: millis to cstring
 //-----------------------------------------------------------------
 
-char * millis_to_strF(int ms) {
+char * millis_to_strF(uint32_t ms, char * str) {
   uint32_t  Days = 0;
   uint32_t  Hours = 0;
   uint32_t  Mins = 0;
@@ -758,8 +770,7 @@ char * millis_to_strF(int ms) {
   Mins  = Mins - (Hours * 60);
   Hours = Hours - (Days * 24);
 
-  char str[20] = "";
-  sprintf(str, "%d.%02d:%02d:%02d", Days, Hours, Mins, Secs);
+  sprintf(str, "%ld.%02ld:%02ld:%02ld", Days, Hours, Mins, Secs);
   return str;
 }
 
@@ -800,12 +811,14 @@ void computeActErr() {
 //-----------------------------------------------------------------
 
 void PrintStatistixx() {
+  char str[30];
+  
   Serial.print ("TrainingCycle: "); Serial.print (TrainingCycle);
   if (TrainingCycle > 0) {
     Serial.print ("  Error=");      Serial.print (Error, 5);
     Serial.print ("  ThrSuccess="); Serial.print (ThrSuccess, 5);
-    Serial.print ("  runtime (d:h:m:s)=");
-    Serial.print (millis_to_strF(millis() - timestamp));
+    Serial.print ("  runtime (d.h:m:s)=");
+    Serial.print ( millis_to_strF(millis() - timestamp, str) );
   }
 }
 
@@ -1058,7 +1071,7 @@ void InputPatternRecognition(byte TestInput[NUM_INPUTS] ) {
   char buf[10];
 
   for (int i = 0; i < NUM_INPUTS; i++) {
-    Input[MAX_PATTERNS][i] = TestInput[i];
+    Input[MAX_PATTERNS][i] = TestInput[i];  // store inputs in extra pattern array slot
   }
 
   Serial.println();
