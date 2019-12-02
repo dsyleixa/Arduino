@@ -914,6 +914,7 @@ int initializeWeights() {
 
 //******************************************************************
 int BP_Learning() {
+RESTART:    
   initializeWeights();
 
   Serial.println();
@@ -924,7 +925,6 @@ int BP_Learning() {
   //--------------------------------------------------
   //  Begin training
   //--------------------------------------------------
-RESTART:     
   for ( TrainingCycle = 1 ; TrainingCycle < MAXLOOPS ; TrainingCycle++) {
 
     //--------------------------------------------------
