@@ -50,24 +50,24 @@ char * sprintDouble(char* s, double val, int width, int prec, bool sign)  {
 
 //------------------------------------------------------------
 
-char * millis_to_strF(int ms) {    // millis to formatted cstring
+char * millis_to_strF(uint32_t ms, char * str) {
   uint32_t  Days = 0;
   uint32_t  Hours = 0;
   uint32_t  Mins = 0;
   uint32_t  Secs = 0;
-  
-  Secs  = ms / 1000;  
-  Mins  = Secs / 60;  
-  Hours = Mins / 60;  
-  Days  = Hours / 24;  
-  Secs  = Secs - (Mins * 60);  
-  Mins  = Mins - (Hours * 60);  
-  Hours = Hours - (Days * 24);  
-  
-  char str[20]="";
-  sprintf(str, "%d.%02d:%02d:%02d", Days,Hours,Mins,Secs);
+
+  Secs  = ms / 1000;
+  Mins  = Secs / 60;
+  Hours = Mins / 60;
+  Days  = Hours / 24;
+  Secs  = Secs - (Mins * 60);
+  Mins  = Mins - (Hours * 60);
+  Hours = Hours - (Days * 24);
+
+  sprintf(str, "%ld.%02ld:%02ld:%02ld", Days, Hours, Mins, Secs);
   return str;
-} 
+}
+
 
 
 //------------------------------------------------------------
