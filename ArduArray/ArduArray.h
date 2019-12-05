@@ -26,8 +26,8 @@ template<typename variant>   void shellsort(variant *array, int length);
 // map, constrain
 //********************************************************************************
 
-int32_t  mapConstrain(int32_t val, int vmin=0, int vmax=1023 ) {  
-  val=map(val, 0, 17550,  vmin, vmax);
+int32_t  mapConstrain(int32_t val, int valmin=0, int valmax=17550, int vmin=0, int vmax=1023) {  
+  val=map(val, valmin, valmax,  vmin, vmax);
   val=constrain(val, vmin, vmax);
   return (int32_t)val;
 }
