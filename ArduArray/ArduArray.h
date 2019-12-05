@@ -23,6 +23,17 @@ template<typename variant>   void shellsort(variant *array, int length);
 
 
 //********************************************************************************
+// map, constrain
+//********************************************************************************
+
+int32_t  mapConstrain(int32_t val, int vmin=0, int vmax=1023 ) {  
+  val=map(val, 0, 17550,  vmin, vmax);
+  val=constrain(val, vmin, vmax);
+  return (int32_t)val;
+}
+
+
+//********************************************************************************
 // bit and byte and pin operations
 //********************************************************************************
 // convert byte arrays to int16
