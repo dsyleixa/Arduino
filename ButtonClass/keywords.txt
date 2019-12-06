@@ -1,3 +1,0 @@
-tButton KEYWORD1
-init    KEYWORD1
-click   KEYWORD1
