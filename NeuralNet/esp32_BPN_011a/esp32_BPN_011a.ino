@@ -26,16 +26,52 @@
 //        input matrix pattern="0" => output array={1,0,0,0,0,0,0,0,0,0}
 // 0.1.0: debug mode
 
+#include <SPI.h>
+#include <SD.h>
+#include <Adafruit_GFX.h>         // Core graphics library
+#include <Adafruit_HX8357.h>      // Hardware-specific library
+#include <Adafruit_ImageReader.h> // Image-reading functions
+#if defined(ESP8266)
+#define TFT_CS   0
+#define TFT_DC   15
+#define SD_CS    2
+#elif defined(ESP32)  // <<<<<<<<<<<<<<<<<<<<<
+#define TFT_CS   15   // <<<<<<<<<<<<<<<<<<<<<
+#define TFT_DC   33   // <<<<<<<<<<<<<<<<<<<<<
+#define SD_CS    14   // <<<<<<<<<<<<<<<<<<<<<
+#elif defined(TEENSYDUINO)
+#define TFT_DC   10
+#define TFT_CS   4
+#define SD_CS    8
+#elif defined(ARDUINO_STM32_FEATHER)
+#define TFT_DC   PB4
+#define TFT_CS   PA15
+#define SD_CS    PC5
+#elif defined(ARDUINO_NRF52_FEATHER) // BSP 0.6.5 and higher!
+#define TFT_DC   11
+#define TFT_CS   31
+#define SD_CS    27
+#elif defined(ARDUINO_MAX32620FTHR) || defined(ARDUINO_MAX32630FTHR)
+#define TFT_DC   P5_4
+#define TFT_CS   P5_3
+#define STMPE_CS P3_3
+#define SD_CS    P3_2
+#else // Anything else!
+#define TFT_CS   9
+#define TFT_DC   10
+#define SD_CS    5
+#endif
+
+Adafruit_HX8357      tft    = Adafruit_HX8357(TFT_CS, TFT_DC);
 
 
 #include <math.h>
-
 
 // debug mode: uncomment, regular mode: outcomment!
 //#define  DEBUG
 
 
-#define  REPORT_N   50    // for terminal log
+#define  REPORT_N   25    // for terminal log
 int32_t  ReportInterval;  // for terminal log
 uint32_t timestamp;       // for terminal log
 
@@ -46,7 +82,7 @@ uint32_t timestamp;       // for terminal log
 const int NUM_INPUTS   = 120;  // <<<<< !! DON'T CHANGE THIS !!
 const int NUM_HIDDEN   =  80;  // esp8266: 35
 const int NUM_OUTPUTS  =  10;  // <<<<< !! DON'T CHANGE THIS !!
-const int MAX_PATTERNS = 300;  // esp8266: 40
+const int MAX_PATTERNS = 250;  // esp8266: 40
 
 float LearningRate = 0.20;    // 0.3 vv lower oscillating
 float Momentum     = 0.9;     // 0.8 ^^ lower local min
@@ -1062,12 +1098,12 @@ RESTART:
       // if caught in local minimum or oscillating:
       if ( Error > 1.0 && TrainingCycle > 3000 ) {
          initializeWeights();
-         TrainingCycle = 1;
+         TrainingCycle = 2;
          goto RESTART;
       }
       if ( Error > 0.6 && TrainingCycle > 20000 ) {
          initializeWeights();
-         TrainingCycle = 1;
+         TrainingCycle = 3;
          goto RESTART;
       }
 
@@ -1135,7 +1171,10 @@ volatile static int8_t StateMode, ModeLearn = 1, ModeDetect = 0, ModePause = 0;
  ******************************************************************/
 
 void setup() {
-   Serial.begin(115200);
+   Serial.begin(230400); // <<<<<<<<<<<<<<<<< !!
+   tft.begin();          // Initialize screen
+   tft.fillScreen(HX8357_BLACK);
+   
    delay(1000);
    timestamp = millis();
 
