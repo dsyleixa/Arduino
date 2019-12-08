@@ -9,7 +9,7 @@
 
 // modified, extended, and enhanced by dsylexia
 // required MCUs: ESP8266, ESP32
-// version 0.1.1-32
+// version 0.1.1a-32
 
 // (C) 2018 by dsyleixa
 // (C) of processed 3rd party code: see original sources.
@@ -20,8 +20,8 @@
 
 
 // change log:
-// 0.1.1a-32: ESP32 version, optim dyn arrays
-// 0.1.1-32: ESP32 version
+// 0.1.1a-32: ESP32, optim dyn arrays, tft
+// 0.1.1-32: ESP32 
 // 0.1.1: input matrix=void   => output array=void={0,0,0,0,0,0,0,0,0,0}
 //        input matrix pattern="0" => output array={1,0,0,0,0,0,0,0,0,0}
 // 0.1.0: debug mode
