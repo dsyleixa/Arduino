@@ -94,7 +94,7 @@ float InitialWeightMax = 0.5; // 0.5
    #define ThrSuccess 0.20
 #else
    #define MAXLOOPS   2147483647
-   #define ThrSuccess 1E-6*NUM_INPUTS*NUM_OUTPUTS
+   #define ThrSuccess 1E-8*NUM_INPUTS*NUM_OUTPUTS*MAX_PATTERNS
 #endif
 
 
