@@ -12,6 +12,7 @@
 #define  MAROON      0x7800  ///< 123,   0,   0
 #define  ORANGE      0xFD20  ///< 255, 165,   0
 #define  YELLOW      0xFFE0  ///< 255, 255,   0
+#define  LIGHTYELLOW 0xFFEC  ///< 255, 255,  96  
 #define  OLIVE       0x7BE0  ///< 123, 125,   0 
 #define  GREENYELLOW 0xAFE5  ///< 173, 255,  41
 #define  LIME        0x07E0  ///<   0, 255,   0
@@ -21,6 +22,7 @@
 #define  DARKCYAN    0x03EF  ///<   0, 125, 123
 #define  BLUE        0x001F  ///<   0,   0, 255
 #define  NAVY        0x000F  ///<   0,   0, 123
+#define  DARKBLUE    0x000B  ///<   0,   0,  63
 #define  MAGENTA     0xF81F  ///< 255,   0, 255
 #define  PURPLE      0x780F  ///< 123,   0, 123
 #define  PINK        0xFC18  ///< 255, 130, 198
