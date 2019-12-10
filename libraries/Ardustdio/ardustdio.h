@@ -18,14 +18,14 @@
 
 
 /*
+int     readDirectory(File dir, int numLevel);
+long    fprintf_( File * stream, const char fmtstr[], ... );     // see ANSI C: fprintf()
+long    fscanf_ ( File * stream, const char fmtstr[], ... ) ;    // see ANSI C: fscanf()
+char  * fgets_  ( char * str, int32_t num, File * stream );      // see ANSI C: fgets()
 
-long     fprintf_( File * stream, const char fmtstr[], ... );     // see ANSI C: fprintf()
-long     fscanf_ ( File * stream, const char fmtstr[], ... ) ;    // see ANSI C: fscanf()
-char   * fgets_  ( char * str, int32_t num, File * stream );      // see ANSI C: fgets()
-
-File     fopen_  ( char * filename, const char * mode)            // see ANSI C: fopen()
-int16_t  fclose_ ( File SDfile)                                   // see ANSI C: fclose()  
-int16_t  remove_ ( char * filename) {                             // see ANSI C: remove()
+File    fopen_  ( char * filename, const char * mode)            // see ANSI C: fopen()
+int16_t fclose_ ( File SDfile)                                   // see ANSI C: fclose()  
+int16_t remove_ ( char * filename) {                             // see ANSI C: remove()
 
 */
 
@@ -39,7 +39,7 @@ int16_t  remove_ ( char * filename) {                             // see ANSI C:
 #define fileIO_ERR_WRITE     -8
 #define fileIO_ERR_READ      -16
 
-#define E_NOERR               0 
+#define E_NOERR               0  // fileIO OK 
 #define EPERM                 1  // Operation not permitted 
 #define ENOENT                2  // No such file or directory 
 #define EIO                   5  // I/O error 
@@ -55,9 +55,83 @@ int16_t  remove_ ( char * filename) {                             // see ANSI C:
 #define ENOMEDIUM           123  // No medium found 
 #define EMEDIUMTYPE         124  // Wrong medium type 
 
+#define E_NOERRstr              "fileIO OK" 
+#define EPERMstr                "Operation not permitted" 
+#define ENOENTstr               "No such file or directory"
+#define EIOstr                  "I/O error" 
+#define ENXIOstr                "No such device or address"
+#define EBADFstr                "Bad file number" 
+#define EACCESstr               "Permission denied" 
+#define EFAULTstr               "Bad address" 
+#define EEXISTstr               "File exists" 
+#define ENODEVstr               "No such device" 
+#define EMFILEstr               "Too many open files" 
+#define EROFSstr                "Read-only file system" 
+#define ETIMEDOUTstr            "Connection timed out" 
+#define ENOMEDIUMstr            "No medium found" 
+#define EMEDIUMTYPEstr          "Wrong medium type" 
+
+
 
 
 //------------------------------------------------------------
+
+
+
+String filelist[64];
+int filecount = 0;
+
+File SdPath;
+
+
+//=================================================================
+int  readDirectory(File dir, int numLevel) {
+   while (true) {
+
+      File entry =  dir.openNextFile();
+      if (! entry) {
+         // no more files
+         break;
+      }
+      for (uint8_t i = 0; i < numLevel; i++) {
+         //Serial.print('\t');
+      }
+
+      //Serial.print(entry.name());
+      filelist[filecount] = (String)entry.name();
+
+      if (entry.isDirectory()) {
+         //Serial.println("/");
+         filelist[filecount] += (String)"/";
+         //Serial.println(filelist[filecount]);
+
+         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
+         //display.println(filelist[filecount]);
+
+         filecount++;
+         filelist[filecount] = filelist[filecount] = (String)entry.name() + "/..";
+         //Serial.println(filelist[filecount]);
+
+         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
+         //display.println(filelist[filecount]);
+         filecount++;
+         readDirectory(entry, numLevel + 1);
+      } else {
+         // files have sizes, directories do not
+         //Serial.println(filelist[filecount]);
+         //Serial.print("\t\t");
+         //Serial.println(entry.size(), DEC);
+           
+         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
+         //display.println(filelist[filecount]);
+
+         filecount++;
+      }
+      entry.close();
+   }
+   return filecount;
+}
+
 //------------------------------------------------------------
 
 #if defined (__arm__)  // ARM Cortex compatible

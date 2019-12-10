@@ -13,6 +13,7 @@
 // Use for professional or business purpose only by personal written permission 
 // by the author.
 
+// 0.0.7  D_DISPLAY if exist tft lib cmd display.display
 // 0.0.6  doubleClick(2): exec; longPress(3): tag
 // 0.0.5  resetted to: tMenu menu entries as copies
 // 0.0.4  tag + return selected line, parse lines
@@ -22,7 +23,7 @@
 
 
 // MenuClass.h
-// ver 0.0.6
+// ver 0.0.7
 
 // default TFT: OLED 128x64, compatible to Adafruit (R) Libs
  
@@ -48,24 +49,28 @@ class tMenu {
      int16_t  actln; 
      int32_t  ID;  
      int16_t  tagged; 
+     bool     d_display;
      
      
 
      
-     tMenu (int16_t menulen, int16_t linelen,    // constructor
-            char ** extlist,                     // entry lines
-            tMenu* pMenu,                        // predecessor menu
-            int id=0)                            // id optional for convenience!
-     :            
-     MENULEN(5), LINELEN(11), VISLNUM(5), 
+     tMenu ( int16_t menulen, int16_t linelen,    // constructor
+             char ** extlist,                     // entry lines
+             tMenu* pMenu,                        // predecessor menu
+             int id=0                             // id optional for convenience!
+             d_display = true;                    // if exist tft lib cmd display.display
+           )                                 :            
+     MENULEN(5), LINELEN(11), VISLNUM(5), D_DISPLAY(true), 
      actln(0), ID(0), tagged(-1)  
      {
         firstvln=0; lastvln=0; displn=0;     
         actln=0;
-        MENULEN = menulen;  // number of available menu options        
-        LINELEN = linelen;  // line length of menu options       
-        preMenu = pMenu;    // predesessor menu     
-        ID      = id;       // optional: menu ID  
+        MENULEN   = menulen;  // number of available menu options        
+        LINELEN   = linelen;  // line length of menu options       
+        preMenu   = pMenu;    // predesessor menu     
+        ID        = id;       // optional: menu ID  
+        D_DISPLAY = d_display;
+        
 
         FONTHI=display.height()/VISLNUM +1;
         FONTWI=(FONTHI*3/4) +1;
@@ -160,7 +165,7 @@ class tMenu {
         // debug
         //
                           
-        display.display();
+        if(D_DISPLAY) display.display();
         Serial.println();
      }
  
@@ -198,7 +203,7 @@ class tMenu {
            mdisplay();
         }
         if(bfunc==1){                
-                // unused
+                         // 1 = short click on entry:  unused
         }
         
         if(bfunc==2){             // 2 = double clicked 0 => return actln  

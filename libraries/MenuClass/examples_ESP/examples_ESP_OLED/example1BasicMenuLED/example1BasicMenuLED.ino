@@ -31,8 +31,52 @@
 #include <Fonts/FreeMono9pt7b.h>         // used here
 //#include <Fonts/FreeMonoBold7pt7b.h>   // customized, recommended for OLED 
 
-//Adafruit_SSD1306 display();  // old Adafruit lib (tested OK)
- Adafruit_SSD1306 display(128, 64, &Wire); // new Adafruit lib
+#include <SPI.h>
+#include <SD.h>
+#include <Adafruit_GFX.h>         // Core graphics library
+#include <Adafruit_HX8357.h>      // Hardware-specific library
+#include <Adafruit_ImageReader.h> // Image-reading functions
+
+// Pin definitions for 2.4" TFT FeatherWing vary among boards...
+
+#if defined(ESP8266)
+#define TFT_CS   0
+#define TFT_DC   15
+#define SD_CS    2
+#elif defined(ESP32)
+#define TFT_CS   15
+#define TFT_DC   33
+#define SD_CS    14
+#elif defined(TEENSYDUINO)
+#define TFT_DC   10
+#define TFT_CS   4
+#define SD_CS    8
+#elif defined(ARDUINO_STM32_FEATHER)
+#define TFT_DC   PB4
+#define TFT_CS   PA15
+#define SD_CS    PC5
+#elif defined(ARDUINO_NRF52_FEATHER) // BSP 0.6.5 and higher!
+#define TFT_DC   11
+#define TFT_CS   31
+#define SD_CS    27
+#elif defined(ARDUINO_MAX32620FTHR) || defined(ARDUINO_MAX32630FTHR)
+#define TFT_DC   P5_4
+#define TFT_CS   P5_3
+#define STMPE_CS P3_3
+#define SD_CS    P3_2
+#else // Anything else!
+#define TFT_CS   9
+#define TFT_DC   10
+#define SD_CS    5
+#endif
+
+
+
+Adafruit_HX8357      tft    = Adafruit_HX8357(TFT_CS, TFT_DC);
+Adafruit_ImageReader reader;     // Class w/image-reading functions
+Adafruit_Image       imgRAM;        // An image loaded into RAM
+int32_t              width  = 0, // BMP image dimensions
+                     height = 0;
 
  
 //-----------------------------------------------------------------------
@@ -80,33 +124,31 @@ void setup(void)
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, !LOW);  // inverted LED_BUILTIN signal logic
   
-  btnUp.init(D7, INPUT_PULLUP);
-  btnDown.init(D3, INPUT_PULLUP);
-  btnEnter.init(D4, INPUT_PULLUP);    
+  btnUp.init(2, INPUT_PULLUP);
+  btnDown.init(3, INPUT_PULLUP);
+  btnEnter.init(4, INPUT_PULLUP);    
   
   // Start i2c Wire (SDA, SCL)
   //Wire.begin(ESPSDA,ESPSCL);  // !!!!!! adjust if necessary !!!!!!!! 
   Wire.begin();
 
-  // OLED SSD1306 Init  
-  //display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // old Adafruit lib
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, false); // new Adafruit lib  
-  display.setRotation(2);  
-  display.fillScreen(0x0000);  
-  display.setTextSize(1);
-  display.setFont();
-  display.setTextColor(WHITE);
+  
+  
+  tft.setTextSize(2);
+  
+  tft.setFont();
+  tft.setTextColor(WHITE);
 
   // text display debug tests
-  display.setCursor(0,0);
-  display.print("Hello, world!");  // debug
-  display.display();
+  tft.setCursor(0,0);
+  tft.print("Hello, world!");  // debug
+  tft.display();
   delay(500);
 
   // use display menu font
-  display.setFont(&FreeMono9pt7b);    
-  display.fillScreen(0x0000);
-  display.display(); 
+  tft.setFont(&FreeMono9pt7b);    
+  tft.fillScreen(0x0000);
+ 
 
   Serial.println("menu init:");
   actMenu = &menu1;  //   
