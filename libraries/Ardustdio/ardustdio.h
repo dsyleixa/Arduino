@@ -18,7 +18,7 @@
 
 
 /*
-int     readDirectory(File dir, int numLevel);
+int     readDirectory(File dir, int dirLevel);
 long    fprintf_( File * stream, const char fmtstr[], ... );     // see ANSI C: fprintf()
 long    fscanf_ ( File * stream, const char fmtstr[], ... ) ;    // see ANSI C: fscanf()
 char  * fgets_  ( char * str, int32_t num, File * stream );      // see ANSI C: fgets()
@@ -33,11 +33,12 @@ int16_t remove_ ( char * filename) {                             // see ANSI C: 
 //------------------------------------------------------------
 
 
-#define fileIO_ERR_CREATE    -1
-#define fileIO_ERR_OPEN      -2
-#define fileIO_ERR_REMOVE    -4
-#define fileIO_ERR_WRITE     -8
-#define fileIO_ERR_READ      -16
+#define fileIO_ERR_CREATE    -40
+#define fileIO_ERR_OPEN      -41
+#define fileIO_ERR_REMOVE    -42
+#define fileIO_ERR_WRITE     -43
+#define fileIO_ERR_READ      -44
+
 
 #define E_NOERR               0  // fileIO OK 
 #define EPERM                 1  // Operation not permitted 
@@ -55,21 +56,36 @@ int16_t remove_ ( char * filename) {                             // see ANSI C: 
 #define ENOMEDIUM           123  // No medium found 
 #define EMEDIUMTYPE         124  // Wrong medium type 
 
-#define E_NOERRstr              "fileIO OK" 
-#define EPERMstr                "Operation not permitted" 
-#define ENOENTstr               "No such file or directory"
-#define EIOstr                  "I/O error" 
-#define ENXIOstr                "No such device or address"
-#define EBADFstr                "Bad file number" 
-#define EACCESstr               "Permission denied" 
-#define EFAULTstr               "Bad address" 
-#define EEXISTstr               "File exists" 
-#define ENODEVstr               "No such device" 
-#define EMFILEstr               "Too many open files" 
-#define EROFSstr                "Read-only file system" 
-#define ETIMEDOUTstr            "Connection timed out" 
-#define ENOMEDIUMstr            "No medium found" 
-#define EMEDIUMTYPEstr          "Wrong medium type" 
+#define EUNKNOWN            127  // Unknown error
+
+//------------------------------------------------------------
+
+char * STRERROR(int num) {
+   if(num==0)  return    "fileIO OK"; 
+   if(num==1)  return    "Operation not permitted"; 
+   if(num==2)  return    "No such file or directory"; 
+   if(num==5)  return    "I/O error";  
+   if(num==6)  return    "No such device or address"; 
+   if(num==9)  return    "Bad file number";   
+   if(num==13)  return   "Permission denied";  
+   if(num==14)  return   "Bad address"; 
+   if(num==17)  return   "File exists"; 
+   if(num==19)  return   "No such device"; 
+   if(num==24)  return   "Too many open files"; 
+   if(num==30)  return   "Read-only file system"; 
+   if(num==110)  return  "Connection timed out"; 
+   if(num==123)  return  "No medium found"; 
+   if(num==124)  return  "Wrong medium type"; 
+   if(num==127)  return   "Unknown error";
+
+   if(num==-40)  return   "Error create file"; 
+   if(num==-41)  return   "Error open file"; 
+   if(num==-42)  return   "Error remove file"; 
+   if(num==-43)  return   "Error write file"; 
+   if(num==-44)  return   "Error read file";    
+
+   return "Unknown error";
+}
 
 
 
@@ -78,14 +94,15 @@ int16_t remove_ ( char * filename) {                             // see ANSI C: 
 
 
 
-String filelist[64];
-int filecount = 0;
+String filelist[128];
 
 File SdPath;
 
 
 //=================================================================
-int  readDirectory(File dir, int numLevel) {
+int  readDirectory(File dir, int dirLevel) {
+   volatile int filecount = -44;
+
    while (true) {
 
       File entry =  dir.openNextFile();
@@ -93,7 +110,7 @@ int  readDirectory(File dir, int numLevel) {
          // no more files
          break;
       }
-      for (uint8_t i = 0; i < numLevel; i++) {
+      for (uint8_t i = 0; i < dirLevel; i++) {
          //Serial.print('\t');
       }
 
@@ -115,7 +132,7 @@ int  readDirectory(File dir, int numLevel) {
          //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
          //display.println(filelist[filecount]);
          filecount++;
-         readDirectory(entry, numLevel + 1);
+         readDirectory(entry, dirLevel + 1);
       } else {
          // files have sizes, directories do not
          //Serial.println(filelist[filecount]);
@@ -132,7 +149,11 @@ int  readDirectory(File dir, int numLevel) {
    return filecount;
 }
 
-//------------------------------------------------------------
+//=================================================================
+
+
+
+
 
 #if defined (__arm__)  // ARM Cortex compatible
 
