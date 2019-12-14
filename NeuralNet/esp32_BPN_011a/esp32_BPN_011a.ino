@@ -8,7 +8,7 @@
 // 3-layer Backpropagation net
 
 // modified, extended, and enhanced by dsylexia
-// required MCUs: ESP8266, ESP32
+// required MCUs: ESP series
 // version 0.1.1a-32
 
 // (C) 2018 by dsyleixa
@@ -21,7 +21,7 @@
 
 // change log:
 // 0.1.1a-32: ESP32, optim dyn arrays, tft
-// 0.1.1-32: ESP32 
+// 0.1.1-32: ESP32
 // 0.1.1: input matrix=void   => output array=void={0,0,0,0,0,0,0,0,0,0}
 //        input matrix pattern="0" => output array={1,0,0,0,0,0,0,0,0,0}
 // 0.1.0: debug mode
@@ -31,6 +31,8 @@
 #include <Adafruit_GFX.h>         // Core graphics library
 #include <Adafruit_HX8357.h>      // Hardware-specific library
 #include <Adafruit_ImageReader.h> // Image-reading functions
+
+
 #if defined(ESP8266)
 #define TFT_CS   0
 #define TFT_DC   15
@@ -62,7 +64,7 @@
 #define SD_CS    5
 #endif
 
-Adafruit_HX8357      tft    = Adafruit_HX8357(TFT_CS, TFT_DC);
+Adafruit_HX8357   display = Adafruit_HX8357(TFT_CS, TFT_DC);
 
 
 #include <math.h>
@@ -1172,8 +1174,8 @@ volatile static int8_t StateMode, ModeLearn = 1, ModeDetect = 0, ModePause = 0;
 
 void setup() {
    Serial.begin(230400); // <<<<<<<<<<<<<<<<< !!
-   tft.begin();          // Initialize screen
-   tft.fillScreen(HX8357_BLACK);
+   display.begin();          // Initialize screen
+   display.fillScreen(HX8357_BLACK);
    
    delay(1000);
    timestamp = millis();
