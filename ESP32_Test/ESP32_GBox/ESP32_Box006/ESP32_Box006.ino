@@ -185,9 +185,9 @@ void markPos(int old, int cnt) {
 
 //-------------------------------------------
 
-void showScreenFileMenu() { 
+void showScreenFileMenu() {
    int filecount=-1;
-   
+
    if (isInRange( adc00, 346, 356 ) ) {     // btn bottom/esc
       FILELIST_ACTIVE = !FILELIST_ACTIVE;
       delay(1);
@@ -267,10 +267,10 @@ void LED_blink() {
 //=====================================================================
 void setup() {
    int tftline=10;
-   
+
    Serial.begin(115200);
    delay(500);
-   
+
    //LED_pin=LED_BUILTIN;  // default: LED_pin=LED_BUILTIN
    pinMode(LED_pin, OUTPUT);
 
@@ -278,14 +278,14 @@ void setup() {
    Adafruit_HX8357_ini(1);  // init function in lib <display_HX3857.h>
 
    COLOR_BGND = BLACK;
-   COLOR_TEXT = RED;
+   COLOR_TEXT = WHITE;
    display.fillScreen(COLOR_BGND);
-   display.setTextColor(RED);
+   display.setTextColor(WHITE);
    display.setTextSize(2);
    //display.setFont(&FreeMono9pt7b);
    Serial.println("setup(): display setup done!");
    Serial.println();
-   display.setTextColor(RED);
+   display.setTextColor(WHITE);
    display.setCursor(0, tftline); display.print("setup(): display setup done!");
    tftline+=15;
 
@@ -302,26 +302,36 @@ void setup() {
 
    Serial.println("setup(): ts buttons setup done!");
    Serial.println();
-   display.setTextColor(RED);
+   display.setTextColor(WHITE);
    display.setCursor(0, tftline); display.print("setup(): ts buttons setup done!");
    tftline+=15;
 
    //---------------------------------------------------------
    // SD
-   Serial.println("setup(): SD setup done!\n");
-   display.setTextColor(RED);
-   display.setCursor(0, tftline); display.print("setup(): SD setup done!");
+   display.setCursor(0, tftline); 
+   if( !SDioerr ) {
+      Serial.println("SD.begin(SD_CS) failed!");
+      Serial.println();
+      display.setTextColor(RED);
+      display.print("setup(): SD.begin(SD_CS) failed!");
+      delay(2000); // delay here
+   }
+   else {
+      Serial.println("setup(): SD setup done!\n");
+      display.setTextColor(WHITE); 
+      display.print("setup(): SD setup done!");
+   }
    tftline+=15;
-     
+
 
    //---------------------------------------------------------
    //i2c Wire
-   
+
    Wire.begin();
    Wire.setClock(400000);
    ads0.begin();
    Serial.println("setup(): i2c ads1115 setup done!\n");
-   display.setTextColor(RED);
+   display.setTextColor(WHITE);
    display.setCursor(0, tftline); display.print("setup(): i2c ads1115 setup done!");
    tftline+=15;
 
