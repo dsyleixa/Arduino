@@ -98,10 +98,10 @@ String filelist[128];
 
 File SdPath;
 
-
+volatile int filecount = 0;
 //=================================================================
 int  readDirectory(File dir, int dirLevel) {
-   volatile int filecount = -44;
+   
 
    while (true) {
 

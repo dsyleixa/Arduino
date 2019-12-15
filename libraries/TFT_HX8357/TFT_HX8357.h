@@ -156,7 +156,7 @@ void Adafruit_HX8357_ini(char orientation) {  // call in setup() !
   if( !SDioerr ) {
     Serial.println("SD.begin(SD_CS) failed!");
     Serial.println();
-    delay(2000); // delay here 
+    delay(1000); // delay here 
   }
   Serial.println("SD OK.");
   Serial.println(); 
