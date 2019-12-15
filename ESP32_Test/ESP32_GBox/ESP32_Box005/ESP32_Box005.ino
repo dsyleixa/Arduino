@@ -1,18 +1,4 @@
 // ESP32, boxed
-// Adafruit_HX8357 touchscreen feat.:
-// Adafruit_STMPE610
-// Adafruit_ImageReader
-// ads1115
-// PCF8574
-// MPU6050
-// analog joystick
-// analog 5x button pad
-
-// ver 0.6
-
-// change log:
-// 0.6: SD ls() + file select
-// 0.3: ads1115 
 
 //=====================================================================
 #include <TFT_HX8357.h>
@@ -164,10 +150,8 @@ void GetTSbuttons() {
 //         dn=166-168
 //       bottom=350-352
 //=====================================================================
-
-
 static int    cursorfilenr=-1, selectfilenr=-1;
-static bool   FILELIST_ACTIVE = false;
+static bool   FILELISTACTIVE = false;
 static String fileMarked="", fileSelected="";
 
 void ls(String *list, int size, int selectnr) {
@@ -200,9 +184,9 @@ void markPos(int old, int cnt) {
 //-------------------------------------------
 
 void showScreenFileMenu() {
-
-   if (isInRange( adc00, 305, 356 ) ) {     // btn bottom/esc
-      FILELIST_ACTIVE = !FILELIST_ACTIVE;
+   
+   if (isInRange( adc00, 346, 356 ) ) {     // btn bottom/esc
+      FILELISTACTIVE = !FILELISTACTIVE;
       delay(1);
       adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
       delay(1);
@@ -211,14 +195,14 @@ void showScreenFileMenu() {
       display.fillScreen(COLOR_BGND);
       COLOR_TEXT = WHITE;
       display.setTextColor(COLOR_TEXT);
-      if(FILELIST_ACTIVE) {
+      if(FILELISTACTIVE) {
          readDirectory(SdPath, 0);
          ls(filelist, filecount, selectfilenr);
          markPos(cursorfilenr, cursorfilenr);
       }
    }
    else                                     // btn dn
-      if (isInRange( adc00, 162, 172 ) && FILELIST_ACTIVE && cursorfilenr <= filecount) {
+      if (isInRange( adc00, 162, 172 ) && FILELISTACTIVE && cursorfilenr <= filecount) {
          if (cursorfilenr < filecount-1) {
             markPos(cursorfilenr, cursorfilenr+1);
             cursorfilenr++;
@@ -229,7 +213,7 @@ void showScreenFileMenu() {
          adc00 = mapConstrain(adc00);
       }
       else                                     // btn up
-         if (isInRange( adc00, 0, 10 ) && FILELIST_ACTIVE && cursorfilenr >= 0) {
+         if (isInRange( adc00, 0, 10 ) && FILELISTACTIVE && cursorfilenr >= 0) {
             markPos(cursorfilenr, cursorfilenr-1);
             if (cursorfilenr >= 0) cursorfilenr--;
             delay(1);
@@ -239,12 +223,12 @@ void showScreenFileMenu() {
          }
 
    if(cursorfilenr>=0) {
-      if (FILELIST_ACTIVE) fileMarked=filelist[cursorfilenr];
+      if (FILELISTACTIVE) fileMarked=filelist[cursorfilenr];
       else fileMarked="";
    }
 
    // btn right
-   if (isInRange( adc00, 29, 39 ) && FILELIST_ACTIVE && cursorfilenr >= 0) {
+   if (isInRange( adc00, 29, 39 ) && FILELISTACTIVE && cursorfilenr >= 0) {
       if(selectfilenr!=cursorfilenr) {
          selectfilenr=cursorfilenr;
          fileSelected=filelist[selectfilenr];
@@ -279,11 +263,9 @@ void LED_blink() {
 //=====================================================================
 //=====================================================================
 void setup() {
-   int tftline=10;
-
    Serial.begin(115200);
    delay(500);
-
+   
    //LED_pin=LED_BUILTIN;  // default: LED_pin=LED_BUILTIN
    pinMode(LED_pin, OUTPUT);
 
@@ -291,19 +273,17 @@ void setup() {
    Adafruit_HX8357_ini(1);  // init function in lib <display_HX3857.h>
 
    COLOR_BGND = BLACK;
-   COLOR_TEXT = WHITE;
+   COLOR_TEXT = RED;
    display.fillScreen(COLOR_BGND);
-   display.setTextColor(WHITE);
+   display.setTextColor(COLOR_TEXT);
    display.setTextSize(2);
    //display.setFont(&FreeMono9pt7b);
-   Serial.println("setup(): display setup done!");
+   Serial.println("display Setup done!");
    Serial.println();
-   display.setTextColor(WHITE);
-   display.setCursor(0, tftline); 
-   display.print("setup(): display setup done!");
-   tftline+=15;
+   display.setCursor(0, 10); display.print("display Setup done!");
 
    //---------------------------------------------------------
+
    //TS buttons
    TSbutton1.initButton(&display, display.width()-37,  20, 76, 40, CYAN, BLUE, YELLOW, "Btn1", 2);
    TSbutton1.drawButton();
@@ -314,41 +294,26 @@ void setup() {
    TSbutton3.initButton(&display, display.width()-37, 180, 76, 40, CYAN, BLUE, YELLOW, "Btn3", 2);
    TSbutton3.drawButton();
 
-   Serial.println("setup(): ts buttons setup done!");
-   Serial.println();
-   display.setTextColor(WHITE);
-   display.setCursor(0, tftline); display.print("setup(): ts buttons setup done!");
-   tftline+=15;
+   //---------------------------------------------------------
+
+   Serial.print("Initializing SD card...");
+
+   if (!SD.begin(SD_CS)) {
+      Serial.println("initialization failed!");
+      while (1);
+   }
+   Serial.println("initialization done.");
+   SdPath = SD.open("/");
 
    //---------------------------------------------------------
-   // SD
-   display.setCursor(0, tftline); 
-   if( !SDioerr ) {
-      Serial.println("SD.begin(SD_CS) failed!");
-      Serial.println();
-      display.setTextColor(RED);
-      display.print("setup(): SD.begin(SD_CS) failed!");
-      delay(2000); // delay here
-   }
-   else {
-      SdPath = SD.open("/");
-      Serial.println("setup(): SD setup done!\n");
-      display.setTextColor(WHITE); 
-      display.print("setup(): SD setup done!");
-   }
-   tftline+=15;
-
-
-   //---------------------------------------------------------
-   //i2c Wire
 
    Wire.begin();
    Wire.setClock(400000);
    ads0.begin();
-   Serial.println("setup(): i2c ads1115 setup done!\n");
-   display.setTextColor(WHITE);
-   display.setCursor(0, tftline); display.print("setup(): i2c ads1115 setup done!");
-   tftline+=15;
+   Serial.println("i2c ads1115 Setup done!");
+   Serial.println();
+   display.setTextColor(COLOR_TEXT);
+   display.setCursor(0, 30); display.print("i2c ads1115 Setup done!");
 
    delay(1000);
    display.fillScreen(COLOR_BGND);
