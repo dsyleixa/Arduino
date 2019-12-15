@@ -107,6 +107,19 @@ double ByteArrayToFloat(uint8_t * barray, uint8_t  slot) {
 }
 
 
+/* BinaryIntArrayToInt32()
+   0        9
+   0000000001 is 1
+   0000000010 is 2
+   0000000111 is 7*/
+
+int32_t BinaryIntArrayToInt32(int * binArray, int arrlen){
+   int32_t Dec;
+   for (int i=0 ; i<arrlen ; i++ ) {
+        Dec=Dec+(binArray[i] << (arrlen-i-1));
+   }
+}
+
 //------------------------------------------------------------------------------
 // read+write bits in numbers
 // included already in Arduino libs by default
