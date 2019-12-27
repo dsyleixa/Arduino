@@ -101,10 +101,13 @@ float TFTaspratio=1.5;
 TS_Point p;
 
 // Touch Calibration
+
 int TS_MINX = 100;
 int TS_MAXX = 3800;
 int TS_MINY = 100;
 int TS_MAXY = 3750;
+
+
 
 
 
@@ -133,23 +136,31 @@ void Adafruit_HX8357_ini(char orientation) {  // call in setup() !
   clock=HX8357D; 
   
   // TFT
-  display.begin(HX8357D);  
-  display.setRotation(orientation);
-  display.fillScreen(BLACK);
-  display.setTextSize(2);
-  TFTaspratio = display.width()/(float)display.height(); 
-  Serial.println("Adafruit_HX8357_ini: Display started");  
+  display.begin(clock);  
 
-
-  //---------------------------------------------------------
   // TS
+  if(orientation==3) {
+    TS_MINX = 3800;
+    TS_MAXX = 100;
+    TS_MINY = 3800;
+    TS_MAXY = 100;
+  }
+
   if (!ts.begin()) {
     Serial.println("Adafruit_HX8357_ini: Couldn't start touchscreen controller");
     delay(2000); // Loop here
   }
   Serial.println("Adafruit_HX8357_ini: Touchscreen started");  
 
+  // TFT osrotation
+  display.setRotation(orientation);
+  display.fillScreen(BLACK);
+  display.setTextSize(2);
+  TFTaspratio = display.width()/(float)display.height(); 
+  Serial.println("Adafruit_HX8357_ini: Display started");  
+
   
+  //----------------------------------------------------
   // SD
     Serial.print(F("Adafruit_HX8357_ini: Initializing SD card... "));
   SDioerr=SD.begin(SD_CS);
