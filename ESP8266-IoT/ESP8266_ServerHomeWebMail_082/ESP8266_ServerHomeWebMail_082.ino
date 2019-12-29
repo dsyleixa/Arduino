@@ -952,7 +952,8 @@ void setup() {
 
    WiFi.mode(WIFI_STA);
    // WiFi.config(local_this_ip, gateway, subnet);
-   WiFi.config(this_ip, gateway, gateway, subnet);   // feste IP, dns server
+   // WiFi.config(this_ip, gateway, gateway, subnet);   // feste IP, dns server
+   WiFi.config(this_ip, gateway, subnet, gateway, gateway); // dns = gateway
    WiFi.begin(ssid, password);
 
    while (WiFi.status() != WL_CONNECTED) {
