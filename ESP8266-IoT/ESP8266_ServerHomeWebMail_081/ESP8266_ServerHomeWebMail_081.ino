@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------
 //  ESP8266 NodeMCU
-//  webserver,  lanserver und udpclient
+//  wifiserver,  webserver und udpclient
 //  ESP8266WiFi Server für website (remote display und remote control)
 //
 // History:
