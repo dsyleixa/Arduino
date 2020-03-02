@@ -34,7 +34,7 @@ char * cstringarg();
 // cstring functions
 //----------------------------------------------------------------------------
 
-char * sprintDouble(char* s, double val, int width, int prec, bool sign=false)  {   
+char * sprintDouble(char* s, double val, int width, int prec, bool sign)  {   
    char sbuf[20] ="\0";
    strcpy(s, "\0");
    dtostrf(val, width, prec, s);
@@ -202,53 +202,49 @@ char * stradd(char * s, int n, ...)  // "adds strings" s=sumstring , n=number_in
 
 //------------------------------------------------------------
 
-int16_t  strstrpos(char * haystack,  char * needle)   // find 1st occurance of substr in str
-{
-  char *p = strstr(haystack, needle);
-  if (p) return p - haystack;
-  return -1;   // Not found = -1.
-}
 
-//-------------------------------------------------------
 const int  MAXLEN = 1024;
 const int  TOKLEN = 64;
 
-//-------------------------------------------------------
-char * cstringarg( char* haystack, char* vname, char* sarg ) {
-  int i = 0, pos = -1;
-  unsigned char  ch = 0xff;
-  const char*  kini = "&";       // start of varname: '&'
-  const char*  kin2 = "?";       // start of varname: '?'
-  const char*  kequ = "=";       // end of varname, start of argument: '='
-  char  needle[TOKLEN] = "";     // complete pattern:  &varname=abc1234
-
-  strcpy(sarg, "");
-  strcpy(needle, kini);
-  strcat(needle, vname);
-  strcat(needle, kequ);
-  pos = strstrpos(haystack, needle);
-  if (pos == -1) {
-    needle[0] = kin2[0];
-    pos = strstrpos(haystack, needle);
-    if (pos == -1) return sarg;
-  }
-  pos = pos + strlen(vname) + 2; // start of value = kini+vname+kequ
-  while ( (ch != '&') && (ch != '\0') ) {
-    ch = haystack[pos + i];
-    if ( (ch == '&') || (ch == ';') || (ch == ' ') || (ch == '\0') || (ch == '\n')
-         || (i + pos >= strlen(haystack)) || (i > TOKLEN - 1) ) {
-      sarg[i] = '\0';
-      return sarg;
-    }
-    if ( (ch != '&') ) {
-      sarg[i] = ch;
-      i++;
-    }
-  }
-  return sarg;
+int16_t  strstrpos(char * haystack,  char * needle)   // find 1st occurance of substr in str
+{
+   char *p = strstr(haystack, needle);
+   if (p) return p - haystack;
+   return -1;   // Not found = -1.
 }
 
+//----------------------------------------------------------------------------
 
+char * cstringarg( char * sarg, char * haystack, char * vname ) {
+   int i=0, pos=-1;
+   char  cequ='='; // default
+   int   ch=-2;
+   char  kini[3] = "&";     // &varname=1234
+   char  kequ[3] = "=";
+   char  keyw[TOKLEN]="";  
+
+   kequ[0] = cequ;
+   strcpy(sarg,"");
+   strcpy(keyw, kini);
+   strcat(keyw, vname);
+   strcat(keyw, kequ);
+   pos = strstrpos(haystack, keyw); 
+   if(pos==-1) return sarg;
+   pos=pos+strlen(vname)+2; // start of value = kini+vname+kequ   
+   while( (ch!='&')&&(ch!=EOF)&&(ch!='\0') ) {
+      ch=haystack[pos+i];    
+      if( (ch=='&')||(ch==';')||(ch==' ')||(ch=='\0') ||(ch=='\n')||(ch==EOF)
+        ||(i+pos>=strlen(haystack))||(i>TOKLEN-1) ) {
+         sarg[i]='\0';
+         return sarg;
+      }       
+      if( (ch!='&') &&(ch!=EOF)) {
+         sarg[i]=ch;          
+         i++;       
+      }      
+   } 
+   return sarg;
+}
 
 
 
