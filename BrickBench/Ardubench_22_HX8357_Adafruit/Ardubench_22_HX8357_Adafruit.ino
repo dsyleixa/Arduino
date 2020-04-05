@@ -82,8 +82,6 @@ Adafruit_STMPE610 ts = Adafruit_STMPE610(STMPE_CS);
 
 
 
-#define  TimerMS() millis()
-
 unsigned long runtime[10];
 
 
@@ -475,59 +473,59 @@ long test(){
 
   
   
-  time0= TimerMS();
+  time0= millis();
 
   s=test_Int_Add();
-  runtime[0]=TimerMS()-time0;
+  runtime[0]=millis()-time0;
   sprintf (buf, "%3d %9ld  int_Add",    0, runtime[0]); 
   Serial.println( buf);
   tft.println( buf);
 
-  time0=TimerMS();
+  time0=millis();
   s=test_Int_Mult();
-  runtime[1]=TimerMS()-time0;
+  runtime[1]=millis()-time0;
   sprintf (buf, "%3d %9ld  int_Mult",   1, runtime[1]); 
   Serial.println( buf);
   tft.println( buf);
 
 
-  time0=TimerMS();
+  time0=millis();
   s=test_fp32_math();
-  runtime[2]=TimerMS()-time0;
+  runtime[2]=millis()-time0;
   sprintf (buf, "%3d %9ld  fp32_ops",   2, runtime[2]); 
   Serial.println( buf);  
   tft.println( buf);
   //debug  // Serial.println(s);
 
 
-  time0=TimerMS();
+  time0=millis();
   s=test_fp64_math();
-  runtime[3]=TimerMS()-time0;
+  runtime[3]=millis()-time0;
   sprintf (buf, "%3d %9ld  fp64_ops",   3, runtime[3]); 
   Serial.println( buf);  
   tft.println( buf);
   //debug  // Serial.println(s);
   
 
-  time0=TimerMS();
+  time0=millis();
   s=test_rand_MT();
-  runtime[4]=TimerMS()-time0;
+  runtime[4]=millis()-time0;
   sprintf (buf, "%3d %9ld  randomize",  4, runtime[4]); 
   Serial.println( buf);
   tft.println( buf);
  
 
-  time0=TimerMS();
+  time0=millis();
   s=test_matrix_math();
-  runtime[5]=TimerMS()-time0;
+  runtime[5]=millis()-time0;
   sprintf (buf, "%3d %9ld  matrx_algb", 5, runtime[5]); 
   Serial.println( buf);
   tft.println( buf);
  
 
-  time0=TimerMS();
+  time0=millis();
   s=test_Sort();
-  runtime[6]=TimerMS()-time0;
+  runtime[6]=millis()-time0;
   sprintf (buf, "%3d %9ld  arr_sort",   6, runtime[6]); 
   Serial.println( buf);
   tft.println( buf);
@@ -535,19 +533,19 @@ long test(){
 
   // GPIO R/W toggle test
   //Serial.println("GPIO_toggle test");
-  time0=TimerMS();
+  time0=millis();
   s=test_GPIO();
-  runtime[7]=TimerMS()-time0;
+  runtime[7]=millis()-time0;
   sprintf (buf, "%3d %9ld  GPIO_toggle", 7, runtime[7]); 
   Serial.println( buf);
   tft.println( buf);
 
  
   // lcd display text / graphs
-  time0=TimerMS();
+  time0=millis();
   s=test_TextOut();  
   s=test_graphics();
-  runtime[8]=TimerMS()-time0;
+  runtime[8]=millis()-time0;
   sprintf (buf, "%3d %9ld  Graphics   ", 8, runtime[8]); 
   Serial.println( buf); 
   tft.println( buf);

@@ -8,7 +8,7 @@
 // protected under the friendly Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // http://creativecommons.org/licenses/by-nc-sa/3.0/
 // version 2.2  (2019-04-15)
-// Adafruit ILI9340 / ILI9341
+// no graphics
 // change log:
 // 2.2.   testing both 32fp and 64fp 
 // 2.1.1. 32bit fp tests vs. 64bit double (ARM/32bit cores, optional)
@@ -18,24 +18,6 @@
 
 
 #include "SPI.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_ILI9341.h"
-
-
-
-// Arduino TFT pins
-#define    tft_cs     10
-#define    tft_dc      9
-#define    tft_rst     8
-
-//Adafruit_ILI9341 tft = Adafruit_ILI9341(tft_cs, tft_dc, tft_rst);
-// Adafruit Hardware SPI, no RST
-Adafruit_ILI9341 tft = Adafruit_ILI9341(tft_cs, tft_dc);
-
-
-
-Adafruit_HX8357 tft = Adafruit_HX8357(TFT_CS, TFT_DC, TFT_RST);
-Adafruit_STMPE610 ts = Adafruit_STMPE610(STMPE_CS);
 
 
 
@@ -47,8 +29,7 @@ unsigned long runtime[10];
 
 
 void TFTprint(char sbuf[], int16_t x, int16_t y) {
-  tft.setCursor(x, y);
-  tft.print(sbuf);
+  
 }
 
 int a[500], b[500], c[500], t[500];
@@ -351,7 +332,7 @@ int32_t test_GPIO_AVR() {  // 6,000,000 GPIO bit r/w
 inline void displayValues() {
 
   char buf[120];
-  tft.fillScreen(0x0000); // clrscr()
+  //tft.fillScreen(0x0000); // clrscr()
 
     sprintf (buf, "%3d %9ld  int_Add",    0, runtime[0]); TFTprint(buf, 0, 9);
     sprintf (buf, "%3d %9ld  int_Mult",   1, runtime[1]); TFTprint(buf, 0,18);
@@ -361,7 +342,7 @@ inline void displayValues() {
     sprintf (buf, "%3d %9ld  matrx_algb", 5, runtime[5]); TFTprint(buf, 0,54);
     sprintf (buf, "%3d %9ld  arr_sort",   6, runtime[6]); TFTprint(buf, 0,63);
     sprintf (buf, "%3d %9ld  GPIO_togg",  7, runtime[7]); TFTprint(buf, 0,72);
-    sprintf (buf, "%3d %9ld  Graphics",   8, runtime[8]); TFTprint(buf, 0,80);
+    //sprintf (buf, "%3d %9ld  Graphics",   8, runtime[8]); TFTprint(buf, 0,80);
 }
 
 //--------------------------------------------
@@ -370,7 +351,7 @@ int32_t test_TextOut(){
   char buf[120];
  
   for(y=0;y<10;++y) {   
-    tft.fillScreen(0x0000); // clrscr()
+    //tft.fillScreen(0x0000); // clrscr()
     sprintf (buf, "%3d %9d  int_Add",    y, 1000);  TFTprint(buf, 0, 9);
     sprintf (buf, "%3d %9d  int_Mult",   0, 1010);  TFTprint(buf, 0,18);
     sprintf (buf, "%3d %9d  fp32_op",    0, 1032);  TFTprint(buf, 0,27);
@@ -392,9 +373,10 @@ int32_t test_graphics(){
  
  
   for(y=0;y<10;++y) {
-    tft.fillScreen(0x0000);
+    //tft.fillScreen(0x0000);
     sprintf (buf, "%3d", y);  TFTprint(buf, 0,80); // outcomment for downwards compatibility
 
+    /*
     tft.drawCircle(50, 40, 10, 0xFFFF);
     tft.fillCircle(30, 24, 10, 0xFFFF);
     tft.drawLine(10, 10, 60, 60, 0xFFFF);
@@ -402,7 +384,7 @@ int32_t test_graphics(){
     tft.drawRect(20, 20, 40, 40, 0xFFFF);
     tft.fillRect(65, 25, 20, 30, 0xFFFF);
     tft.drawCircle(70, 30, 15, 0xFFFF); 
-
+    */
   }
   return y;
 }
@@ -423,7 +405,7 @@ long test(){
   }
 
   Serial.println("start test");
-  tft.println("start test");
+  //tft.println("start test");
   delay(10);
 
   
@@ -434,14 +416,14 @@ long test(){
   runtime[0]=millis()-time0;
   sprintf (buf, "%3d %9ld  int_Add",    0, runtime[0]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
 
   time0=millis();
   s=test_Int_Mult();
   runtime[1]=millis()-time0;
   sprintf (buf, "%3d %9ld  int_Mult",   1, runtime[1]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
 
 
   time0=millis();
@@ -449,7 +431,7 @@ long test(){
   runtime[2]=millis()-time0;
   sprintf (buf, "%3d %9ld  fp32_ops",   2, runtime[2]); 
   Serial.println( buf);  
-  tft.println( buf);
+  //tft.println( buf);
   //debug  // Serial.println(s);
 
 
@@ -458,7 +440,7 @@ long test(){
   runtime[3]=millis()-time0;
   sprintf (buf, "%3d %9ld  fp64_ops",   3, runtime[3]); 
   Serial.println( buf);  
-  tft.println( buf);
+  //tft.println( buf);
   //debug  // Serial.println(s);
   
 
@@ -467,7 +449,7 @@ long test(){
   runtime[4]=millis()-time0;
   sprintf (buf, "%3d %9ld  randomize",  4, runtime[4]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
  
 
   time0=millis();
@@ -475,7 +457,7 @@ long test(){
   runtime[5]=millis()-time0;
   sprintf (buf, "%3d %9ld  matrx_algb", 5, runtime[5]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
  
 
   time0=millis();
@@ -483,7 +465,7 @@ long test(){
   runtime[6]=millis()-time0;
   sprintf (buf, "%3d %9ld  arr_sort",   6, runtime[6]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
 
 
   // GPIO R/W toggle test
@@ -493,18 +475,21 @@ long test(){
   runtime[7]=millis()-time0;
   sprintf (buf, "%3d %9ld  GPIO_toggle", 7, runtime[7]); 
   Serial.println( buf);
-  tft.println( buf);
+  //tft.println( buf);
 
- 
+
+  
   // lcd display text / graphs
   time0=millis();
+  /*
   s=test_TextOut();  
   s=test_graphics();
+  */
   runtime[8]=millis()-time0;
   sprintf (buf, "%3d %9ld  Graphics   ", 8, runtime[8]); 
   Serial.println( buf); 
-  tft.println( buf);
-
+  //tft.println( buf);
+  
   Serial.println();
  
   y = 0;
@@ -532,10 +517,12 @@ void setup() {
   while(!Serial);
 
   // Setup the LCD
+  /*
   tft.begin();
   tft.setRotation(3);
   tft.fillScreen(0x0000);
   tft.setTextColor(0xFFFF); tft.setTextSize(1);
+  */
   Serial.println("tft started");
 
   pinMode(tpin1, OUTPUT);
