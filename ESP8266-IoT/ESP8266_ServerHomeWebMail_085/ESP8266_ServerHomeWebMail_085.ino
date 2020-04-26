@@ -4,7 +4,7 @@
 //  ESP8266WiFi Server für website (remote display und remote control)
 //
 // History:
-// 0.8.5 lcd2004_i2c
+// 0.8.5a lcd2004_i2c ; a: 'red'-- else in tables
 // 0.8.4 alarms
 // 0.8.3 confirm last activity; ==>> no email!
 // 0.8.1 Webserver+dns
@@ -27,8 +27,11 @@
 //
 
 //----------------------------------------------------------------------------
+// target server, version
+
 #define TARGET 'Z'  // Server-Zielpattform (Z,T,Q => versch. IPs, Ports, urls)
-String  ver = (String)TARGET +  ".085" ;
+String  ver = (String)TARGET +  ".085a" ;
+
 //----------------------------------------------------------------------------
 // Wifi data from  "data\settings.h"
 #include "data\settings.h"  // sets + initializes passwords
@@ -195,11 +198,11 @@ String A2muxname = "Sens.2";
 String A3muxname = "Sens.3";
 
 
-String c0A0intname = "Sens.A0";  // intern: ESP8266
-String c0A0muxname = "Erde.Li";  // mux: ADS1115 (i2c)
-String c0A1muxname = "Erde.Re";
-String c0A2muxname = "Erde.A2";
-String c0A3muxname = "Wasser ";
+String c0A0intname = "Sens.int";  // intern: ESP8266
+String c0A0muxname = "Erde.A0 ";  // mux: ADS1115 (i2c)
+String c0A1muxname = "Erde.A1 ";
+String c0A2muxname = "Erde.A2 ";
+String c0A3muxname = "Sens.A3 ";
 
 
 
@@ -566,6 +569,7 @@ void resetConfirmTime() {
 }
 
 //----------------------------------------------------------------------------
+int adcSoilMin = 30;
 
 int checkAlarms() {
    EmergencyCnt = 0;
@@ -577,10 +581,10 @@ int checkAlarms() {
    if(c1t1.tFail > 2*60) EmergencyCnt++;
    if(c2t1.tFail > 2*60) EmergencyCnt++;
 
-   if(c0adc0.vmean< 30 || c0adc0.tFail>2*60) EmergencyCnt++;  // real ADC Value % < 30
-   if(c0adc1.vmean< 30 || c0adc1.tFail>2*60) EmergencyCnt++;
-   if(c0adc2.vmean< 30 || c0adc2.tFail>2*60) EmergencyCnt++;
-   if(c0adc3.vmean< 30 || c0adc3.tFail>2*60) EmergencyCnt++;
+   if(c0adc0.vmean< adcSoilMin || c0adc0.tFail>2*60) EmergencyCnt++;  // real ADC Value % < adcSoilMin
+   if(c0adc1.vmean< adcSoilMin || c0adc1.tFail>2*60) EmergencyCnt++;
+   if(c0adc2.vmean< adcSoilMin || c0adc2.tFail>2*60) EmergencyCnt++;
+   if(c0adc3.vmean< adcSoilMin || c0adc3.tFail>2*60) EmergencyCnt++;
 
    return EmergencyCnt;   
 }
@@ -601,7 +605,7 @@ void dashboard(int mode) {
    if ( !digitalRead(PIN_RESETAlarm) ) mode = RSTMODE;
 
    display.clearDisplay();
-   display.setFont();
+   display.setFont();   
    lcd.clear();
 
    if (mode == 0)  {
@@ -688,16 +692,13 @@ void dashboard(int mode) {
    }
    
    else if (mode == 6) { // c0adc
-      display.setCursor( 0, 10);  display.print((String)"C0 Aussen: ");
-      //display.setCursor( 0, 20);  display.print((String)"ESPA0: " + c0espA0.sact);
-      display.setCursor( 0, 20);  display.print((String)"Humid0: " + c0adc0.sact);
-      display.setCursor( 0, 30);  display.print((String)"Humid1: " + c0adc1.sact);
-      display.setCursor( 0, 40);  display.print((String)"Humid2: " + c0adc2.sact);
-      display.setCursor( 0, 50);  display.print((String)"Humid3: " + c0adc3.sact);
-      lcd.setCursor(0,0); lcd.print("GwH Humid0= " + (String)c0adc0.sact);
-      lcd.setCursor(0,1); lcd.print("GwH Humid1= " + (String)c0adc1.sact);
-      lcd.setCursor(0,2); lcd.print("GwH Humid2= " + (String)c0adc2.sact);
-      lcd.setCursor(0,3); lcd.print("GwH Humid3= " + (String)c0adc3.sact);
+      display.setFont(&FreeSans9pt7b);                    // opt.: FreeSerif9pt7b
+      display.setCursor( 0, 12);  display.print( datestr );
+      display.setCursor( 0, 28);  display.print( timestr);      
+      lcd.setCursor(0,0); lcd.print(timestr);
+      lcd.setCursor(0,1); lcd.print(datestr);
+      lcd.setCursor(0,2); lcd.print("");
+      lcd.setCursor(0,3); lcd.print("T Innen  = " + (String)t1.sact + "'C");
    }
 
    else if (mode == 7) {
@@ -714,11 +715,11 @@ void dashboard(int mode) {
       display.setFont(&FreeSans9pt7b);
       display.setCursor( 0, 12);  display.print("Alarms: " + (String)EmergencyCnt);
       display.setCursor( 0, 28);  display.print("Erinn.: " + (String)RemindCnt);
-      display.setCursor( 0, 44);  if ( !digitalRead(PIN_RESETAlarm) ) display.print("Reset Alarm ");
+      display.setCursor( 0, 44);  
       
       lcd.setCursor(0,0); lcd.print("Alarms: " + (String)EmergencyCnt);
       lcd.setCursor(0,1); lcd.print("Erinn.: " + (String)RemindCnt);
-      lcd.setCursor(0,2); if ( !digitalRead(PIN_RESETAlarm) ) lcd.print("Reset Alarm ");
+      lcd.setCursor(0,2); lcd.print("");
       lcd.setCursor(0,3); lcd.print("");
       
       
@@ -838,6 +839,7 @@ void setup() {
    //  LCD   
    lcd.init();
    lcd.backlight();
+   lcd.noBlink();
    Serial.println("LCD display init OK");
    lcd.setCursor(0, 0);  lcd.print("LCD display init OK"); 
    
@@ -1748,21 +1750,33 @@ void handleWebsite() {
    // Zeile 4 Client 0
    strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean) );
    script +=  "<tr> ";
-   script +=      "<th>" + (String)(int)round(c0p1.vact)  + " " + (String)dsymbol + "</th> ";
+   script +=      "<th>" + (String)dsymbol  + " " + (String)(int)round(c0p1.vact) + "</th> ";
    script +=      "<th>" + (String)(int)round(c0p1.vmean) + " </th> ";
    script +=      "<th>" + (String)(" - ")  + "</th> ";
    script +=      "<th>" + (String)(" - ")  + "</th> ";
    script +=      "<th>" + (String)c0espA0.sact + "</th> ";
-   if (c0adc0.tFail > 60) {
+   
+   if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
       script += (String)"<td bgcolor='red'>";
    } else script += (String)"<th>";
    script +=               (String)c0adc0.sact + "</th> ";
-   if (c0adc1.tFail > 60) {
+
+   if (c0adc1.tFail>60 || c0adc1.vmean<adcSoilMin) {
       script += (String)"<td bgcolor='red'>";
    } else script += (String)"<th>";
    script +=               (String)c0adc1.sact + "</th> ";
-   script +=      "<th>" + (String)c0adc2.sact + "</th> ";
-   script +=      "<th>" + (String)c0adc3.sact + "</th> ";
+
+   if (c0adc2.tFail>60 || c0adc2.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+   } else script += (String)"<th>";
+   script +=               (String)c0adc2.sact + "</th> ";
+
+   if (c0adc3.tFail>60 || c0adc3.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+   } else script += (String)"<th>";
+   script +=               (String)c0adc3.sact + "</th> ";
+
+
    script +=    "</tr> ";
 
    script +=  "</tbody> ";
@@ -1887,7 +1901,8 @@ void handleWebsite() {
    script +=       "<tr> ";
    if (c1t1.tFail > 60) {
       script += (String)"<td bgcolor='red'>";
-   } else script += (String)"<th>";
+   } else 
+   script += (String)"<th>";
    script +=         (String)c1t1.sact  + " °C </th> ";
    script +=         (String)"<th>" + c1t1.smin   + "</th> ";
    script +=         (String)"<th>" + c1t1.smax   + "</th> ";
@@ -1996,7 +2011,8 @@ void handleWebsite() {
    script +=    "<tr> ";
    if (c2t1.tFail > 60) {
       script += (String)"<td bgcolor='red'>";
-   } else script += (String)"<th>";
+   } else  
+   script += (String)"<th>";
    script +=      (String)c2t1.sact  + " °C </th> ";
    script +=      (String)"<th>" + c2t1.smin   + "</th> ";
    script +=      (String)"<th>" + c2t1.smax   + "</th> ";
