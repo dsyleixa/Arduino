@@ -5,7 +5,7 @@
 // Use for professional or business purpose only by personal written permission 
 // by the author.
 
-// ButtonClass.cpp
+
 
 
 #include <ButtonClass.h>
