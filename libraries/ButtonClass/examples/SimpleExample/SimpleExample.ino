@@ -20,6 +20,7 @@ void setup() {
   pinMode(13, OUTPUT); // debug
   
   Serial.println("Serial started\n");
+  Serial.println("press either button by 1 short click, double click, or long press! \n");
   btn1.init(2, INPUT_PULLUP);  // <<< adjust
   btn2.init(3, INPUT_PULLUP);  // <<< adjust
 }
