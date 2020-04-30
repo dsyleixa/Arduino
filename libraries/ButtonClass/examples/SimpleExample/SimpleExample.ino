@@ -7,7 +7,6 @@
 
 
 
-
 #include <ButtonClass.h>
 
 
@@ -21,8 +20,8 @@ void setup() {
   pinMode(13, OUTPUT); // debug
   
   Serial.println("Serial started\n");
-  btn1.init(4, INPUT_PULLUP);  // <<< adjust
-  btn2.init(5, INPUT_PULLUP);  // <<< adjust
+  btn1.init(2, INPUT_PULLUP);  // <<< adjust
+  btn2.init(3, INPUT_PULLUP);  // <<< adjust
 }
 
 //------------------------------------------------------------------------

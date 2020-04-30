@@ -14,7 +14,7 @@
 // 0.0.3 long press= 6*short press
 
 // ButtonClass.h
-// ver 0.0.8
+// ver 0.0.9
 
 
 #ifndef __BTNCLASS__
@@ -45,7 +45,7 @@
 class tButton {
   
    //---------------------------------------------------------- 
-   protected:  
+   private:  
    
     
     int16_t  pin;
