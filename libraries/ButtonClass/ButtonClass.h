@@ -6,6 +6,7 @@
 // by the author.
 
 // history
+// 0.0.9 private + to do
 // 0.0.8 new level 31 & debounce premature 2nd click
 // 0.0.7 PCF + MCP pin-read (outline) 
 // 0.0.6 adjustable long press
@@ -21,7 +22,7 @@
 #define __BTNCLASS__ 
 
 #include <Arduino.h>
-
+                                                // to do...
 #define PCF_INPUT          8574
 #define PCF_INPUT_PULLUP  -8574
 #define MCP_INPUT         23017
@@ -44,9 +45,8 @@
 
 class tButton {
   
-   //---------------------------------------------------------- 
-   private:  
-   
+  //---------------------------------------------------------- 
+  private:     
     
     int16_t  pin;
     int32_t  mode;
@@ -89,7 +89,7 @@ class tButton {
       if(_mode==INPUT) return digitalRead(_pin);
       else
       if(_mode==INPUT_PULLUP) return !digitalRead(_pin);
-      else
+      else                                                 // to do...
       if(_mode==ANALOG_HIGH) return analogRead(_pin)>900;
       else
       if(_mode==ANALOG_LOW)  return analogRead(_pin)<100;
@@ -107,7 +107,7 @@ class tButton {
 
       
       /*
-      else
+      else                                                // to do...
       if(_mode==PCF_INPUT) return !pcfRead(_pin);
       else
       if(_mode==PCF_INPUT_PULLUP) return !pcfRead(_pin);
@@ -120,8 +120,8 @@ class tButton {
     } 
 
 
-  //----------------------------------------------------------
-  public:       
+ //----------------------------------------------------------
+ public:       
 
     tButton () : 
       pin(0xFF), aktMillis(0), aktMillis2(0), 
