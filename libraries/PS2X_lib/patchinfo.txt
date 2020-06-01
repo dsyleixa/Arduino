@@ -6,4 +6,8 @@
 *  exchanged by 
 *  #if defined (ESP8266) || defined(ESP32)
 *
-******************************************************************/
+******************************************************************/https://github.com/madsci1016/Arduino-PS2X/issues/19
+
+https://github.com/madsci1016/Arduino-PS2X/issues/19
+https://github.com/madsci1016/Arduino-PS2X/issues/24
+
