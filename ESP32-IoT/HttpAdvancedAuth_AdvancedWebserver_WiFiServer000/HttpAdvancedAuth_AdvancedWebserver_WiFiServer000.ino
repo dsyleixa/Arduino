@@ -114,7 +114,7 @@ void handleNotFound() {
 
 //----------------------------------------------------------
 void setup() {
-  sprintf(url, "%s:%d/","http://trillian.sytes.net",wwwport); 
+  sprintf(url, "%s:%d/","http://ford.sytes.net:",wwwport); 
   
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
@@ -155,6 +155,8 @@ void setup() {
 
   Serial.print("Open http://");
   Serial.print(WiFi.localIP());
+  Serial.print(":");
+  Serial.print(wwwport);
   Serial.println("/ in your browser to see it working");
 }
 
