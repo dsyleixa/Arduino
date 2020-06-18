@@ -1266,8 +1266,11 @@ void handleWebsite() {
 
    WiFiClient client = wifiserver.available();
 
-   //---------------------------------------
-   // Check if a client has connected
+  //---------------------------------------
+  // Check if a client has connected     
+  if (!client) {
+     return;
+  }
 
 
    // Read the first line of the request
