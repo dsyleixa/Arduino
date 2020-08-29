@@ -79,8 +79,7 @@ void blinker_loop() {
         
         digitalWrite(LED_BUILTIN, LOW);
         Serial.println((String)"\nblinker_loop (LOW) counter: "+ counter+"\n");
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));       
         
         counter++;
     }
