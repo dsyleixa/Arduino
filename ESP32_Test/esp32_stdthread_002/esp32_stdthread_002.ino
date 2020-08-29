@@ -51,10 +51,11 @@ void shellsort(int size, int* A)
 
 #define tpin1  11  // GPIO test pins digitalWrite
 #define tpin2  12  // GPIO test pins digitalWrite
-#define tpin3  13  // GPIO test pins digitalRead
+#define tpin3  10  // GPIO test pins digitalRead
 
 int32_t test_GPIO() {   //  
    volatile static bool w=false, r;
+   
    uint32_t y;
    for (y=0; y<100000; y++) {      
          digitalWrite(tpin1, w);
@@ -148,6 +149,10 @@ std::thread *thread_4;
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  
+  pinMode(tpin1, OUTPUT);
+  pinMode(tpin2, OUTPUT);
+  pinMode(tpin3, INPUT_PULLUP);
   
   thread_1 = new std::thread(blinker_loop);
   thread_2 = new std::thread(fibonacci_loop);
