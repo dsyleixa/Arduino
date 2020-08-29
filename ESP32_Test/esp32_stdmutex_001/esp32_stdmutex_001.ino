@@ -5,19 +5,18 @@
 #include <Arduino.h>
 #include <thread>
 #include <freertos/task.h>
+#include <mutex>
+
+const auto one_sec = std::chrono::seconds { 1 };
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
 #endif
 
-const auto one_sec = std::chrono::seconds { 1 };
-
-#include <mutex>
-
-std::mutex print_mutex;
-
 std::thread *thread_1;
 std::thread *thread_2;
+
+std::mutex print_mutex;
 
 
 void mtxPrintln(String str) // String: Arduino API  // C++: std::string
