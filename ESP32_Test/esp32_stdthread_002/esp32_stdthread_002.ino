@@ -132,7 +132,8 @@ void GPIO_loop() {
         
         test_GPIO();
 
-        Serial.println((String)"\ntpin1="+digitalRead(tpin1)+" tpin2="+digitalRead(tpin2)+" tpin3="+digitalRead(tpin3)+"\n");         counter++;      
+        Serial.println((String)"\ntpin1="+digitalRead(tpin1)+" tpin2="+digitalRead(tpin2)+" tpin3="+digitalRead(tpin3)+"\n");         
+        counter++;      
     }
 }
 
