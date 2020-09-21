@@ -1,6 +1,6 @@
 // std::thread for ESP32, Arduino IDE
 
-// ver 0.0.7 fibonacci, GPIO, blink, sort und main counter
+// ver 0.0.7a fibonacci, GPIO, blink, sort und main counter
 
 #include <Arduino.h>
 #include <thread>
@@ -123,15 +123,15 @@ void sort_loop() {
 
 void GPIO_loop() {
    
-    thread_local uint32_t counter = 0, i=0;    
+    thread_local uint32_t counter = 0, i=0, timerms;    
     vTaskPrioritySet(NULL,0);//set Priority
     Serial.println((String)"GPIO_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
     while(true) {
         Serial.println((String)"\nGPIO_loop counter: "+counter);
-        
+        timerms = millis();
         test_GPIO();
-
-        Serial.println((String)"\ntpin1="+digitalRead(tpin1)+" tpin2="+digitalRead(tpin2)+" tpin3="+digitalRead(tpin3)+"\n");         
+        timerms = millis() - timerms;
+        Serial.println((String)"\nGPIO test timerms=" + (String)timerms + "\n");         
         counter++;      
     }
 }
