@@ -1,0 +1,20 @@
+https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
+
+#include <Wire.h>
+#include "Adafruit_MCP23017.h"
+
+const byte mcpCount = 4;
+Adafruit_MCP23017 mcp[mcpCount];
+
+void setup() {
+   for (byte j=0; j < mcpCount  j++) {
+      mcp[j].begin(j+4);
+      for (byte i=0; i < 16; i++) {
+         mcp[j].pinMode(i, INPUT);
+         mcp[j].pullUp(i, LOW);
+      }
+   }  
+}
+
+Die MCP wurden mit 4,5,6 und 7 adressiert
+
