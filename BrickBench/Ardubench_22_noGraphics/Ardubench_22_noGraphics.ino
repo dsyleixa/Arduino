@@ -7,7 +7,7 @@
 // f�r kommerzielle Zwecke nur nach schriftlicher Genehmigung durch den Autor.
 // protected under the friendly Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // http://creativecommons.org/licenses/by-nc-sa/3.0/
-// version 2.2  (2019-04-15)
+// version 2.2a  (2019-04-15)
 // no graphics
 // change log:
 // 2.2.   testing both 32fp and 64fp 
@@ -23,11 +23,9 @@
 
 unsigned long runtime[10];
 
-#define tpin1  11  // GPIO test pins digitalWrite
+#define tpin1  11  // GPIO test pins digitalRead
 #define tpin2  12  // GPIO test pins digitalWrite
-#define tpin3  13  // GPIO test pins digitalRead
-
-
+#define tpin3  13  // GPIO test pins digitalWrite
 void TFTprint(char sbuf[], int16_t x, int16_t y) {
   
 }
@@ -525,9 +523,9 @@ void setup() {
   */
   Serial.println("tft started");
 
-  pinMode(tpin1, OUTPUT);
+  pinMode(tpin1, INPUT_PULLUP);
   pinMode(tpin2, OUTPUT);
-  pinMode(tpin3, INPUT_PULLUP);
+  pinMode(tpin3, OUTPUT);
 
 
   char  buf[120];
