@@ -8,7 +8,7 @@
 // analog joystick
 // analog 5x button pad
 
-// ver 1.0a
+// ver 1.0
 
 // change log:
 // 1.0: console GameBoy-like
@@ -57,11 +57,6 @@ static uint16_t adc00, adc01, adc02, adc03;
 //---------------------------------------------------------------------
 // MPU6050
 #include "data\MPU6050Kalman.h"
-// MPU6050dmp6noIRQ
-#include "I2Cdev.h"
-#include "MPU6050_6Axis_MotionApps_V6_12.h"
-
-
 int8_t   yaw, pitch, roll;
 float    fyaw, fpitch, froll;
 int16_t  accx, accy, accz;
@@ -75,15 +70,14 @@ int16_t  accx, accy, accz;
 const char* ssid = "WLAN-3YA7LD";
 const char* password = "18658446694458594657";
 
-IPAddress local_ip(192, 168,  2, 202);
+IPAddress local_ip(192, 168,  2, 222);
 IPAddress gateway (192, 168,  2,  1);
 IPAddress subnet  (255, 255, 255, 0);
 
-WebServer server(8008);
+WebServer server(80);
 
 //------------------------------------
 #include "time.h"
-struct tm * timeinfo;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
@@ -92,20 +86,13 @@ const int   daylightOffset_sec = 0;
 time_t currenttime;
 
 //------------------------------------
-void getLocalTime(char * buffer) {
-   time_t rawtime;  
 
-   time (&rawtime);
-   timeinfo = localtime (&rawtime);
-   strftime (buffer,80,"%a %d %b %Y %H:%M:%S ",timeinfo);
-   Serial.println(buffer);
-}
-
-//------------------------------------
-void displayLocalTime()
+void printLocalTime()
 {
-   char buffer [80]; 
-   getLocalTime(buffer);
+   String StrBuf="";
+   char buffer [80];
+   time_t rawtime;
+   struct tm * timeinfo;
 
    Serial.print("Date & Time:  ");
    display.setTextSize(3);
@@ -113,6 +100,12 @@ void displayLocalTime()
    display.setTextColor(GREEN);
    display.setCursor(0, 60);
    display.print("Date & Time:  ");
+
+   time (&rawtime);
+   timeinfo = localtime (&rawtime);
+   strftime (buffer,80,"%a %d %b %Y %H:%M:%S ",timeinfo);
+   Serial.println(buffer);
+
    display.setCursor(0, 130);
    display.print(buffer);
    display.setTextSize(2);
@@ -123,14 +116,8 @@ void displayLocalTime()
 
 //------------------------------------
 void handleRoot() {
-   char buffer[80];
-   
-   getLocalTime(buffer);
-   
    LED_writeScreen(LED_BUILTIN, 1);
-   server.send(200, "text/plain", 
-                    (String)"hello from esp32!\n" + buffer);
-   
+   server.send(200, "text/plain", "hello from esp32!");
    delay(100);
    LED_writeScreen(LED_BUILTIN, 0);
 }
@@ -381,7 +368,7 @@ void showOptionsWindow() {
       }
 
       if (TFTMODE==3) {                     // show date+time
-         time_refreshDisplay();
+         time_print();
       }
 
       adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
@@ -441,7 +428,7 @@ void showOptionsWindow() {
 
 
    if (TFTMODE==3) {                          // show date+time
-      time_refreshDisplay();
+      time_print();
    }
 
 }
@@ -459,10 +446,10 @@ void LED_blink() {
 
 //---------------------------------------------------------
 
-void time_refreshDisplay() {
+void time_print() {
    static uint32_t printtimestamp=millis()+800;
    if(millis()-printtimestamp>1000) {
-      displayLocalTime();
+      printLocalTime();
       printtimestamp=millis();
    }
 }
@@ -677,7 +664,7 @@ void loop() {
 
    // time server
    if(DEBUG) {
-      //time_refreshDisplay();
+      //time_print();
    }
 
    // touch screen buttons

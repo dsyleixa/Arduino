@@ -66,8 +66,8 @@ int16_t  accx, accy, accz;
 #include <WiFiClient.h>
 #include <WebServer.h>
 
-const char* ssid = "WLAN";
-const char* password = "18658";
+const char* ssid = "WLAN-3YA7LD";
+const char* password = "18658446694458594657";
 
 IPAddress local_ip(192, 168,  2, 222);
 IPAddress gateway (192, 168,  2,  1);

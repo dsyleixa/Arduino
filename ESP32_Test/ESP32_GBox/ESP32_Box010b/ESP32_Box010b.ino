@@ -8,10 +8,10 @@
 // analog joystick
 // analog 5x button pad
 
-// ver 1.0a
+// ver 1.0b
 
 // change log:
-// 1.0: console GameBoy-like
+// 1.0: console GameBoy-like; a,b: ads1115 buttonpads fixed
 // 0.9: WiFi  + Webserver + Time tm * timeinfo
 // 0.8: WiFi  + Webserver example HelloServer
 // 0.7: TFT debug line, TSbutton1-4, MPU6050
@@ -20,6 +20,7 @@
 
 
 static bool DEBUG=true;
+
 
 //=====================================================================
 #include <TFT_HX8357.h>
@@ -49,10 +50,11 @@ static bool     LED_pin_STATE=false;
 int LED_pin  =  LED_BUILTIN;
 
 //---------------------------------------------------------------------
-#include <Adafruit_ADS1015.h>
-Adafruit_ADS1115 ads0(0x48);
+#include <Adafruit_ADS1X15.h>
+Adafruit_ADS1115 ads0;
 
 static uint16_t adc00, adc01, adc02, adc03;
+static uint16_t btn00=0, btn01=0;
 
 //---------------------------------------------------------------------
 // MPU6050
@@ -91,9 +93,35 @@ const int   daylightOffset_sec = 0;
 
 time_t currenttime;
 
+/*
+// in <arduArray.h>
+int32_t  mapConstrain
+   (int32_t val, int valmin=0, int valmax=17600, int newmin=0, int newmax=1023); 
+*/
+//-------------------------------------------
+
+//=============================================================
+// analog 5-Button Pad (10bit):
+// 0 NONE=900-1022
+//          1 esc=330-360
+//          2 up= 150-180
+// 3 left=20-40     4 right=70-100
+//          5 dn=1023-1024 // ESP32 port bug
+//
+//=============================================================
+int32_t btnstate00(int val) {
+   if (isInRange( adc00,  900, 1021 ) ) return 0; // NONE
+   if (isInRange( adc00,  330,  360 ) ) return 1; // ESC
+   if (isInRange( adc00,  150,  180 ) ) return 2; // up
+   if (isInRange( adc00,   20,   40 ) ) return 3; // left
+   if (isInRange( adc00,   70,  100 ) ) return 4; // right
+   if (isInRange( adc00, 1022, 1025 ) ) return 5; // down
+}
+
+
 //------------------------------------
 void getLocalTime(char * buffer) {
-   time_t rawtime;  
+   time_t rawtime;
 
    time (&rawtime);
    timeinfo = localtime (&rawtime);
@@ -104,7 +132,7 @@ void getLocalTime(char * buffer) {
 //------------------------------------
 void displayLocalTime()
 {
-   char buffer [80]; 
+   char buffer [80];
    getLocalTime(buffer);
 
    Serial.print("Date & Time:  ");
@@ -124,13 +152,13 @@ void displayLocalTime()
 //------------------------------------
 void handleRoot() {
    char buffer[80];
-   
+
    getLocalTime(buffer);
-   
+
    LED_writeScreen(LED_BUILTIN, 1);
-   server.send(200, "text/plain", 
-                    (String)"hello from esp32!\n" + buffer);
-   
+   server.send(200, "text/plain",
+               (String)"hello from esp32!\n" + buffer);
+
    delay(100);
    LED_writeScreen(LED_BUILTIN, 0);
 }
@@ -280,14 +308,6 @@ void GetTSbuttons() {
 }
 
 
-//=====================================================================
-// analog 5-Button Pad (10bit):
-//           up=0-2
-// left=88-89     right=32-33
-//         dn=166-168
-//       bottom=350-352
-//=====================================================================
-
 
 static int    cursorfilenr=-1, selectfilenr=-1;
 static String fileMarked="", fileSelected="";
@@ -324,8 +344,17 @@ void markPos(int old, int cnt) {
 //-------------------------------------------
 
 void showOptionsWindow() {
+   adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
+   adc00 = mapConstrain(adc00);
+   btn00 = btnstate00(adc00);
+   delay(100);
 
-   if (isInRange( adc00, 305, 356 ) ) {     // btn top/esc
+
+   Serial.print("adc00=");
+   Serial.println(adc00);
+
+   // btn top/esc
+   if (btn00==1) {
       TFTMODE += 1;
       if(TFTMODE>=5) TFTMODE=0;
       display.fillScreen(COLOR_BGND);
@@ -333,7 +362,7 @@ void showOptionsWindow() {
       COLOR_TEXT = WHITE;
       display.setTextColor(COLOR_TEXT);
 
-                          // load option main windows
+      // load option main windows
 
       if (TFTMODE==1) {                     // show menu
          String mItems[6]= { "0 ESC ",
@@ -367,14 +396,13 @@ void showOptionsWindow() {
          display.println(mItems[4]);
          display.setTextColor(COLOR_TEXT); display.setCursor( 40, 140 );
          display.println(mItems[5]);
-
          delay(10);
       }
 
 
-      if(TFTMODE==2)
+      if(TFTMODE==2)  // btn top/esc
       {
-         // TFTMODE==2, btn dn
+         // TFTMODE==2
          readDirectory(SdPath, 0);
          ls(filelist, filecount, selectfilenr);
          markPos(cursorfilenr, cursorfilenr);
@@ -383,36 +411,26 @@ void showOptionsWindow() {
       if (TFTMODE==3) {                     // show date+time
          time_refreshDisplay();
       }
-
-      adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
-      delay(1);
-      adc00 = mapConstrain(adc00);
    }
 
 
    if (TFTMODE==2) {                       // SD file menu
-
-      if (isInRange( adc00, 0, 20 ) /*isInRange( adc00, 157, 177 )*/
+      // btn down 5
+      if (btn00==5
             &&  cursorfilenr <= filecount) {
          if (cursorfilenr < filecount-1) {
             markPos(cursorfilenr, cursorfilenr+1);
             cursorfilenr++;
          }
          delay(1);
-         adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
-         adc00 = mapConstrain(adc00);
       }
 
-      // btn up
-      else if (isInRange( adc00, 157, 177 ) /* isInRange( adc00, 0, 20 )*/
+      // btn up 2
+      else if (btn00==2
                && cursorfilenr >= 0) {
          markPos(cursorfilenr, cursorfilenr-1);
          if (cursorfilenr >= 0) cursorfilenr--;
          delay(1);
-         adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
-         adc00 = mapConstrain(adc00);
       }
 
       if(cursorfilenr>=0) {
@@ -420,8 +438,8 @@ void showOptionsWindow() {
          else fileMarked="";
       }
 
-      // btn right
-      if (isInRange( adc00, 74, 94 ) /* isInRange( adc00, 24, 44 ) */
+      // btn right 4
+      if (btn00==4
             && cursorfilenr >= 0) {
          if(selectfilenr!=cursorfilenr) {
             selectfilenr=cursorfilenr;
@@ -431,11 +449,13 @@ void showOptionsWindow() {
             selectfilenr= -1;
             fileSelected= "";
          }
-         delay(1);
-         adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
-         adc00 = mapConstrain(adc00);
          ls(filelist, filecount, selectfilenr);
+         delay(1);
+      }
+
+      // btn left 3
+      else if (btn00==3) {
+         // to do...
       }
    }
 
@@ -480,10 +500,16 @@ void setup() {
    //LED_pin=LED_BUILTIN;  // default: LED_pin=LED_BUILTIN
    pinMode(LED_pin, OUTPUT);
 
+   Wire.begin();
+   Wire.setClock(400000);
+   delay(100);
+
+   
+
 
 
    //---------------------------------------------------------
-   Adafruit_HX8357_ini(3);  // init function in lib <display_HX3857.h>
+   Adafruit_HX8357_ini(3);  // init function in <TFT_HX3857.h>:: TFT, Touch, SD
    delay(100);
 
    COLOR_BGND = BLACK;
@@ -520,7 +546,9 @@ void setup() {
 
    //---------------------------------------------------------
    // SD
+   //SD.begin(); // by TFT lib
    display.setCursor(0, tftline);
+   delay(10);
    if( !SDioerr ) {
       Serial.println("SD.begin(SD_CS) failed!");
       Serial.println();
@@ -535,18 +563,13 @@ void setup() {
       display.print("setup(): SD setup done!");
    }
    tftline+=15;
-
    delay(100);
 
 
-   //---------------------------------------------------------
-   //i2c Wire
+    //---------------------------------------------------------
+   //i2c devices
 
-   Wire.begin();
-   Wire.setClock(100000);
-   delay(100);
-
-   ads0.begin();
+   ads0.begin(0x48); 
    Serial.println("setup(): i2c+ads1115 setup done!\n");
    display.setTextColor(WHITE);
    display.setCursor(0, tftline);
@@ -561,6 +584,7 @@ void setup() {
    display.print("setup(): MPU6050 setup done!");
    tftline+=15;
    delay(100);
+
 
    //-----------------------------------------------------
    // connecting to router
@@ -684,19 +708,22 @@ void loop() {
    GetTSbuttons();
 
    // ads1115 readings
-   adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-   delay(1);
+   int adcraw;
+   adcraw=adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0: port BUG!!
+   adc00 = mapConstrain(adc00);
+   btn00 = btnstate00(adc00);
+   delay(10);
+   
    adc01 = ads0.readADC_SingleEnded(1);  // ADS1115 port A1
-   delay(1);
+   adc01 = mapConstrain(adc01);  // 4Btn pad raw
+   delay(10);
+  
    adc02 = ads0.readADC_SingleEnded(2);  // ADS1115 port A2
-   delay(1);
-   adc03 = ads0.readADC_SingleEnded(3);  // ADS1115 port A3
-   delay(1);
-
-   adc00 = mapConstrain(adc00);  // 5Btn pad
-   adc01 = mapConstrain(adc01);  // 4Btn pad
    adc02 = mapConstrain(adc02);  // Poti
+   delay(10);
+   adc03 = ads0.readADC_SingleEnded(3);  // ADS1115 port A3
    adc03 = mapConstrain(adc03);  // Poti
+   delay(10);
 
 
    // IMU readings
@@ -711,10 +738,10 @@ void loop() {
 
    // debug
    if (DEBUG) {
-      sprintf(str1, "0=%-4d %-4d %-4d %-4d   p=%-4d r=%-4d",
+      sprintf(str1, "%-4d %-4d y=%-4d x=%-4d p=%-4d r=%-4d",
               adc00, adc01, adc02, adc03, pitch, roll);
       Serial.print((String)str1); Serial.println();
-
+      
       display.fillRect( 0, display.height()-14, display.width()-13, 14, BLACK);
       COLOR_TEXT = RED;
       display.setTextColor(COLOR_TEXT);
@@ -744,8 +771,8 @@ void loop() {
 }
 
 /*
- * references: 
- * https://github.com/TKJElectronics/KalmanFilter
- * https://www.mikrocontroller-elektronik.de/nodemcu-esp8266-tutorial-wlan-board-arduino-ide/ 
- * 
+   references:
+   https://github.com/TKJElectronics/KalmanFilter
+   https://www.mikrocontroller-elektronik.de/nodemcu-esp8266-tutorial-wlan-board-arduino-ide/
+
 */

@@ -91,6 +91,17 @@ const int   daylightOffset_sec = 0;
 
 time_t currenttime;
 
+
+
+int32_t  mapConstrain(int32_t val, int valmin=0, int valmax=17550, int newmin=0, int newmax=1023) {  
+  
+  val=map(val, valmin, valmax,  newmin, newmax);
+  val=constrain(val, newmin, newmax);
+  
+  return (int32_t)val;
+}
+
+
 //------------------------------------
 void getLocalTime(char * buffer) {
    time_t rawtime;  
@@ -324,8 +335,13 @@ void markPos(int old, int cnt) {
 //-------------------------------------------
 
 void showOptionsWindow() {
+   adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
+      delay(10);
+      adc00 = mapConstrain(adc00);
 
-   if (isInRange( adc00, 305, 356 ) ) {     // btn top/esc
+   Serial.print("adc00=");
+   Serial.println(adc00);
+   if (isInRange( adc00, 330, 360 ) ) {     // btn top/esc
       TFTMODE += 1;
       if(TFTMODE>=5) TFTMODE=0;
       display.fillScreen(COLOR_BGND);
@@ -385,14 +401,14 @@ void showOptionsWindow() {
       }
 
       adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
-      delay(1);
+      delay(10);
       adc00 = mapConstrain(adc00);
    }
 
 
    if (TFTMODE==2) {                       // SD file menu
-
-      if (isInRange( adc00, 0, 20 ) /*isInRange( adc00, 157, 177 )*/
+      // btn down
+      if (isInRange( adc00, 0, 20 )  
             &&  cursorfilenr <= filecount) {
          if (cursorfilenr < filecount-1) {
             markPos(cursorfilenr, cursorfilenr+1);
@@ -400,18 +416,18 @@ void showOptionsWindow() {
          }
          delay(1);
          adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
+         delay(10);
          adc00 = mapConstrain(adc00);
       }
 
       // btn up
-      else if (isInRange( adc00, 157, 177 ) /* isInRange( adc00, 0, 20 )*/
+      else if (isInRange( adc00, 150, 180 )  
                && cursorfilenr >= 0) {
          markPos(cursorfilenr, cursorfilenr-1);
          if (cursorfilenr >= 0) cursorfilenr--;
          delay(1);
          adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
+         delay(10);
          adc00 = mapConstrain(adc00);
       }
 
@@ -421,7 +437,7 @@ void showOptionsWindow() {
       }
 
       // btn right
-      if (isInRange( adc00, 74, 94 ) /* isInRange( adc00, 24, 44 ) */
+      if (isInRange( adc00, 70, 100 )  
             && cursorfilenr >= 0) {
          if(selectfilenr!=cursorfilenr) {
             selectfilenr=cursorfilenr;
@@ -433,7 +449,7 @@ void showOptionsWindow() {
          }
          delay(1);
          adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-         delay(1);
+         delay(10);
          adc00 = mapConstrain(adc00);
          ls(filelist, filecount, selectfilenr);
       }
@@ -520,7 +536,9 @@ void setup() {
 
    //---------------------------------------------------------
    // SD
+   SD.begin();
    display.setCursor(0, tftline);
+   delay(10);
    if( !SDioerr ) {
       Serial.println("SD.begin(SD_CS) failed!");
       Serial.println();
@@ -543,7 +561,7 @@ void setup() {
    //i2c Wire
 
    Wire.begin();
-   Wire.setClock(100000);
+   Wire.setClock(400000);
    delay(100);
 
    ads0.begin();
@@ -685,11 +703,11 @@ void loop() {
 
    // ads1115 readings
    adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
-   delay(1);
+   delay(5);
    adc01 = ads0.readADC_SingleEnded(1);  // ADS1115 port A1
-   delay(1);
+   delay(5);
    adc02 = ads0.readADC_SingleEnded(2);  // ADS1115 port A2
-   delay(1);
+   delay(5);
    adc03 = ads0.readADC_SingleEnded(3);  // ADS1115 port A3
    delay(1);
 

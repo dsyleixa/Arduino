@@ -8,11 +8,10 @@
 // analog joystick
 // analog 5x button pad
 
-// ver 1.0a
+// ver 0.9
 
 // change log:
-// 1.0: console GameBoy-like
-// 0.9: WiFi  + Webserver + Time tm * timeinfo
+// 0.9c: WiFi  + Webserver + Time ntpUDP
 // 0.8: WiFi  + Webserver example HelloServer
 // 0.7: TFT debug line, TSbutton1-4, MPU6050
 // 0.6: SD ls() + file select
@@ -34,6 +33,7 @@ static bool DEBUG=true;
 */
 
 static int  TFTMODE=0;
+
 int COLOR_BGND = BLACK;
 int COLOR_TEXT = WHITE;
 
@@ -57,11 +57,6 @@ static uint16_t adc00, adc01, adc02, adc03;
 //---------------------------------------------------------------------
 // MPU6050
 #include "data\MPU6050Kalman.h"
-// MPU6050dmp6noIRQ
-#include "I2Cdev.h"
-#include "MPU6050_6Axis_MotionApps_V6_12.h"
-
-
 int8_t   yaw, pitch, roll;
 float    fyaw, fpitch, froll;
 int16_t  accx, accy, accz;
@@ -75,46 +70,39 @@ int16_t  accx, accy, accz;
 const char* ssid = "WLAN-3YA7LD";
 const char* password = "18658446694458594657";
 
-IPAddress local_ip(192, 168,  2, 202);
+IPAddress local_ip(192, 168,  2, 222);
 IPAddress gateway (192, 168,  2,  1);
 IPAddress subnet  (255, 255, 255, 0);
 
-WebServer server(8008);
+WebServer server(80);
 
 //------------------------------------
-#include "time.h"
-struct tm * timeinfo;
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 0;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
+ 
 
-time_t currenttime;
-
-//------------------------------------
-void getLocalTime(char * buffer) {
-   time_t rawtime;  
-
-   time (&rawtime);
-   timeinfo = localtime (&rawtime);
-   strftime (buffer,80,"%a %d %b %Y %H:%M:%S ",timeinfo);
-   Serial.println(buffer);
-}
 
 //------------------------------------
-void displayLocalTime()
+
+void printLocalTime()
 {
-   char buffer [80]; 
-   getLocalTime(buffer);
+   String StrBuf="";
+   timeClient.update();
+   StrBuf=timeClient.getFormattedTime();
 
    Serial.print("Date & Time:  ");
+   Serial.println(StrBuf);
+
    display.setTextSize(3);
    display.fillRect(0,130, display.width(),30, COLOR_BGND);  // x1,y1, dx,dy
    display.setTextColor(GREEN);
    display.setCursor(0, 60);
    display.print("Date & Time:  ");
    display.setCursor(0, 130);
-   display.print(buffer);
+   display.print(StrBuf);
    display.setTextSize(2);
    display.setTextColor(COLOR_TEXT);
 }
@@ -123,14 +111,8 @@ void displayLocalTime()
 
 //------------------------------------
 void handleRoot() {
-   char buffer[80];
-   
-   getLocalTime(buffer);
-   
    LED_writeScreen(LED_BUILTIN, 1);
-   server.send(200, "text/plain", 
-                    (String)"hello from esp32!\n" + buffer);
-   
+   server.send(200, "text/plain", "hello from esp32!");
    delay(100);
    LED_writeScreen(LED_BUILTIN, 0);
 }
@@ -323,77 +305,43 @@ void markPos(int old, int cnt) {
 
 //-------------------------------------------
 
-void showOptionsWindow() {
+void showScreenFileMenu() {
 
-   if (isInRange( adc00, 305, 356 ) ) {     // btn top/esc
+   if (isInRange( adc00, 305, 356 ) ) {     // btn bottom/esc
       TFTMODE += 1;
-      if(TFTMODE>=5) TFTMODE=0;
+      if(TFTMODE==3) TFTMODE=0;
+      delay(1);
+      adc00 = ads0.readADC_SingleEnded(0);  // ADS1115 port A0
+      delay(1);
+      adc00 = mapConstrain(adc00);
+      delay(1);
       display.fillScreen(COLOR_BGND);
       drawAllTSbuttons();
       COLOR_TEXT = WHITE;
       display.setTextColor(COLOR_TEXT);
 
-                          // load option main windows
-
-      if (TFTMODE==1) {                     // show menu
-         String mItems[6]= { "0 ESC ",
-                             "1 options menu (this)",
-                             "2 SD file manager",
-                             "3 Date + Time",
-                             "4 (void)",
-                             "5 (void)"
-                           };
-
-         Serial.println("Menu"); // show menu window
-         Serial.println(mItems[0]);
-         Serial.println(mItems[1]);
-         Serial.println(mItems[2]);
-         Serial.println(mItems[3]);
-         Serial.println(mItems[4]);
-         //display.fillScreen(COLOR_BGND);
-         drawAllTSbuttons();
-         COLOR_TEXT = WHITE;
-         display.setTextColor(COLOR_TEXT); display.setCursor(  0,  20 );
-         display.println("Menu");
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40,  40 );
-         display.println(mItems[0]);
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40,  60 );
-         display.println(mItems[1]);
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40,  80 );
-         display.println(mItems[2]);
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40, 100 );
-         display.println(mItems[3]);
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40, 120 );
-         display.println(mItems[4]);
-         display.setTextColor(COLOR_TEXT); display.setCursor( 40, 140 );
-         display.println(mItems[5]);
-
-         delay(10);
+      if(TFTMODE==1) {                                     // TFTMODE==1, btn dn
+         if( SD.exists("/") ) {           // <<<<<<<<<<<<<<<< faulty!
+            Serial.println("  SD path / OK!  ");
+            readDirectory(SdPath, 0);
+            ls(filelist, filecount, selectfilenr);
+            markPos(cursorfilenr, cursorfilenr);
+         }
+         else {
+            Serial.println("  no SD path found!  ");
+            // debug
+            if(DEBUG) {
+               delay(1000);
+            }
+         }
       }
-
-
-      if(TFTMODE==2)
-      {
-         // TFTMODE==2, btn dn
-         readDirectory(SdPath, 0);
-         ls(filelist, filecount, selectfilenr);
-         markPos(cursorfilenr, cursorfilenr);
-      }
-
-      if (TFTMODE==3) {                     // show date+time
-         time_refreshDisplay();
-      }
-
-      adc00 = ads0.readADC_SingleEnded(0);  // ADS1115  A0
-      delay(1);
-      adc00 = mapConstrain(adc00);
    }
 
 
-   if (TFTMODE==2) {                       // SD file menu
+   if (TFTMODE==1) {                                 // (TFTMODE==1), btn dn
+      // check other keypad buttons
 
-      if (isInRange( adc00, 0, 20 ) /*isInRange( adc00, 157, 177 )*/
-            &&  cursorfilenr <= filecount) {
+      if (isInRange( adc00, 157, 177 ) &&  cursorfilenr <= filecount) {
          if (cursorfilenr < filecount-1) {
             markPos(cursorfilenr, cursorfilenr+1);
             cursorfilenr++;
@@ -403,10 +351,7 @@ void showOptionsWindow() {
          delay(1);
          adc00 = mapConstrain(adc00);
       }
-
-      // btn up
-      else if (isInRange( adc00, 157, 177 ) /* isInRange( adc00, 0, 20 )*/
-               && cursorfilenr >= 0) {
+      else if (isInRange( adc00, 0, 20 ) && cursorfilenr >= 0) { // btn up
          markPos(cursorfilenr, cursorfilenr-1);
          if (cursorfilenr >= 0) cursorfilenr--;
          delay(1);
@@ -421,8 +366,7 @@ void showOptionsWindow() {
       }
 
       // btn right
-      if (isInRange( adc00, 74, 94 ) /* isInRange( adc00, 24, 44 ) */
-            && cursorfilenr >= 0) {
+      if (isInRange( adc00, 24, 44 ) && cursorfilenr >= 0) {
          if(selectfilenr!=cursorfilenr) {
             selectfilenr=cursorfilenr;
             fileSelected=filelist[selectfilenr];
@@ -440,10 +384,9 @@ void showOptionsWindow() {
    }
 
 
-   if (TFTMODE==3) {                          // show date+time
-      time_refreshDisplay();
+   if (TFTMODE==2) {
+      time_print();
    }
-
 }
 
 //=====================================================================
@@ -459,10 +402,10 @@ void LED_blink() {
 
 //---------------------------------------------------------
 
-void time_refreshDisplay() {
-   static uint32_t printtimestamp=millis()+800;
+void time_print() {
+   static uint32_t printtimestamp=millis();
    if(millis()-printtimestamp>1000) {
-      displayLocalTime();
+      printLocalTime();
       printtimestamp=millis();
    }
 }
@@ -473,18 +416,14 @@ void time_refreshDisplay() {
 void setup() {
    int tftline=10;
 
-   Serial.begin(230400);
-   delay(1000);
-   Serial.println("setup(): Serial started!");
+   Serial.begin(500000);
+   delay(500);
 
    //LED_pin=LED_BUILTIN;  // default: LED_pin=LED_BUILTIN
    pinMode(LED_pin, OUTPUT);
 
-
-
    //---------------------------------------------------------
-   Adafruit_HX8357_ini(3);  // init function in lib <display_HX3857.h>
-   delay(100);
+   Adafruit_HX8357_ini(1);  // init function in lib <display_HX3857.h>
 
    COLOR_BGND = BLACK;
    COLOR_TEXT = WHITE;
@@ -498,11 +437,9 @@ void setup() {
    display.setCursor(0, tftline);
    display.print("setup(): display setup done!");
    tftline+=15;
-   delay(100);
 
    //---------------------------------------------------------
    //TS buttons
-   // TS
    TSbutton1.initButton(&display, display.width()-30, 20,  60,30,  CYAN, BLUE, YELLOW, "Btn1", 2);
    TSbutton2.initButton(&display, display.width()-30,100,  60,30,  CYAN, BLUE, YELLOW, "Btn2", 2);
    TSbutton3.initButton(&display, display.width()-30,180,  60,30,  CYAN, BLUE, YELLOW, "Btn3", 2);
@@ -513,10 +450,8 @@ void setup() {
    Serial.println("setup(): ts buttons setup done!");
    Serial.println();
    display.setTextColor(WHITE);
-   display.setCursor(0, tftline);
-   display.print("setup(): ts buttons setup done!");
+   display.setCursor(0, tftline); display.print("setup(): ts buttons setup done!");
    tftline+=15;
-   delay(100);
 
    //---------------------------------------------------------
    // SD
@@ -536,99 +471,74 @@ void setup() {
    }
    tftline+=15;
 
-   delay(100);
-
 
    //---------------------------------------------------------
    //i2c Wire
 
    Wire.begin();
-   Wire.setClock(100000);
-   delay(100);
-
+   Wire.setClock(400000);
    ads0.begin();
    Serial.println("setup(): i2c+ads1115 setup done!\n");
    display.setTextColor(WHITE);
-   display.setCursor(0, tftline);
-   display.print("setup(): i2c+ads1115 setup done!");
+   display.setCursor(0, tftline); display.print("setup(): i2c+ads1115 setup done!");
    tftline+=15;
-   delay(100);
 
    init_MPU6050();
-   Serial.println("setup(): MPU6050 setup done!\n");
-   display.setTextColor(WHITE);
-   display.setCursor(0, tftline);
-   display.print("setup(): MPU6050 setup done!");
-   tftline+=15;
-   delay(100);
 
    //-----------------------------------------------------
    // connecting to router
    //-----------------------------------------------------
-   Serial.print("try WiFi, localIP ");
-   Serial.println(local_ip);
+   Serial.print("try WiFi, localIP "); Serial.println(local_ip);
    Serial.println();
    display.setTextColor(YELLOW);
    display.setCursor(0, tftline);
-   display.print("try WiFi, localIP ");
-   display.print(local_ip);
+   display.print("try WiFi, localIP "); display.print(local_ip);
    tftline+=15;
-
-   WiFi.mode(WIFI_STA);
+   delay(1);
+   
    WiFi.config(local_ip, gateway, subnet, gateway, gateway);
+   WiFi.mode(WIFI_STA);   delay(1);
    WiFi.begin(ssid, password);
-   delay(100);
+   delay(1);
+
    // Wait for connection
    while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
    }
-   delay(500);
-
+   delay(1);
    Serial.println();
-   Serial.print("  Connected to ");
-   Serial.print(ssid);
-   display.setTextColor(WHITE);
-   display.setCursor(0, tftline);
-   display.print("  Connected to ");
-   display.print(ssid);
-   tftline+=15;
-   delay(100);
-
+   Serial.print("  Connected to ");   Serial.print(ssid);
    Serial.print("  IP address: ");
    Serial.println(WiFi.localIP());
+
    display.setTextColor(WHITE);
    display.setCursor(0, tftline);
-   display.print("  IP address: ");
-   display.print(WiFi.localIP());
+   display.print("  Connected to "); display.print(ssid);
    tftline+=15;
-   delay(100);
+   display.setTextColor(WHITE);
+   display.setCursor(0, tftline);
+   display.print("  IP address: "); display.print(WiFi.localIP());
+   tftline+=15;
+   delay(1);
 
    //---------------------------------------------------------
    //init and get the time
-   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-   delay(100);
-
+   timeClient.begin(); 
    Serial.println();
-   Serial.println("\nWaiting for time");
-   unsigned start = millis();
-   while (!time(nullptr))
-   {
-      Serial.print(".");
-      delay(1000);
-   }
-   Serial.println("Time...");
-   delay(500);
-   currenttime = time(nullptr);
-   String StrBuf=ctime(&currenttime);
+   Serial.print("  Time server: ");
+   timeClient.update();
+   delay(1);
+   String StrBuf=timeClient.getFormattedTime();
    Serial.print(StrBuf);
 
    display.setTextColor(YELLOW);
    display.setCursor(0, tftline);
-   display.print("  Time started: ");
+   display.print("  Time server: "); 
    display.print(StrBuf);
-   display.setTextColor(WHITE);
    tftline+=15;
+   display.setTextColor(WHITE);
+
    delay(100);
 
 
@@ -642,12 +552,10 @@ void setup() {
    server.onNotFound(handleNotFound);
 
    server.begin();
-   delay(100);
-
    Serial.println();
-   Serial.println("  HTTP server started!");
+   Serial.println("  HTTP webserver started!");
    display.setTextColor(WHITE);
-   display.setCursor(0, tftline); display.print("  HTTP server started!");
+   display.setCursor(0, tftline); display.print("  HTTP webserver started!");
    tftline+=15;
    delay(1);
 
@@ -672,15 +580,12 @@ void setup() {
 void loop() {
    char str1[128], str2[128];
 
-   // web server
    server.handleClient();
 
-   // time server
    if(DEBUG) {
-      //time_refreshDisplay();
+      // time_print();
    }
 
-   // touch screen buttons
    GetTSbuttons();
 
    // ads1115 readings
@@ -691,12 +596,11 @@ void loop() {
    adc02 = ads0.readADC_SingleEnded(2);  // ADS1115 port A2
    delay(1);
    adc03 = ads0.readADC_SingleEnded(3);  // ADS1115 port A3
-   delay(1);
 
-   adc00 = mapConstrain(adc00);  // 5Btn pad
-   adc01 = mapConstrain(adc01);  // 4Btn pad
-   adc02 = mapConstrain(adc02);  // Poti
-   adc03 = mapConstrain(adc03);  // Poti
+   adc00 = mapConstrain(adc00);
+   adc01 = mapConstrain(adc01);
+   adc02 = 1023-mapConstrain(adc02);
+   adc03 = 1023-mapConstrain(adc03);
 
 
    // IMU readings
@@ -724,7 +628,7 @@ void loop() {
       display.print((String)str1);
    }
 
-   showOptionsWindow();
+   showScreenFileMenu();
 
    // debug
    if (DEBUG) {
@@ -742,10 +646,3 @@ void loop() {
 
    delay(10);
 }
-
-/*
- * references: 
- * https://github.com/TKJElectronics/KalmanFilter
- * https://www.mikrocontroller-elektronik.de/nodemcu-esp8266-tutorial-wlan-board-arduino-ide/ 
- * 
-*/
