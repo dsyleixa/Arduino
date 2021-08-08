@@ -16,7 +16,7 @@
 // ver 1.9
 
 // change log:
-// 1.9  TS btn 
+// 1.9  ImageReader?
 // 1.8: racket pos offset a: speed+reflex, btn-dn, b: reflex  c: TS btn
 // 1.7: Pong racket moves b: edge reflex fix c: dyn racketspeed
 // 1.6: Pong a: field b: reflex c: rackets
@@ -43,14 +43,17 @@ static bool DEBUG=true;
 //---------------------------------------------------------------------
 #include <thread>
 #include <freertos/task.h>
+#include <mutex>
 
-#define delay(t) std::this_thread::sleep_for(std::chrono::milliseconds(t))
+#define msleep(t) std::this_thread::sleep_for(std::chrono::milliseconds(t))
 
 std::thread *thread_1;
 std::thread *thread_2;
 std::thread *thread_3;
 
-volatile static int8_t THREADRUN=1;
+std::mutex display_mutex;
+
+volatile static int8_t THREADRUN=1, THREADSUSPENDED=0;
 
 //=====================================================================
 #include <TFT_HX8357.h>
@@ -64,18 +67,20 @@ volatile static int8_t THREADRUN=1;
        Adafruit_HX8357_ini(orientation);
 */
 
+
 // SD
 File SD_File;
 
 static int  MENULEVEL=0;
-int COLOR_BGND = BLACK;
+int    COLOR_BGND = BLACK;
+int    TFT_ROTAT  = 3;
 
 
 //=====================================================================
 #include <Wire.h>
-#include <ardustdio.h>
-#include <arduarray.h>
-#include <stringEx.h>
+#include <ardustdio.h>  // file I/O, String filelist
+#include <arduarray.h>  //
+#include <stringEx.h>   // 
 
 
 static bool     LED_pin_STATE=false;
@@ -342,7 +347,7 @@ void GetTSbuttons() {
    else if (TSbutton4.justPressed()) {
       TSbutton4.drawButton(true); // draw invert!
    }
-   delay(2);  // <<<<<<<<<<<<<<<< new 1.8c 
+   delay(2);  // <<<<<<<<<<<<<<<< new 1.8c
 
    //-------------------------------------------
 
@@ -394,8 +399,8 @@ void markPos(int old, int cnt) {
 //===========================================================
 // PONG
 //===========================================================
-#define MAXDISX 480.0
-#define MAXDISY 320.0
+#define MAXDISX display.width()
+#define MAXDISY display.height()
 #define CENTDIX MAXDISX/2.0
 #define CENTDIY MAXDISY/2.0
 #define CENTRECT (MAXDISY-RECHIGH)/2.0
@@ -496,13 +501,13 @@ int Pong() {
       else if(rRvy>RvMax) rRvy=RvMax;
 
       // debug
-      /* 
+      /*
          display.fillRect( 100, MAXDISY-15, 300, 15, COLOR_BGND);
          display.setTextColor(GREEN);
          display.setCursor(  150, MAXDISY-15 );   display.print((int)lRvy);
          display.setCursor(  300, MAXDISY-15 );   display.print((int)rRvy);
-      */  
-   
+      */
+
       // Pause: button=4
       if(btn00==4) StopMode=true; // pause
       while(StopMode) {
@@ -565,7 +570,7 @@ int Pong() {
 
          else
             // right Racket
-            if( Ballx<MAXDISX-RECOFFS+2*BALLRAD && Ballx>=MAXDISX-RECOFFS-RECWIDX-BALLRAD    
+            if( Ballx<MAXDISX-RECOFFS+2*BALLRAD && Ballx>=MAXDISX-RECOFFS-RECWIDX-BALLRAD
                   && Bally>=rRposy && Bally<=rRposy+RECHIGH )
             {
                Ballx=MAXDISX-RECOFFS-RECWIDX-BALLRAD;
@@ -595,8 +600,8 @@ int Pong() {
          if( (ScoreL+ScoreR)%10==0 ) {  // increase Score level by ++ ball speed
             if(BvMin<10) BvMin+=0.3;
             if(BvMax<16) BvMax+=0.3;
-         }         
-         
+         }
+
          Bvx=random(BvMin,BvMax);
          if(!side) Bvx=-Bvx;
          Bvy=random(BvMin/2,BvMax);
@@ -606,7 +611,7 @@ int Pong() {
          Bally=CENTDIY;
          lRvy=0;
          rRvy=0;
-         
+
          lRposy=CENTRECT;          rRposy=CENTRECT;
          PaintBall(Ballx, Bally);
          PaintLRec(lRposy);
@@ -763,7 +768,90 @@ void showOptionsWindow() {
 
          // btn left 3
          else if (btn00==3) {
-            // to do...
+            if(selectfilenr==cursorfilenr) {
+               char filename[80]="";
+               strcpy( filename, filelist[selectfilenr].c_str() ); // for opt modifications
+               if(endsWith (filename, ".bmp") ) {
+                  int32_t width, height;
+                  img_stat = reader.bmpDimensions(filename, &width, &height);
+                  if(height>display.height() && width<=display.width() ) {
+                     display.setRotation(2);
+                  }
+                  THREADSUSPENDED=1;
+                  msleep(1);
+                  display_mutex.lock();
+
+                  Serial.print("Loading to screen: " + filelist[selectfilenr]);
+                  display.fillScreen(BLACK);
+
+                  img_stat = reader.drawBMP(filename, display, 0, 0);
+                  reader.printStatus(img_stat);             // How'd we do?
+
+                  read_ADS0();
+                  while (btn00!=3) {
+                     if (btn00==3) {
+                        display.setTextColor(RED);
+                        display.setCursor(  50, 200 ); display.print("terminated");
+                        delay(500);
+                        btn00=1;
+                     }
+                     delay(50);
+                     read_ADS0();
+                     delay(10);
+                  }
+
+                  display_mutex.unlock();
+                  THREADSUSPENDED=0;
+
+                  display.setRotation(TFT_ROTAT);
+                  display.fillScreen(BLACK);
+                  ls(filelist, filecount, selectfilenr);
+                  markPos(cursorfilenr, cursorfilenr);
+               }
+
+               else if(endsWith (filename, ".txt") ) {
+                  THREADSUSPENDED=1;
+                  msleep(1);
+                  display_mutex.lock();
+                  display.setRotation(2);
+                  display.fillScreen(DARKBLUE);
+
+                  File myTxtFile = SD.open(filename);
+                  if (myTxtFile) {
+                     display.setTextColor(WHITE);
+                     display.setCursor(0, 0);
+                     int c;
+                     while (myTxtFile.available()) {
+                        c=myTxtFile.read();
+                        Serial.write(c);
+                        display.write(c);
+                     }
+                     
+                     read_ADS0();
+                     while (btn00!=3) {
+                        if (btn00==3) {
+                           display.setTextColor(RED);
+                           display.setCursor(  50, 200 ); display.print("terminated");
+                           delay(500);
+                           btn00=1;
+                        }
+                        delay(50);
+                        read_ADS0();
+                        delay(10);
+                     }
+
+                     // close the file:
+                     myTxtFile.close();
+                     delay(2);
+                     display_mutex.unlock();
+                     THREADSUSPENDED=0;
+                     display.setRotation(TFT_ROTAT);
+                     display.fillScreen(BLACK);
+                     ls(filelist, filecount, selectfilenr);
+                     markPos(cursorfilenr, cursorfilenr);
+                  }
+               }
+            }
          }
       }
       return;
@@ -774,7 +862,8 @@ void showOptionsWindow() {
       // show date+time
       if(newMenuLevel) {
          time_refreshDisplay();
-         newMenuLevel=false;
+         read_ADS0();
+         if (btn00==1) newMenuLevel=0;
       }
       if(!newMenuLevel) {
          if (btn00==1) {
@@ -838,15 +927,16 @@ void time_refreshDisplay() {
 }
 
 
-
 //=====================================================================
 void blinker_loop() {
-   vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio
+   vTaskPrioritySet( NULL, 0 ); // ESP_TASK_MAIN_PRIO = main prio
 
    while(THREADRUN != 0) {
-      LED_writeScreen(LED_pin_STATE);  // virual LED on TFT screen
-      LED_pin_STATE=!LED_pin_STATE;
-      delay(500);
+      if(!THREADSUSPENDED) {
+         LED_writeScreen(LED_pin_STATE);  // virual LED on TFT screen
+         LED_pin_STATE=!LED_pin_STATE;
+         delay(500);
+      }
    }
 }
 
@@ -1001,15 +1091,15 @@ void setup() {
    //disable brownout detector
    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
    // alternatively:
- 
+
    uint32_t brown_reg_temp = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG); //save WatchDog register
    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
    //WiFi.mode(WIFI_MODE_STA); // turn on WiFi
    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, brown_reg_temp); //enable brownout detector
- 
+
 
    //---------------------------------------------------------
-   Adafruit_HX8357_ini(3);  // init function in <TFT_HX3857.h>:: TFT, Touch, SD
+   Adafruit_HX8357_ini(TFT_ROTAT);  // init function in <TFT_HX3857.h>:: TFT, Touch, SD
    delay(10);
 
    COLOR_BGND = BLACK;
@@ -1098,7 +1188,6 @@ void setup() {
             }
 
             bufold=buf1;
-
          }
          SD_File.close();
       }
@@ -1201,8 +1290,8 @@ void setup() {
    display.setTextColor(WHITE);
    display.setCursor(0, tftline);
    display.print(StrBuf);
-   tftline+=15;  
-   
+   tftline+=15;
+
    //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, brown_reg_temp); //enable brownout detector
    delay(1);
 
