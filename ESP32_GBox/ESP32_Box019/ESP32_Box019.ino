@@ -649,7 +649,7 @@ void showOptionsWindow() {
          display.setTextColor(WHITE);
          display.setCursor(  0,  20 );
          display.print("page # ");  display.print(MENULEVEL);
-         display.print(" press ESC button to scroll \nthrough menu options!");
+         display.print(" press switch-button: top \nto scroll through menu options!");
          newMenuLevel=false;
       }
       if(!newMenuLevel) {
@@ -812,7 +812,7 @@ void showOptionsWindow() {
          display.setTextColor(WHITE);
          display.setCursor(  0,  20 );
          display.print("page # ");  display.print(MENULEVEL);
-         display.print(" press ESC button to scroll \nthrough menu options!");
+         display.print(" press switch-button: top \nto scroll through menu options!");
          newMenuLevel=false;
       }
       if(!newMenuLevel) {
