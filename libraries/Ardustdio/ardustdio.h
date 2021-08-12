@@ -100,48 +100,42 @@ File SdPath;
 
 volatile int filecount = 0;
 //=================================================================
-int  readDirectory(File dir, int dirLevel) {
-   
+int  readDirectory(File dir, int dirLevel) {   
 
    while (true) {
-
       File entry =  dir.openNextFile();
       if (! entry) {
          // no more files
+		 // dir.rewindDirectory(); //   don't do it!
          break;
       }
-      for (uint8_t i = 0; i < dirLevel; i++) {
-         //Serial.print('\t');
+
+	  if(filecount==0) {       // <<<<<< shifted, NEW
+         filelist[0]="/";
+		 filecount++;
       }
 
       //Serial.print(entry.name());
       filelist[filecount] = (String)entry.name();
 
+
       if (entry.isDirectory()) {
          //Serial.println("/");
-         filelist[filecount] += (String)"/";
+         filelist[filecount] += (String)"/"; 
          //Serial.println(filelist[filecount]);
-
-         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
-         //display.println(filelist[filecount]);
-
          filecount++;
-         filelist[filecount] = filelist[filecount] = (String)entry.name() + "/..";
-         //Serial.println(filelist[filecount]);
-
-         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
-         //display.println(filelist[filecount]);
-         filecount++;
+		 // <<< no more "/.."
+		 /*
+            filelist[filecount] = (String)entry.name() + "/.."; // <<<<<?
+            //Serial.println(filelist[filecount]);
+            filecount++;
+		 */
          readDirectory(entry, dirLevel + 1);
       } else {
          // files have sizes, directories do not
          //Serial.println(filelist[filecount]);
          //Serial.print("\t\t");
-         //Serial.println(entry.size(), DEC);
-           
-         //display.setCursor(20 + 240 * (filecount % 2), 16 * (filecount / 2));
-         //display.println(filelist[filecount]);
-
+         //Serial.println(entry.size(), DEC);   
          filecount++;
       }
       entry.close();

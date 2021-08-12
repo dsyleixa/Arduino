@@ -25,13 +25,15 @@ template<typename variant>   void shellsort(variant *array, int length);
 //********************************************************************************
 // map, constrain, isInRange
 //********************************************************************************
+ 
+int32_t  mapConstrain(int32_t val, int valmin=0, int valmax=17600, int newmin=0, int newmax=1023) {
 
-int32_t  mapConstrain(int32_t val, int valmin=0, int valmax=17550, int newmin=0, int newmax=1023) {  
-  val=map(val, valmin, valmax,  newmin, newmax);
-  val=constrain(val, newmin, newmax);
-  return (int32_t)val;
+   val=map(val, valmin, valmax,  newmin, newmax);
+   val=constrain(val, newmin, newmax);
+
+   return (int32_t)val;
 }
-
+ 
 
 bool isInRange(int32_t val, int32_t min, int32_t max) {
    return(val>=min && val<=max);

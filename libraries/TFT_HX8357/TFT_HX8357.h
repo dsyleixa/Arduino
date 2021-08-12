@@ -5,7 +5,7 @@
 // ver 0.4  // incl SD
 
 #include <SPI.h>
-#include <SD.h>
+#include <SD.h> // port to <SdFat.h> <<<???
 #include <ardustdio.h>
 
 //----------------------------------------------------
@@ -137,6 +137,7 @@ void Adafruit_HX8357_ini(char orientation) {  // call in setup() !
   
   // TFT
   display.begin(clock);  
+  display.cp437(true); // corrected codepage 437 char set
 
   // TS
   if(orientation==3) {
@@ -162,14 +163,20 @@ void Adafruit_HX8357_ini(char orientation) {  // call in setup() !
   
   //----------------------------------------------------
   // SD
-    Serial.print(F("Adafruit_HX8357_ini: Initializing SD card... "));
-  SDioerr=SD.begin(SD_CS);
-  if( !SDioerr ) {
-    Serial.println("SD.begin(SD_CS) failed!");
-    Serial.println();
-    delay(1000); // delay here 
+  Serial.print(F("Adafruit_HX8357_ini: Initializing SD card... "));
+  for(int i=0; i<3; i++) {
+     SDioerr=SD.begin(SD_CS);
+     delay(10);
+     if( !SDioerr ) {
+       Serial.println("SD.begin(SD_CS) failed!");
+       Serial.println();
+       delay(1000); // delay here 
+     }   
+     if( SDioerr )  {
+	   Serial.println("SD OK.");
+	   break;
+	 }
   }
-  Serial.println("SD OK.");
   Serial.println(); 
 }
 
