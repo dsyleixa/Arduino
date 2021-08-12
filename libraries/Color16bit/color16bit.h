@@ -10,6 +10,7 @@
 #define  BLACK       0x0000  ///<   0,   0,   0
 #define  RED         0xF800  ///< 255,   0,   0
 #define  MAROON      0x7800  ///< 123,   0,   0
+#define  DARKRED     0x6800  ///<  63,   0,   0
 #define  ORANGE      0xFD20  ///< 255, 165,   0
 #define  YELLOW      0xFFE0  ///< 255, 255,   0
 #define  LIGHTYELLOW 0xFFEC  ///< 255, 255,  96  
@@ -21,6 +22,7 @@
 #define  CYAN        0x07FF  ///<   0, 255, 255
 #define  DARKCYAN    0x03EF  ///<   0, 125, 123
 #define  BLUE        0x001F  ///<   0,   0, 255
+#define  LIGHTBLUE   0x7CFF  ///< 127, 190, 255   
 #define  NAVY        0x000F  ///<   0,   0, 123
 #define  DARKBLUE    0x000B  ///<   0,   0,  63
 #define  MAGENTA     0xF81F  ///< 255,   0, 255
@@ -47,5 +49,9 @@ void Color16bit2ColorRGB(uint16_t color16, uint8_t &R, uint8_t &G, uint8_t &B) {
    B = (uint8_t) (color16 << 3) & 248 ;
    
 }
+
+// references + links:
+// https://ee-programming-notepad.blogspot.com/2016/10/16-bit-color-generator-picker.html
+// http://www.rinkydinkelectronics.com/calc_rgb565.php
 
 
