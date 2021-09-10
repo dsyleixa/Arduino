@@ -1,0 +1,57 @@
+
+DRC Protocol – Arduino
+
+This documents the serial protocol when taking to an Arduino Duemilanove or Uno, 
+or similar device via its serial line (connected to the host via USB)
+
+The serial line is fixed at 115200 baud, 8-bits, 1 stop bit and no parity.
+
+
+
+In the following commands, the pin number is represented by a binary number, 
+so if typing the command in via (e.g.) minicom, then to represent pin number 3 you need to type a Control-C character. 
+All the command codes are lower-case letterers.
+
+    
+
+Set pin mode: There are 3 commands to set the mode of a digital pin: 
+‘o‘ (0x6F) sets it to output, ‘i‘ (0x69) sets to input and ‘p‘ (0x71) sets it to PWM output. 
+These are then followed by the pin number. So to set pin 3 to output, send the following 2 bytes: 
+0x6F 0x03. There is no acknowledgement to this command.
+
+    
+
+DigitalWrite: Send the character ‘0‘ (0x30) or ‘1‘ (0x31) to indicate a logic low or high followed by the pin number. 
+So to set pin 5 to high, send the following 2 bytes: 
+0x31 0x05. (Digit ‘1‘ followed by numeric 5) To set pin 13 low, send 0x30 0x0D.
+
+    
+
+PwmWrite: Send the character ‘v‘ (0x76) followed by the pin number 
+then a third byte to represent the value from zero to 255. 
+E.g. To set pin 9 to a duty cycle of 50%, send: 0x76 0x09 0x80.
+
+    
+
+DigitalRead: Send the character ‘r‘ (0x72) followed by the pin number to read the state of that pin. 
+A single byte will be returned, ‘0‘ or ‘1‘ representing the logic level of the pin. E.g. 
+To read pin 12; Send the two bytes: 0x72 0x0C then read a single byte expecting ‘0‘ (0x30) or ‘1‘ (0x31) 
+in return to respect the logic levels low or high.
+
+
+    
+AnalogRead: Send the character ‘a‘ (0x61) followed by the pin number to read the analogue value on that pin. 
+Two bytes will be returned, the most significant byte first. E.g. 
+To read analog pin 4, send 0x61 0x04 then read two bytes back. 
+If the device were to send back 0x01 then 0x5C, the combined number is 0x015C which is 384 decimal.
+
+    
+
+Ping: To test for basic operation, then you can send a ping command – this is ‘@‘ or 0x40. 
+The remote device should return a single ‘@‘ in return. 
+You may need to flush any serial input buffers and send one or more ping commands to a device 
+to establish initial connectivity.
+
+
+
+When testing from a terminal (e.g. minicom) then there is two additional commands you can give – ‘A‘ (capital A). This causes the unit to cycle, reading and printing the analog ports until you press the space-bar. Similarly, ‘X‘ will read and print the digital inputs in a loop until you press the space-bar. This should allow you to test all the functions on the target device before connecting up a program on the host.
