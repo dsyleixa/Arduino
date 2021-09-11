@@ -68,8 +68,10 @@ int32_t test_GPIO() {   //
 //--------------------------------------------------------------------
 void blinker_loop() {
    thread_local uint32_t counter = 0;
+
    vTaskPrioritySet(NULL,0); //set Priority
    Serial.println((String)"blinker_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
+
    while(THREADRUN) {
       digitalWrite(LED_BUILTIN, HIGH);
       Serial.println((String)"\nblinker_loop (HIGH) counter: "+ counter+"\n");
@@ -91,8 +93,10 @@ void blinker_loop() {
 //--------------------------------------------------------------------
 void fibonacci_loop() {
    thread_local uint32_t counter = 0, i=0;
+
    vTaskPrioritySet(NULL,0);//set Priority
    Serial.println((String)"fibonacci_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
+
    while(THREADRUN) {
       for(i=25; i<41; i++) {    // limits: test, debug
          if(!THREADRUN) {
@@ -109,10 +113,11 @@ void fibonacci_loop() {
 //--------------------------------------------------------------------
 void sort_loop() {
    static int array[1000];
-
    thread_local uint32_t counter = 0, i=0;
+
    vTaskPrioritySet(NULL,0);//set Priority
    Serial.println((String)"sort_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
+
    while(THREADRUN) {
       Serial.println((String)"\nsort_loop counter: "+counter+"\n");
 
@@ -135,6 +140,7 @@ void GPIO_loop() {
 
    thread_local uint32_t counter = 0, i=0, timerms;
    vTaskPrioritySet(NULL,0);//set Priority
+
    Serial.println((String)"GPIO_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
    while(THREADRUN) {
       Serial.println((String)"\nGPIO_loop counter: "+counter);
@@ -151,8 +157,9 @@ void GPIO_loop() {
 
 //--------------------------------------------------------------------
 
-void extra_loop() {
+void control_loop() {
    volatile static uint32_t loop_counter = 0;
+
    vTaskPrioritySet(NULL,0);//set Priority
    
    while(THREADRUN) {      
@@ -178,7 +185,7 @@ void setup() {
    pinMode(tpin3, INPUT_PULLUP);
 
 
-   std::thread thread_0 (extra_loop);
+   std::thread thread_0 (control_loop);
    std::thread thread_1 (blinker_loop);
    std::thread thread_2 (fibonacci_loop);
    std::thread thread_3 (sort_loop);
@@ -192,8 +199,7 @@ void setup() {
    thread_3.join();
    thread_4.join();
 
-   Serial.println((String)"\nall threads joined, program terminated\n");  // <<<<<< NEVER REACHED!
-
+   Serial.println((String)"\nall threads joined, program terminated\n");  // <<<<<<  
 }
 
 
