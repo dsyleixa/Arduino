@@ -1,0 +1,33 @@
+When using SD.exist() the file you looking for may be found in a cached directory block. The only sure way to detect removal or inserting of the SD is to use the SD detect switch (CD pin) on the SD socket.
+
+Set pull up input on a CD pin and then just call digitalRead.
+If pin is LOW = card is detected, if HIGH = no card inserted
+
+Try this:
+
+void setup() 
+{
+  // Init serial, SD, etc..
+
+  // Set pull up input on a CD pin
+  pinMode(SD_CD,INPUT_PULLUP);
+}
+
+void loop() 
+{
+  
+  bool SD_detection = digitalRead(SD_CD); // 1 = no card inserted; 0 = card detected
+  
+  if (!SD_detection)
+  {
+      Serial.println("card detected");
+  }
+  else
+  {    
+      Serial.println("card removed");
+   }
+  
+  // rest of code
+}
+
+ref: https://github.com/espressif/arduino-esp32/issues/3603
