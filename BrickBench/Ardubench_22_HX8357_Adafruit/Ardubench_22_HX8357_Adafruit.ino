@@ -4,12 +4,16 @@
 // Autor: (C) dsyleixa 2013-2019
 //
 // freie Verwendung für private Zwecke
-// f�r kommerzielle Zwecke nur nach schriftlicher Genehmigung durch den Autor.
+// für kommerzielle Zwecke nur nach schriftlicher Genehmigung durch den Autor.
 // protected under the friendly Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // http://creativecommons.org/licenses/by-nc-sa/3.0/
+
 // version 2.2  (2019-04-15)
-// Adafruit ILI9340 / ILI9341
+
+// for TFT Adafruit HX8357 (Featherwing)
 // change log:
+// 2.2. G only TFT graphics test, no calculations
+
 // 2.2.   testing both 32fp and 64fp 
 // 2.1.1. 32bit fp tests vs. 64bit double (ARM/32bit cores, optional)
 //        low-level bitRead/Write vs. digitalRead/Write (AVR cores, optional) 
