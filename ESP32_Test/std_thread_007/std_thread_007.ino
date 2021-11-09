@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <thread>
 #include <freertos/task.h>
+#include <esp_task.h>
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 13
