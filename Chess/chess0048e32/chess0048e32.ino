@@ -2,6 +2,7 @@
 /*                               micro-Max,                                */
 /* A chess program orig. <  2 KByte (of non-blank source), by H.G. Muller  */
 /***************************************************************************/
+/* http://home.hccnet.nl/h.g.muller/umax4_8.c                              */
 /* version 4.8.j6  ported and reworked for RasPi by dsyleixa               */
 /* features:                                                               */
 /* version 4.8  features:                                                  */
@@ -30,8 +31,7 @@ char sbuf[100];
 
 #define HASHSIZE (1<<10) //  wegen RAM, für PC: (1<<24) // <<<<<<  für Arduino Mega 1<<8 !
 
-#define WHITE 16
-#define BLACK 8
+
 
 struct HTab {
           int  Key,
@@ -380,8 +380,10 @@ int chess()
    char          cstring[20];
    signed char   oboard[129], spiece;
  
-   
+RESTART:
    K=8;
+   Side=16;
+   memset(board, 0, sizeof(board));
    while(K--)
    {
       board[K]=(board[K+112]=stdBaseLn[K]+8)+8;
@@ -427,7 +429,10 @@ int chess()
 
      if(cstring[0]=='Q' && strlen(cstring)==1 ) {
          goto QUIT;
-       }
+     }
+      if(cstring[0]=='R' && strlen(cstring)==1 ) {
+         goto RESTART;
+     }
      
      K=INF;
      
