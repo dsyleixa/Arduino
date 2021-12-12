@@ -980,7 +980,7 @@ anew:
 // CHESS
 //===========================================================
 
-#define HASHSIZE (1<<10) //  wegen RAM, für PC: (1<<24) // <<<<<<  für Arduino Mega 1<<8 !
+#define HASHSIZE (1<<8) //  wegen RAM, für PC: (1<<24) // <<<<<<  für Arduino Mega 1<<8 !
 
 struct HTab {
    int  Key,
@@ -992,7 +992,7 @@ struct HTab {
 
 
 
-#define MAXNODES  80000L   // max deepening: increased values => higher skills
+#define MAXNODES  160000L   // max deepening: increased values => higher skills
 
 int  K,
      RootEval,
@@ -1240,6 +1240,9 @@ labelC:
       // if(prev) sprintf(sbuf, "%2d ply, %9d searched, score=%6d by %c%c%c%c\n",
       //     IterDepth-1, N-S, BestScore , 'a'+(BestFrom & 7),'8'-(BestFrom>>4),'a'+(BestTo & 7),'8'-(BestTo>>4 & 7));
 
+      if( (N%2000)<1) {
+          delay(1);
+      }
       if(prev  && BestFrom!=BestTo) {
          sprintf(sbuf,  "\n%2d ply, searched: %9d ", IterDepth-1, N-S );
          display.fillRect(0,260, 480,60, BLACK);
@@ -1250,7 +1253,6 @@ labelC:
       else if( ((N-S)%10000)<1) {
          Serial.print(".");
          display.print("."); 
-         delay(1);
       }
 
    }  // while (iterative deepening loop)
