@@ -16,8 +16,7 @@
 // ver 2.0c
 
 // change log:
-// 2.3: debug: no threads...  
-// 2.2: a:PAINT  b-e:CHESS
+// 2.2: a:PAINT  b+c+d:CHESS
 // 2.1: SD Explorer select/unselect;
 // 2.0: dir fixes a: Explorer c: SD-readStringUntil(EoL) d:SdExist(SD)-workaround
 // 1.9: ImageReader, TxtReader, PONG fix; a: Menu select
@@ -422,14 +421,12 @@ int GetTSbuttons() {
    }
    // end my changes-------------------------------------------------
 
-   delay(1);
-    
+
    // Scale from ~0->4000 to display.width using the calibration #'s
    p.x = map(p.x, TS_MAXX, TS_MINX, 0, display.height());
    p.y = map(p.y, TS_MINY, TS_MAXY, 0, display.width());
    transformTSrotat();
    tsz = p.z;
-   delay(1);
 
    if(DEBUG) {
       Serial.print("X = "); Serial.print(p.x);
@@ -442,7 +439,6 @@ int GetTSbuttons() {
       //display.fillRect(display.width()-80,40, 80,40, COLOR_BKGR);  // x1,y1, dx,dy
       //display.setCursor(display.width()-75,40);    display.print(str1);
 
-      delay(1);
    }
    //-------------------------------------------
    // check if a TSbutton was pressed
@@ -452,8 +448,6 @@ int GetTSbuttons() {
    TSbutton2.press(TSbutton2.contains(p.y, p.x)); // tell the TSbutton it is pressed
    TSbutton3.press(TSbutton3.contains(p.y, p.x)); // tell the TSbutton it is pressed
    TSbutton4.press(TSbutton4.contains(p.y, p.x)); // tell the TSbutton it is pressed
-
-   delay(1);
 
    //-------------------------------------------
    // process TSbutton states+changes
@@ -529,8 +523,6 @@ int GetTSbuttons() {
    else tsx = tsy = tsz = -1;
 
    p.x = p.y =-1;
-
-   delay(1);
 
    return btnUp;
 }
@@ -1064,8 +1056,6 @@ static int  Kb( const signed char A, const int B )
 // recursive minimax search, Side=moving side, n=depth
 //------------------------------------------------------------
 
-int busycount=0;
-
 int  Minimax (int32_t  Alpha, int32_t  Beta, int32_t  Eval, int  epSqr, int  prev, int32_t   Depth)
 // (Alpha,Beta)=window, Eval, EnPass_sqr.
 // prev=prev.dest; HashKeyLo,HashKeyHi=hashkeys; return EvalScore
@@ -1252,9 +1242,8 @@ labelC:
 
       if( (N%2000)<1) {
           delay(1);
-      }      
+      }
       if(prev  && BestFrom!=BestTo) {
-         busycount=0;
          sprintf(sbuf,  "\n%2d ply, searched: %9d ", IterDepth-1, N-S );
          display.fillRect(0,260, 480,60, BLACK);
          Serial.print(sbuf);
@@ -1262,14 +1251,8 @@ labelC:
          display.print(sbuf);
       }
       else if( ((N-S)%10000)<1) {
-         Serial.print(".");  
-         if(busycount>40){
-            busycount=0;
-            display.fillRect(0,295, 480,25, BLACK);
-            display.setCursor(0,295);
-         }
+         Serial.print(".");
          display.print("."); 
-         busycount++;
       }
 
    }  // while (iterative deepening loop)
@@ -2616,13 +2599,10 @@ void setup() {
    // DEBUG
    //while(1) delay(100);
 
-   //---------------------------------------------------------
-   // randomSeed( millis() + analogRead(A0) );
-
 
    //---------------------------------------------------------
    // RTOS std::thread
-   //thread_1 = new std::thread(blinker_loop);
+   thread_1 = new std::thread(blinker_loop);
 
    delay(10);
    Serial.println();
@@ -2633,7 +2613,10 @@ void setup() {
    tftline+=15;
    delay(10);
 
-   
+   //---------------------------------------------------------
+   randomSeed( millis() + analogRead(A0) );
+
+
    //---------------------------------------------------------
    // end of setup
    Serial.println();
@@ -2677,7 +2660,6 @@ void loop() {
    //-----------------------------------------
    // touch screen buttons
    GetTSbuttons();
-   
 
    //-----------------------------------------
 
@@ -2706,9 +2688,12 @@ void loop() {
       display.setCursor(0, display.height()-14);
       display.print((String)str1);
    }
+
+
    delay(20);
-   
-   showAppsMenu();  
+   showAppsMenu();
+   delay(30);
+
    // debug
    uint8_t DEBUGSELECTFILE=0;
    if(DEBUGSELECTFILE) {
@@ -2717,7 +2702,6 @@ void loop() {
       display.setTextColor(YELLOW);
       display.print(fileSelected);
    }
-   delay(30);
 
 }
 
