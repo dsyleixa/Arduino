@@ -38,7 +38,7 @@ struct HTab {
           int  From,
                To,
                Draft;
-        } HashTab[HASHSIZE];                             // hash table, HTsize entries 
+        } HashTab[HASHSIZE];                  // hash table, HTsize entries 
 
 
 
