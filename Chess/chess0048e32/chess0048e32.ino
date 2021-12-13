@@ -28,7 +28,7 @@ float  movecount=1.0;
 
 
 
-#define HASHSIZE (1<<10) //  wegen RAM, für PC: (1<<24) // <<<<<<  für Arduino Mega 1<<8 !
+#define HASHSIZE (1<<9) //  wegen RAM, für PC: (1<<24) // <<<<<<  für Arduino Mega 1<<8 !
 
 
 
@@ -42,7 +42,7 @@ struct HTab {
 
 
 
-#define MAXNODES  8E4   // max deepening: increased values => higher skills
+#define MAXNODES  9E3   // max deepening: increased values => higher skills
 
 int  K,
      RootEval,
