@@ -42,7 +42,7 @@ struct HTab {
 
 
 
-#define MAXNODES  120000L   // max deepening: increased values => higher skills
+#define MAXNODES  8E4   // max deepening: increased values => higher skills
 
 int  K,
      RootEval,
@@ -286,6 +286,7 @@ labelC:
        if(prev  && BestFrom!=BestTo) {
          sprintf(sbuf,  "\n%2d ply, searched: %9d ", IterDepth-1, N-S );
          Serial.print(sbuf);
+         busycount=0;
        }
        else if( (N%10000)<1 ) {
          delay(1);
@@ -391,6 +392,8 @@ RESTART:
    K=8;
    Side=16;
    memset(board, 0, sizeof(board));
+   movecount=1.0;
+   
    while(K--)
    {
       board[K]=(board[K+112]=stdBaseLn[K]+8)+8;
@@ -486,155 +489,11 @@ RESTART:
    }
    return 1;
 
-   QUIT:
+QUIT:
    Serial.println("Game quit");
    return 0;
 }
 
-
-
-
-
-
-
-
-
-
-/*
-void chessPi()
-{
-   int32_t       eval;
-   //int16_t       oldto, oldEPSQ; //debug
-   char          sbuf[50], sbuf2[50];
-   int16_t       str[20], *ptr;
-   float         count=1;
-   signed char   oboard[129], spiece;
-
- 
-RESTART:
-   standardBoard();                                               // standard board setup
-   
-CUSTOM:      
-   eval=INF; 
-   centerPointsTable();                                           // center-points table   
-                                                                  //(in unused half board[]) 
-   hashTblInit();                                                 // init hash table 
-   
-                                                                        // play loop   
-   count=1.0;
-   Side=WHITE;                                                                            
-   while(1)
-   {
-     N=-1;
-
-     Serial.print("\n");
-
-     Serial.print("     A B C D E F G H \n     --------------- \n");  
-     while(++N<121) {                                            // print board  
-         if(N & 8 && (N+7!=0) ) {
-             sprintf(sbuf,  "%3d \n", 1+((120-N)>>4)); 
-             Serial.print(sbuf);
-             N+=7; 
-         }
-         else {
-           if(N%8==0) {
-               sprintf(sbuf,  "%3d ", 1+((120-N)>>4)); 
-               Serial.print(sbuf);
-           }
-           sprintf(sbuf, " %c", psymbol[board[N] & 15]);  
-           Serial.print(sbuf);      
-         }
-     }
-     Serial.print("     --------------- \n     A B C D E F G H \n");  
-     Serial.print(" R_estart  Q_uit  I_nput  S_ide \n"); 
-     sprintf(sbuf,  "   move %.1f\n", 0.5+(count/2)); 
-     Serial.print(sbuf);
-
-SIDE:
-     if(Side==16) Serial.print(">  WHITE: ");  
-     else         Serial.print(">  BLACK: ");     
-          if(eval==-(INF-1)) {
-           Serial.print("--->   CHECKMATE   <---");
-        }
-        else
-        if(eval==0) {
-           Serial.print("--->   STALEMATE   <---");
-        }
-    
-     ptr=str;
-     while( ( *ptr++ = getchar() ) >10 ) ;
-    
-     if( str[0]=='Q') return;              //  Q=Quit
-     if( str[0]=='R') goto RESTART;        //  R=Restart
-     //if( str[0]=='I') { inputNewboard();   //  I=Input TO DO
-     //                   goto CUSTOM;    } 
-     if( str[0]=='S') { Side^=24;          //  switch side
-                        goto SIDE; }      
-     if( str[0]==10 ) str[0]=0;            //  Nullstring => auto move generator
-
-     K=INF;
-      
-     
-     if(str[0]!=0) {                                                // parse entered move  
-       K= str[0]-16*str[1]+799;
-       L= str[2]-16*str[3]+799;     
-     }
-    
-     memcpy(oboard, board, sizeof(board));
-     //oldto=mto;
-     //oldEPSQ=Rootep;
-
-     eval=Minimax(-INF, INF, RootEval, Rootep, 1, 3);      // think or check & do 
-     sprintf(sbuf, "\nmove=%.1f, eval=%d\n", 0.5+(count/2), eval); 
-     Serial.print(sbuf);
-
-     if(eval!=15) {
-        if(oboard[mto])   rmvP=mto;
-        else  rmvP=128;
-        //debug: //if(mto==oldEPSQ)  rmvP=oldto;        
-        spiece=psymbol[board[mto] & 15];
-        if(spiece=='*' || spiece=='+') spiece=' ';           
-        sprintf(sbuf,"\n\nmove: %c %c%c", spiece,'a'+(mfrom & 7),'8'-(mfrom>>4));
-
-        if(oboard[mto]) strcat(sbuf," X ");
-        else strcat(sbuf,"-");
-        sprintf(sbuf2,"%c%c (%d-%d)", 'a'+(mto & 7),'8'-(mto>>4 & 7), mfrom, mto);
-        strcat(sbuf, sbuf2);
-        Serial.print(sbuf);
-
-        //printf(" \nDEBUG: %d to %d  \n", mfrom, mto);
-          Serial.print("  EPsq: ");
-          if(Rootep!=128) {
-             sprintf(sbuf, "%c%c (%d)", 'a'+(Rootep & 7), '8'-(Rootep>>4 & 7), Rootep);  
-             Serial.print(sbuf);
-          }
-          else   Serial.print ( "(  )");   
-       
-          Serial.print("  rmvP: ");
-          if(rmvP!=128) {
-             sprintf(sbuf, "%c%c (%3d)\n\n", 'a'+(rmvP & 7), '8'-(rmvP>>4 & 7), rmvP);  
-             Serial.print(sbuf);
-          }
-          else printf ("(  )"); 
-          Serial.print("\n");
-          if(eval==-(INF-1)) {
-            Serial.print("--->   CHECKMATE   <---");
-        }
-          else
-          if(eval==0) {
-            Serial.print("--->   STALEMATE   <---");
-          }
-          else
-            count++;
-      }
-      
-      else sprintf(sbuf,  "\n\nILLEGAL! (eval=%d) \n", eval);
-      Serial.print(sbuf);
-         
-   }
-}
-
-*/
 
 
 //=====================================================================
