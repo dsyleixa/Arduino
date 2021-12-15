@@ -40,7 +40,7 @@ int CHESSRUN=1;
 //#define J(A) K(y+A,board[y])-K(x+A,u)-K(H+A,t)
 
 #define U (1<<10)
-struct _ {
+struct HT {
    int K,V;        // Key, Score
    int X,Y,D;      // From, To, Draft
 } A[U];           // hash table, 16M+8 entries
