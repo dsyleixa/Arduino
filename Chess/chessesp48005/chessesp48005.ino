@@ -102,7 +102,7 @@ int Minimax(int32_t q, int32_t l, int32_t e, int E, int z, int32_t n)     // rec
           Y,
           H,
           B;
-   struct _*a=A+(J+turn*E&U-1);                  // lookup pos. in hash table
+   struct HT*a=A+(J+turn*E&U-1);                  // lookup pos. in hash table
 
    q--;                                          // adj. window: delay bonus
    turn^=24;                                        // change sides
