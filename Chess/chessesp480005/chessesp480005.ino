@@ -298,11 +298,11 @@ RESTART:
       sprintf(sbuf,"\n DEBUG cstring : %s", cstring); Serial.print(sbuf);
 
       if(cstring[0]=='R') {
-         sprintf(sbuf, "\nChess game resset/restarted\n"); Serial.print(sbuf);
+         sprintf(sbuf, "\nChess game reset/restarted\n"); Serial.print(sbuf);
          goto RESTART;
       }
       else if(cstring[0]=='Q') {
-         Serial.print("\nChess game resset/restarted\n");
+         Serial.print("\nChess game Quit\n");
          goto QUIT;
       }
       sprintf(sbuf,"\n DEBUG K: %d  \n DEBUG L: %d \n",  K, L);
