@@ -315,17 +315,21 @@ RESTART:
       score=Minimax(-I, I, Q, O, 1, 3);          // think or check & do
       sprintf(sbuf, "\nscore=%d\n", score); Serial.print(sbuf);
 
-
+      // DEBUG
       if(score==15)   {
-         sprintf(sbuf,"!! score(%d) ", score);
+         sprintf(sbuf,"Illegal(?) score(%d) ", score);
          Serial.print(sbuf);
       }
       if(score==-I)   {
-         sprintf(sbuf,"!! score(%d) ", score);
+         sprintf(sbuf,"-I !! score(%d) ", score);
+         Serial.print(sbuf);
+      }
+      if(score==I/2)   {
+         sprintf(sbuf,"I/2 !! score(%d) ", score);
          Serial.print(sbuf);
       }
       if(score==0  )  {
-         sprintf(sbuf,"!! score(%d) ", score);
+         sprintf(sbuf,"0 !! score(%d) ", score);
          Serial.print(sbuf);
       }
 
