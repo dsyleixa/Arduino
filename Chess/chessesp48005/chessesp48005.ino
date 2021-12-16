@@ -317,15 +317,15 @@ RESTART:
 
 
       if(score==15)   {
-         sprintf(sbuf,"ILLEGAL score(%d) ", score);
+         sprintf(sbuf,"!! score(%d) ", score);
          Serial.print(sbuf);
       }
       if(score==-I)   {
-         sprintf(sbuf,"checkmate score(%d) ", score);
+         sprintf(sbuf,"!! score(%d) ", score);
          Serial.print(sbuf);
       }
       if(score==0  )  {
-         sprintf(sbuf,"stalemate score(%d) ", score);
+         sprintf(sbuf,"!! score(%d) ", score);
          Serial.print(sbuf);
       }
 
