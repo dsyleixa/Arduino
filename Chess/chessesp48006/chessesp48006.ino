@@ -208,6 +208,7 @@ C:if(m>I-M|m<M-I)d=98;                          // mate holds to any depth
          delay(1);
          if(busycount>50) {  // line wrap
             busycount=0;
+            Serial.println();
          }
          Serial.print(".");
          busycount++;
