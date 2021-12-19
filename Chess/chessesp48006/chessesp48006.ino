@@ -196,7 +196,7 @@ C:if(m>I-M|m<M-I)d=98;                          // mate holds to any depth
    //}
    //
    
-    if(z && X!=Y) {
+    if(z) {
          delay(1);
          busycount=0;
          //sprintf(sbuf,  "\n%2d ply, searched: %9d ", d-1, N-S );   
