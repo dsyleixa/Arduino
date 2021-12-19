@@ -21,8 +21,9 @@
 /* - full FIDE rules (expt under-promotion) and move-legality checking     */
 
 
-// ver 48005
+// ver 48006
 // history
+// 484006: kibitz
 // 48005: basic Negamax from 48001
 // 48004: UI string
 // 48003: Hash Table: all int, no char
