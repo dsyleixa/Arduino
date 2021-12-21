@@ -23,7 +23,7 @@
 
 // ver 48006
 // history
-// 48006: kibitz
+// 48006: kibitz, LCG_rand()
 // 48005: basic Negamax from 48001
 // 48004: UI string
 // 48003: Hash Table: all int, no char
@@ -36,9 +36,21 @@
 int CHESSRUN=1;
 
 
-//#define W while
+//=====================================================================
+// simple LCG random tool
+
+static int rand_last = 0;
+
+static int LCG_rand()  {
+    rand_last = (rand_last * 1103515245 + 12345) & 0x7fffffff;
+    return rand_last;
+}
+
+
+//=====================================================================
+//  NegaMax chessmove generator
+
 #define K(A,B) *(int*)(T+A+(B&8)+S*(B&7))
-//#define J(A) K(y+A,board[y])-K(x+A,u)-K(H+A,t)
 
 #define U (1<<10)
 struct HT {
@@ -61,12 +73,12 @@ int         M=136,   // M=0x88
 
 signed char L,
        w[]= {0,2,2,7,-1,8,12,23},                     // relative piece values
-            o[]= {-16,-15,-17,0,1,16,0,1,16,15,17,0,14,18,31,33,0, // step-vector lists
+       o[]= {-16,-15,-17,0,1,16,0,1,16,15,17,0,14,18,31,33,0, // step-vector lists
                   7,-1,11,6,8,3,6
                  },                        // 1st dir. in o[] per piece
-                 bsetup[]= {6,3,5,7,4,5,3,6},                   // initial piece setup
-                           board[129],                                    // board: half of 16x8+dummy
-                           T[1035];                                       // hash translation table
+       bsetup[]= {6,3,5,7,4,5,3,6},                   // initial piece setup
+       board[129],                                    // board: half of 16x8+dummy
+       T[1035];                                       // hash translation table
 
 signed char  psymbol[]= ".?+nkbrq?*?NKBRQ";
 
@@ -75,132 +87,137 @@ int  RemP;          // buffer fo remove piece sqr
 char sbuf[100];
 int  busycount=0;
 
-int Minimax(int32_t q, int32_t l, int32_t e, int E, int z, int32_t n)     // recursive minimax search, turn=moving side, n=depth 
-//int q,l,e,E,z,n;        // (q,l)=window, e=current eval. score, E=e.p. sqr. 
+int Minimax(int32_t q, int32_t l, int32_t e, int E, int z, int32_t n)     // recursive minimax search, turn=moving side, n=depth
+    // (q,l)=window, e=current eval. score, E=e.p. sqr.
+    // e=score, z=prev.dest; J,Z=hashkeys; return score
+    
+{ 
+   int j,
+       r,
+       m,
+       v,
+       d,
+       h,
+       i,
+       F,
+       G,
+       V,
+       P,
+       f=J,
+       g=Z,
+       C,
+       s;
+   signed char t,
+          p,
+          u,
+          x,
+          y,
+          X,
+          Y,
+          H,
+          B;
+   struct HT*a=A+(J+turn*E&U-1);                  // lookup pos. in hash table
 
-{                       // e=score, z=prev.dest; J,Z=hashkeys; return score 
- int j,
-     r,
-     m,
-     v,
-     d,
-     h, 
-     i,
-     F,
-     G,
-     V,
-     P,
-     f=J,
-     g=Z,
-     C,
-     s;
- signed char t,
-             p,
-             u,
-             x,
-             y,
-             X,
-             Y,
-             H,
-             B;
- struct HT*a=A+(J+turn*E&U-1);                  // lookup pos. in hash table 
+   q--;                                           // adj. window: delay bonus
+   turn^=24;                                         // change sides
+   d=a->D; m=a->V; X=a->X; Y=a->Y;                // resume at stored depth
+   if(a->K-Z|z|                                   // miss: other pos. or empty
+         !(m<=q|X&8&&m>=l|X&S))                        //   or window incompatible
+      d=Y=0;                                        // start iter. from scratch
+   X&=~M;                                         // start at best-move hint
 
- q--;                                           // adj. window: delay bonus  
- turn^=24;                                         // change sides              
- d=a->D;m=a->V;X=a->X;Y=a->Y;                   // resume at stored depth    
- if(a->K-Z|z|                                   // miss: other pos. or empty 
-  !(m<=q|X&8&&m>=l|X&S))                        //   or window incompatible  
-  d=Y=0;                                        // start iter. from scratch  
- X&=~M;                                         // start at best-move hint   
+   while(d++<n||d<3||                                 // iterative deepening loop
+         z&K==I&&(N<1e6&d<98||                        // root: deepen upto time
+                  (K=X,L=Y&~M,d=3)))                           // time's up: go do best
+   {  x=B=X;                                        // start scan at prev. best
+      h=Y&S;                                        // request try noncastl. 1st
+      P=d<3?I:Minimax(-l,1-l,-e,S,0,d-3);                 // Search null move
+      m=-P<l|R>35?d>2?-I:e:-P;                      // Prune or stand-pat
+      N++;                                          // node count (for timing)
+      do {
+         u=board[x];                                    // scan board looking for
+         if(u&turn)                                      //  own piece (inefficient!)
+         {  r=p=u&7;                                    // p = piece type (set r>0)
+            j=o[p+16];                                  // first step vector f.piece
+            while(r=p>2&r<0?-r:-o[++j])                     // loop over directions o[]
+            {
+A:                                              // resume normal after best
+               y=x; F=G=S;                                // (x,y)=move, (F,G)=castl.R
+               do {                                       // y traverses ray, or:
+                  H=y=h?Y^h:y+r;                            // sneak in prev. best move
+                  if(y&M)break;                             // board edge hit
+                  m=E-S&board[E]&&y-E<2&E-y<2?I:m;              // bad castling
+                  if(p<3&y==E)H^=16;                        // shift capt.sqr. H if e.p.
+                  t=board[H]; if(t&turn|p<3&!(y-x&7)-!t)break;     // capt. own, bad pawn mode
+                  i=37*w[t&7]+(t&192);                      // value of capt. piece t
+                  m=i<0?I:m;                                // K capture
+                  if(m>=l&d>1)goto C;                       // abort on fail high
 
- while(d++<n||d<3||                                 // iterative deepening loop  
-   z&K==I&&(N<1e6&d<98||                        // root: deepen upto time    
-   (K=X,L=Y&~M,d=3)))                           // time's up: go do best     
- {x=B=X;                                        // start scan at prev. best  
-  h=Y&S;                                        // request try noncastl. 1st 
-  P=d<3?I:Minimax(-l,1-l,-e,S,0,d-3);                 // Search null move          
-  m=-P<l|R>35?d>2?-I:e:-P;                      // Prune or stand-pat        
-  N++;                                          // node count (for timing)   
-  do{u=board[x];                                    // scan board looking for    
-   if(u&turn)                                      //  own piece (inefficient!) 
-   {r=p=u&7;                                    // p = piece type (set r>0)  
-    j=o[p+16];                                  // first step vector f.piece 
-    while(r=p>2&r<0?-r:-o[++j])                     // loop over directions o[]  
-    {
-A:                                              // resume normal after best  
-     y=x;F=G=S;                                 // (x,y)=move, (F,G)=castl.R 
-     do{                                        // y traverses ray, or:      
-      H=y=h?Y^h:y+r;                            // sneak in prev. best move  
-      if(y&M)break;                             // board edge hit            
-      m=E-S&board[E]&&y-E<2&E-y<2?I:m;              // bad castling              
-      if(p<3&y==E)H^=16;                        // shift capt.sqr. H if e.p. 
-      t=board[H];if(t&turn|p<3&!(y-x&7)-!t)break;      // capt. own, bad pawn mode  
-      i=37*w[t&7]+(t&192);                      // value of capt. piece t    
-      m=i<0?I:m;                                // K capture                 
-      if(m>=l&d>1)goto C;                       // abort on fail high        
+                  v=d-1?e:i-p;                              // MVV/LVA scoring
+                  if(d-!t>1)                                // remaining depth
+                  {  v=p<6?board[x+8]-board[y+8]:0;                   // center positional pts.
+                     board[G]=board[H]=board[x]=0; board[y]=u|32;             // do move, set non-virgin
+                     if(!(G&M))board[F]=turn+6,v+=50;                // castling: put R & score
+                     v-=p-4|R>29?0:20;                        // penalize mid-game K move
+                     if(p<3)                                  // pawns:
+                     {  v-=9*((x-2&M||board[x-2]-u)+                // structure, undefended
+                              (x+2&M||board[x+2]-u)-1               //        squares plus bias
+                              +(board[x^16]==turn+36))                  // kling to non-virgin King
+                           -(R>>2);                           // end-game Pawn-push bonus
+                        V=y+r+1&S?647-p:2*(u&y+16&32);          // promotion or 6/7th bonus
+                        board[y]+=V; i+=V;                          // change piece, add score
+                     }
+                     v+=e+i; V=m>q?m:q;                       // new eval and alpha
+                     J+=K(y+0,board[y])-K(x+0,u)-K(H+0,t);
+                     Z+=K(y+8,board[y])-K(x+8,u)-K(H+8,t)+G-S;    // update hash key
+                     C=d-1-(d>5&p>2&!t&!h);
+                     C=R>29|d<3|P-I?C:d;                      // extend 1 ply if in check
+                     do
+                        s=C>2|v>V?-Minimax(-l,-V,-v,                  // recursive eval. of reply
+                                           F,0,C):v;         // or fail low if futile
+                     while(s>q&++C<d); v=s;
+                     if(z&&K-I&&v+I&&x==K&y==L)               // move pending & in root:
+                     {  Q=-e-i; O=F;                            //   exit if legal & found
+                        a->D=99; a->V=0;                        // lock game in hash as draw
+                        R+=i>>7; return l;                      // captured non-P material
+                     }
+                     J=f; Z=g;                                // restore hash key
+                     board[G]=turn+6; board[F]=board[y]=0; board[x]=u; board[H]=t;   // undo move,G can be dummy
+                  }
+                  if(v>m)                                   // new best, update max,best
+                     m=v,X=x,Y=y|S&F;                         // mark double move with S
+                  if(h) {
+                     h=0;   // redo after doing old best
+                     goto A;
+                  }
+                  if(x+r-y|u&32|                            // not 1st step,moved before
+                        p>2&(p-4|j-7||                         // no P & no lateral K move,
+                             board[G=x+3^r>>1&7]-turn-6                    // no virgin R in corner G,
+                             ||board[G^1]|board[G^2])                       // no 2 empty sq. next to R
+                    )t+=p<5;                                // fake capt. for nonsliding
+                  else F=y;                                 // enable e.p.
+               } while(!t);                                    // if not capt. continue ray
+            }
+         }
+      } while((x=x+9&~M)-B);                         // next sqr. of board, wrap
 
-      v=d-1?e:i-p;                              // MVV/LVA scoring           
-      if(d-!t>1)                                // remaining depth           
-      {v=p<6?board[x+8]-board[y+8]:0;                   // center positional pts.    
-       board[G]=board[H]=board[x]=0;board[y]=u|32;              // do move, set non-virgin   
-       if(!(G&M))board[F]=turn+6,v+=50;                // castling: put R & score   
-       v-=p-4|R>29?0:20;                        // penalize mid-game K move  
-       if(p<3)                                  // pawns:                    
-       {v-=9*((x-2&M||board[x-2]-u)+                // structure, undefended     
-              (x+2&M||board[x+2]-u)-1               //        squares plus bias  
-             +(board[x^16]==turn+36))                  // kling to non-virgin King  
-             -(R>>2);                           // end-game Pawn-push bonus  
-        V=y+r+1&S?647-p:2*(u&y+16&32);          // promotion or 6/7th bonus  
-        board[y]+=V;i+=V;                           // change piece, add score   
-       }
-       v+=e+i;V=m>q?m:q;                        // new eval and alpha        
-       J+=K(y+0,board[y])-K(x+0,u)-K(H+0,t);
-       Z+=K(y+8,board[y])-K(x+8,u)-K(H+8,t)+G-S;    // update hash key           
-       C=d-1-(d>5&p>2&!t&!h);
-       C=R>29|d<3|P-I?C:d;                      // extend 1 ply if in check  
-       do
-        s=C>2|v>V?-Minimax(-l,-V,-v,                  // recursive eval. of reply  
-                              F,0,C):v;         // or fail low if futile     
-       while(s>q&++C<d);v=s;
-       if(z&&K-I&&v+I&&x==K&y==L)               // move pending & in root:   
-       {Q=-e-i;O=F;                             //   exit if legal & found   
-        a->D=99;a->V=0;                         // lock game in hash as draw 
-        R+=i>>7;return l;                       // captured non-P material   
-       }
-       J=f;Z=g;                                 // restore hash key          
-       board[G]=turn+6;board[F]=board[y]=0;board[x]=u;board[H]=t;      // undo move,G can be dummy  
-      }
-      if(v>m)                                   // new best, update max,best 
-       m=v,X=x,Y=y|S&F;                         // mark double move with S   
-      if(h){h=0;goto A;}                        // redo after doing old best 
-      if(x+r-y|u&32|                            // not 1st step,moved before 
-         p>2&(p-4|j-7||                         // no P & no lateral K move, 
-         board[G=x+3^r>>1&7]-turn-6                    // no virgin R in corner G,  
-         ||board[G^1]|board[G^2])                       // no 2 empty sq. next to R  
-        )t+=p<5;                                // fake capt. for nonsliding 
-      else F=y;                                 // enable e.p.               
-     }while(!t);                                    // if not capt. continue ray 
-    }
-   }
-  }while((x=x+9&~M)-B);                         // next sqr. of board, wrap  
-  
-C:if(m>I-M|m<M-I)d=98;                          // mate holds to any depth   
-  m=m+I|P==I?m:0;                               // best loses K: (stale)mate 
-  if(a->D<99)                                   // protect game history      
-   a->K=Z,a->V=m,a->D=d,                        // always store in hash tab  
-   a->X=X|8*(m>q)|S*(m<l),a->Y=Y;               // move, type (bound/exact), 
-   
-   // uncomment for Kibitz                                 
-   //if(z) {
-   //   printf("%2d ply, %9d searched, score=%6d by %c%c%c%c\n",d-1,N-S,m,
-   //  'a'+(X&7),'8'-(X>>4),'a'+(Y&7),'8'-(Y>>4&7));
-   //}
-   //
-   
-    if(z) {
+C:if(m>I-M|m<M-I)d=98;                          // mate holds to any depth
+      m=m+I|P==I?m:0;                               // best loses K: (stale)mate
+      if(a->D<99)                                   // protect game history
+         a->K=Z,a->V=m,a->D=d,                        // always store in hash tab
+            a->X=X|8*(m>q)|S*(m<l),a->Y=Y;               // move, type (bound/exact),
+
+      // uncomment for Kibitz
+      //if(z) {
+      //   printf("%2d ply, %9d searched, score=%6d by %c%c%c%c\n",d-1,N-S,m,
+      //  'a'+(X&7),'8'-(X>>4),'a'+(Y&7),'8'-(Y>>4&7));
+      //}
+      //
+
+      if(z) {
          delay(1);
          busycount=0;
-         //sprintf(sbuf,  "\n%2d ply, searched: %9d ", d-1, N-S );   
+         //sprintf(sbuf,  "\n%2d ply, searched: %9d ", d-1, N-S );
          sprintf(sbuf, "\n%2d ply, %9d searched, score=%6d by %c%c%c%c\n",d-1,N-S,m,
                  'a'+(X&7),'8'-(X>>4),'a'+(Y&7),'8'-(Y>>4&7));
          Serial.print(sbuf);
@@ -214,17 +231,19 @@ C:if(m>I-M|m<M-I)d=98;                          // mate holds to any depth
          Serial.print(".");
          busycount++;
       }
-               
-                                     
- }                                             //    encoded in X S,8 bits 
- turn^=24;                                     // change sides back        
- mfrom=K; mto=L;                               // move sqr buffers
- return m+=m<e;                                // delayed-loss bonus       
+
+
+   }                                             //    encoded in X S,8 bits
+   turn^=24;                                     // change sides back
+   mfrom=K; mto=L;                               // move sqr buffers
+   return m+=m<e;                                // delayed-loss bonus
 }
 
 
-      
 
+
+//------------------------------------------------------------
+// chess User Interface
 
 int chess()
 {
@@ -250,7 +269,7 @@ RESTART:
       while(L--)board[16*L+K+8]=(K-4)*(K-4)+(L-3.5)*(L-3.5);     // center-pts table
    }                                                             //(in unused half board[])
    N=1035;
-   while(N-->M)T[N]=rand()>>9;                     // Hashtable ranom init
+   while(N-->M)T[N]=LCG_rand()>>9;                     // Hashtable ranom init
 
    // play loop
    while(CHESSRUN)
