@@ -9,7 +9,7 @@
 // http://creativecommons.org/licenses/by-nc-sa/3.0/   //   
 
 
-
+// ver 0.9: cstringarg: SpaceDilimiterOption
 
 #ifndef  STRINGEX_H
 #define STRINGEX_H
@@ -163,6 +163,9 @@ char  * substr  ( char * source, char * sub, int16_t  pos, int16_t len ) { // ge
 
 
 
+
+
+
 //------------------------------------------------------------
 
 int16_t strchpos( char * str, char ch ) {       // find 1st occurence of char ch in string str
@@ -207,37 +210,54 @@ const int  MAXLEN = 1024;
 const int  TOKLEN = 64;
 
 int16_t  strstrpos(char * haystack,  char * needle)   // find 1st occurance of substr in str
-{
+{                                                     // see String.indexOf(val, from), C++: std::string::find
    char *p = strstr(haystack, needle);
    if (p) return p - haystack;
    return -1;   // Not found = -1.
 }
 
-//----------------------------------------------------------------------------
+
+//------------------------------------------------------------
+
+bool strEndsWith(char* haystack, char* theEnd) {
+	int lenH=strlen(haystack), lenE=strlen(theEnd);
+	
+	//if( strstrpos( haystack, theEnd) == lenH-lenE ) return 1;
+	for(int i=0; i<lenE; i++) {
+		if (haystack[lenH-i-1]!=theEnd[lenE-i-1]) return 0;
+		else
+		if (i==lenE-1 && haystack[lenH-lenE]==theEnd[0] ) return 1;
+	}
+	return 0;
+}
+
+
+
 
 //-------------------------------------------------------
-char * cstringarg( char* haystack, char* vname, char* sarg ) {
+char * cstringarg( char* haystack, char* vname, char* sarg, bool SpaceDilimiterOption=true ) {  // <<<<<<<<<<<<<<<<<<<< NEW
   int i = 0, pos = -1;
   unsigned char  ch = 0xff;
   const char*  kini = "&";       // start of varname: '&'
   const char*  kin2 = "?";       // start of varname: '?'
   const char*  kequ = "=";       // end of varname, start of argument: '='
-  char  needle[TOKLEN] = "";     // complete pattern:  &varname=abc1234
+  char  needle[TOKLEN] = "";     // complete pattern:  &varname=abc1234 
 
   strcpy(sarg, "");
-  strcpy(needle, kini);
+  strcpy(needle, kini);          // try 1st initial char '&'
   strcat(needle, vname);
-  strcat(needle, kequ);
-  pos = strstrpos(haystack, needle);
+  strcat(needle, kequ);               
+  pos = strstrpos(haystack, needle);  // see String.indexOf(val, from), C++: std::string::find
   if (pos == -1) {
-    needle[0] = kin2[0];
+    needle[0] = kin2[0];                   // when search failed: try 2nd initial char '?'
     pos = strstrpos(haystack, needle);
     if (pos == -1) return sarg;
   }
   pos = pos + strlen(vname) + 2; // start of value = kini+vname+kequ
   while ( (ch != '&') && (ch != '\0') ) {
     ch = haystack[pos + i];
-    if ( (ch == '&') || (ch == ';') || (ch == ' ') || (ch == '\0') || (ch == '\n')
+    if ( (ch == '&') || (ch == ';') || (ch == '\0') || (ch == '\n') 
+         || ( SpaceDilimiterOption && (ch == ' ') ) // <<<<<<<<<<<<<<<<<<<<<<<<< break at Space (for login)!
          || (i + pos >= strlen(haystack)) || (i > TOKLEN - 1) ) {
       sarg[i] = '\0';
       return sarg;
