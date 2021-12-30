@@ -27,6 +27,9 @@ File    fopen_  ( char * filename, const char * mode)            // see ANSI C: 
 int16_t fclose_ ( File SDfile)                                   // see ANSI C: fclose()  
 int16_t remove_ ( char * filename) {                             // see ANSI C: remove()
 
+bool SdExist(fs::FS &fs)                                         // SD card test, unbuffered
+
+
 */
 
 //------------------------------------------------------------
@@ -60,7 +63,7 @@ int16_t remove_ ( char * filename) {                             // see ANSI C: 
 
 //------------------------------------------------------------
 
-char * STRERROR(int num) {
+String STRERROR(int num) {
    if(num==0)  return    "fileIO OK"; 
    if(num==1)  return    "Operation not permitted"; 
    if(num==2)  return    "No such file or directory"; 
@@ -265,6 +268,27 @@ int16_t  remove_ (char * filename) {               // see ANSI C: remove()
     else    return ENOENT;                        // SD file name not found 
 }
 
+
+//------------------------------------------------------------
+//------------------------------------------------------------
+
+
+bool SdExist(fs::FS &fs){
+    Serial.println("Creating foo.txt file to detect the SD card");
+    if(fs.open("/fooo.txt","w")) 
+    {
+        fs.remove("/fooo.txt");
+        Serial.println("Succesfuly created and removed.");
+        Serial.println("SD card detected");
+        return true;
+    }
+    else 
+    {
+        Serial.println("Error in creating file");
+        Serial.println("SD card not detected");
+        return false;
+    }
+}
 
 
 //------------------------------------------------------------

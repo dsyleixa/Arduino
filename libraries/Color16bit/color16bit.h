@@ -9,11 +9,13 @@
 #define  DARKGRAY    0x39E7  ///<  63,  63,  63  
 #define  BLACK       0x0000  ///<   0,   0,   0
 #define  RED         0xF800  ///< 255,   0,   0
+#define  LIGHTRED    0xFBCF  ///< 255, 123, 123
 #define  MAROON      0x7800  ///< 123,   0,   0
 #define  DARKRED     0x6800  ///<  63,   0,   0
 #define  ORANGE      0xFD20  ///< 255, 165,   0
 #define  YELLOW      0xFFE0  ///< 255, 255,   0
-#define  LIGHTYELLOW 0xFFEC  ///< 255, 255,  96  
+#define  LIGHTYELLOW 0xFFBC  ///< 255, 255,  96  
+#define  LLIGHTYELLOW 0xFFEF  ///< 255, 255, 123  
 #define  OLIVE       0x7BE0  ///< 123, 125,   0 
 #define  GREENYELLOW 0xAFE5  ///< 173, 255,  41
 #define  LIME        0x07E0  ///<   0, 255,   0
@@ -21,8 +23,10 @@
 #define  DARKGREEN   0x01E0  ///<   0,  63,   0 
 #define  CYAN        0x07FF  ///<   0, 255, 255
 #define  DARKCYAN    0x03EF  ///<   0, 125, 123
-#define  BLUE        0x001F  ///<   0,   0, 255
-#define  LIGHTBLUE   0x7CFF  ///< 127, 190, 255   
+#define  BLUE        0x007F  ///<   0,   0, 255
+#define  LIGHTBLUE   0x7CFF  ///< 127, 127, 255    
+#define  LLIGHTBLUE  0xAD7F  ///< 173, 173, 255   //44415 0xAD7F
+#define  XLIGHTBLUE  0xC61F  ///< 192, 192, 255   //50719 0xC61F
 #define  NAVY        0x000F  ///<   0,   0, 123
 #define  DARKBLUE    0x000B  ///<   0,   0,  63
 #define  MAGENTA     0xF81F  ///< 255,   0, 255

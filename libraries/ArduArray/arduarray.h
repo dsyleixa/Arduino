@@ -115,7 +115,7 @@ double ByteArrayToFloat(uint8_t * barray, uint8_t  slot) {
    0000000010 is 2
    0000000111 is 7*/
 
-int32_t BinaryIntArrayToInt32(int * binArray, int arrlen){
+int BinaryIntArrayToInt32(int * binArray, int arrlen){
    int32_t Dec;
    for (int i=0 ; i<arrlen ; i++ ) {
         Dec=Dec+(binArray[i] << (arrlen-i-1));
