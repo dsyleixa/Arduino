@@ -1196,18 +1196,19 @@ const char* lnDn = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 //  tool: millis to cstring
 //-----------------------------------------------------------------
 char * millis_to_strF(uint32_t ms, char * str) {
+   const uint32_t d = 86400000; // 86400000 milliseconds in a day
+   const uint32_t h = 3600000; // 3600000 milliseconds in an hour
+   const uint32_t m = 60000; // 60000 milliseconds in a minute
+   const uint32_t s =  1000; // 1000 milliseconds in a second
    uint32_t  Days = 0;
    uint32_t  Hours = 0;
    uint32_t  Mins = 0;
    uint32_t  Secs = 0;
 
-   Secs  = ms / 1000;
-   Mins  = Secs / 60;
-   Hours = Mins / 60;
-   Days  = Hours / 24;
-   Secs  = Secs - (Mins * 60);
-   Mins  = Mins - (Hours * 60);
-   Hours = Hours - (Days * 24);
+   Days  = ms / d ;
+   Hours = (ms % d) / h;
+   Mins  = ((ms % d) % h) / m ;
+   Secs  = (((ms % d) % h) % m) / s;
 
    sprintf(str, "%ld.%02ld:%02ld:%02ld", Days, Hours, Mins, Secs);
    return str;
