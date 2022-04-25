@@ -3,17 +3,14 @@
 // PL: GCC,Arduino
 // Autor: (C) dsyleixa 2013-2019
 //
-// freie Verwendung fÃ¼r private Zwecke
-// fÃ¼r kommerzielle Zwecke nur nach schriftlicher Genehmigung durch den Autor.
+// freie Verwendung für private Zwecke
+// für kommerzielle Zwecke nur nach schriftlicher Genehmigung durch den Autor.
 // protected under the friendly Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // http://creativecommons.org/licenses/by-nc-sa/3.0/
 
-// version 2.2  (2019-04-15)
-
-// for TFT Adafruit HX8357 (Featherwing)
+// version 2.2a  (2019-04-15)
+// Adafruit HX8357 (3,5" Featherwing)
 // change log:
-// 2.2. G only TFT graphics test, no calculations
-
 // 2.2.   testing both 32fp and 64fp 
 // 2.1.1. 32bit fp tests vs. 64bit double (ARM/32bit cores, optional)
 //        low-level bitRead/Write vs. digitalRead/Write (AVR cores, optional) 
@@ -89,10 +86,10 @@ Adafruit_STMPE610 ts = Adafruit_STMPE610(STMPE_CS);
 unsigned long runtime[10];
 
 
-#define tpin1  27  // GPIO test pins digitalWrite
-//#define tpin1  11  // GPIO test pins digitalWrite
+#define tpin1  27  // GPIO test pins digitalRead
+//#define tpin1  11  // GPIO test pins digitalRead
 #define tpin2  12  // GPIO test pins digitalWrite
-#define tpin3  13  // GPIO test pins digitalRead
+#define tpin3  13  // GPIO test pins digitalWrite
 
 
 void TFTprint(char sbuf[], int16_t x, int16_t y) {
@@ -593,9 +590,9 @@ void setup() {
   tft.setTextColor(0xFFFF); tft.setTextSize(1);
   Serial.println("tft started");
 
-  pinMode(tpin1, OUTPUT);
+  pinMode(tpin1, INPUT_PULLUP);
   pinMode(tpin2, OUTPUT);
-  pinMode(tpin3, INPUT_PULLUP);
+  pinMode(tpin3, OUTPUT);
 
 
   char  buf[120];
