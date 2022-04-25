@@ -3,14 +3,25 @@
 // PL: GCC,Arduino
 // Autor: (C) dsyleixa 2013-2019
 //
+
+
+// version 2.2  (2019-04-15)
+
+// for TFT Adafruit HX8357 (Featherwing)
 // change log:
-// 2.2.G  excerpt: testing just TFT
+// 2.2. G only TFT graphics test, no calculations
+
 // 2.2.   testing both 32fp and 64fp 
 // 2.1.1. 32bit fp tests vs. 64bit double (ARM/32bit cores, optional)
 //        low-level bitRead/Write vs. digitalRead/Write (AVR cores, optional) 
 // 2.1 GPIO r/w
 // 2.0 loop counts
 
+
+#include <SPI.h>
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_HX8357.h>
+#include <Adafruit_STMPE610.h>
 
 #include <SPI.h>
 #include <Adafruit_GFX.h>    // Core graphics library
