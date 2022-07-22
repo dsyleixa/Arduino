@@ -62,6 +62,7 @@ int32_t test_GPIO() {   //
       r=digitalRead(tpin3);
       digitalWrite(tpin2, w&!r);
    }
+   Serial.println((String)"\nGPIO_loop finished, thread self-terminated.\n");
    return 1;
 }
 
