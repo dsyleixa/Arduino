@@ -1,6 +1,7 @@
 // std::thread for ESP32, Arduino IDE
 
-// ver 0.0.7 fibonacci, GPIO, blink, sort und main counter
+// thread loops can be exited by internal conditions (e.g. via break or return) 
+// or all inner loops by setting THREADRUN=false at any location.
 
 #include <Arduino.h>
 #include <thread>
@@ -11,32 +12,35 @@ volatile static bool THREADRUN = true;
 
 
 //--------------------------------------------------------------------
-void loop2() {
+void function2() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio   
-   
+   Serial.println((String)"\n function2 started \n"); 
    while(THREADRUN) {      
       // do stuff
    }
+ Serial.println((String)"\n function2 terminated\n"); 
 }
 
 //--------------------------------------------------------------------
 
-void loop1() {
+void function1() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio   
-   
+   Serial.println((String)"\n function1 started \n"); 
    while(THREADRUN) {      
       // do stuff
    }
+   Serial.println((String)"\n function1 terminated\n"); 
 }
 
 //--------------------------------------------------------------------
 
-void loop0() {
+void function0() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio 
-   
+   Serial.println((String)"\n function0 started \n"); 
    while(THREADRUN) {      
       // do stuff
    }
+  Serial.println((String)"\n function0 terminated\n"); 
 }
 
 //--------------------------------------------------------------------
@@ -44,9 +48,11 @@ void loop0() {
 void setup() {
    Serial.begin(115200);
 
-   std::thread thread_0 (loop0);
-   std::thread thread_1 (loop1);
-   std::thread thread_2 (loop2);
+   std::thread thread_0 (function0);
+   std::thread thread_1 (function1);
+   std::thread thread_2 (function2);
+   
+   Serial.println((String)"\n all threads being started, now waiting for all being terminated and to join main thread \n");  // <<<<<<  
    
    thread_0.join();
    thread_1.join();
