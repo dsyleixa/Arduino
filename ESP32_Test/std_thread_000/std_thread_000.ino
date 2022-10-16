@@ -14,33 +14,33 @@ volatile static bool THREADRUN = true;
 //--------------------------------------------------------------------
 void function2() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio   
-   Serial.println((String)"\n function2 started \n"); 
+   Serial.println((String)"   function2 started"); 
    while(THREADRUN) {      
       // do stuff
    }
- Serial.println((String)"\n function2 terminated\n"); 
+   Serial.println((String)"   function2 terminated"); 
 }
 
 //--------------------------------------------------------------------
 
 void function1() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio   
-   Serial.println((String)"\n function1 started \n"); 
+   Serial.println((String)"   function1 started"); 
    while(THREADRUN) {      
       // do stuff
    }
-   Serial.println((String)"\n function1 terminated\n"); 
+   Serial.println((String)"   function1 terminated"); 
 }
 
 //--------------------------------------------------------------------
 
 void function0() {
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio 
-   Serial.println((String)"\n function0 started \n"); 
+   Serial.println((String)"   function0 started"); 
    while(THREADRUN) {      
       // do stuff
    }
-  Serial.println((String)"\n function0 terminated\n"); 
+   Serial.println((String)"   function0 terminated"); 
 }
 
 //--------------------------------------------------------------------
