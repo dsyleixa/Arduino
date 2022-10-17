@@ -1,5 +1,3 @@
-
-
 // std::thread plus mutex for ESP32, Arduino IDE
 
 #include <Arduino.h>
@@ -19,22 +17,17 @@ std::thread *thread_2;
 std::mutex print_mutex;
 
 
-void mtxPrintln(String str) // String: Arduino API  // C++: std::string
-{
-    print_mutex.lock();
-    Serial.println(str);
-    print_mutex.unlock();
-}
-
 void loop1() {
     thread_local uint32_t counter = 0, i=0;  
     vTaskPrioritySet(NULL,0); //set Priority
     
     while(true) 
-        mtxPrintln((String)"this is loop1, counter="+counter");
-       counter++;
+        print_mutex.lock();
+        Serial.println((String)"this is loop1, counter="+counter);
+        print_mutex.unlock();
+        counter++;
         // do stuff     
-        delay(1300);
+        delay(400);
     }
 }
 
@@ -43,10 +36,12 @@ void loop2() {
     vTaskPrioritySet(NULL,0); //set Priority
     
     while(true) {
-        mtxPrintln((String)"this is loop2, counter="+counter);
+        print_mutex.lock();
+        Serial.println((String)"this is loop2, counter="+counter);
+        print_mutex.unlock();
         counter++;
         // do stuff     
-        delay(700);     
+        delay(200);     
     }
 }
 
@@ -62,12 +57,10 @@ void setup() {
 
 
 void loop() {
-    delay(500);
     static uint32_t main_loop_counter = 0;
-    mtxPrintln((String)"main loop: " + main_loop_counter);
-    delay(500);
+    print_mutex.lock();
+    Serial.println((String)"\nthis is main loop, main_loop_counter="+main_loop_counter );
+    print_mutex.unlock(); 
     main_loop_counter++;
+    delay(600);
 }
-
-
-
