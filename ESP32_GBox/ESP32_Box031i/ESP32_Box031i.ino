@@ -16,7 +16,7 @@
 // ver 3.1i
 
 // change log:
-// 3.1. SDfilelistFix d,e:chessInit+stopThink :chesstrash g:ChessTimer i:noWD
+// 3.1. SDfilelistFix d,e:chessInit+stopThink :chesstrash g:ChessTimer i:noWD i2:#include <vector>
 // 3.0. c:SDlist2Heap; d:SDVector da:illegal
 // 3.0: ChessMoveHistory
 // 2.9. d:redrawU e,f:redrawTS
@@ -45,6 +45,8 @@
 
 
 static bool DEBUG=true;
+
+#include <vector>  // new just for core 2.0.4++
 
 
 //---------------------------------------------------------------------
