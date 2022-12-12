@@ -95,58 +95,58 @@ String STRERROR(int num) {
 
 //------------------------------------------------------------
 
-
-
-String filelist[128];
-
 File SdPath;
 
+
+
+//String filelist[128];
+//String *filelist = new String[128];
+
 volatile int filecount = 0;
+int maxFsEntries=16;
+
+std::vector<String> filelist(maxFsEntries);
+
+
+
 //=================================================================
 int  readDirectory(File dir, int dirLevel) {   
+   if(filecount==0) {       // <<<<<< shifted, NEW
+      filelist[0]="/";   
+      filecount++;
+   }
 
    while (true) {
+      if(filecount>=maxFsEntries-1) {
+         filelist.push_back("");
+         maxFsEntries++;
+      }
       File entry =  dir.openNextFile();
       if (! entry) {
          // no more files
-		 // dir.rewindDirectory(); //   don't do it!
          break;
-      }
-
-	  if(filecount==0) {       // <<<<<< shifted, NEW
-         filelist[0]="/";
-		 filecount++;
       }
 
       //Serial.print(entry.name());
       filelist[filecount] = (String)entry.name();
-
-
-      if (entry.isDirectory()) {
-         //Serial.println("/");
-         filelist[filecount] += (String)"/"; 
-         //Serial.println(filelist[filecount]);
-         filecount++;
-		 // <<< no more "/.."
-		 /*
-            filelist[filecount] = (String)entry.name() + "/.."; // <<<<<?
-            //Serial.println(filelist[filecount]);
-            filecount++;
-		 */
-         readDirectory(entry, dirLevel + 1);
-      } else {
-         // files have sizes, directories do not
-         //Serial.println(filelist[filecount]);
-         //Serial.print("\t\t");
-         //Serial.println(entry.size(), DEC);   
+      
+      if (!entry.isDirectory()) {
          filecount++;
       }
+      else if (entry.isDirectory()) {
+         filelist[filecount] += (String)"/"; 
+         filecount++;
+         readDirectory(entry, dirLevel + 1);
+      } 
+      
       entry.close();
    }
    return filecount;
 }
 
+
 //=================================================================
+
 
 
 

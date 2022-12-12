@@ -147,6 +147,24 @@ char * strpatch( char * source, char * sub, int16_t  pos )  {  // patch string b
 }
 
 
+char * strdelnpos(char * source, int16_t pos, int16_t n) {  // delete string n*char at pos
+   int16_t srclen;
+   char  * sret = source;
+
+   srclen=strlen(source); 
+
+   int i,j;
+   for(i=0,j=0;sret[i]!='\0';i++,j++){
+      if(i==(pos-1)){
+         i=i+n;
+      }
+      sret[j]=sret[i];
+   }   
+   sret[j]='\0';
+   return sret;     
+}
+
+
 
 //------------------------------------------------------------
 
