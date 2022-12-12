@@ -1,4 +1,4 @@
-// ardumath.h
+// arduarray.h
 
 #pragma once
 
