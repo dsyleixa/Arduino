@@ -24,7 +24,7 @@ void loop1() {
         serial_mutex.unlock();
         counter++;
         // do stuff     
-        delay(100);
+        delay(10);
     }
 }
 
@@ -38,7 +38,7 @@ void loop2() {
         serial_mutex.unlock();
         counter++;
         // do stuff     
-        delay(200);     
+        delay(10);     
     }
 }
 
@@ -59,6 +59,6 @@ void loop() {
     serial_mutex.lock();
     Serial.println((String)"\nthis is main loop, main_loop_counter="+main_loop_counter );
     serial_mutex.unlock();
-    delay(300);
+    delay(10);
     main_loop_counter++;
 }
