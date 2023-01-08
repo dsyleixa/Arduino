@@ -11,7 +11,7 @@ const auto one_sec = std::chrono::seconds { 1 };
 #define LED_BUILTIN 13
 #endif
 
-std::mutex print_mutex;
+std::mutex serial_mutex;
 
 
 void loop1() {
@@ -19,9 +19,9 @@ void loop1() {
     vTaskPrioritySet(NULL,0); //set Priority
     
     while(true) 
-        print_mutex.lock();
+        serial_mutex.lock();
         Serial.println((String)"this is loop1, counter="+counter);
-        print_mutex.unlock();
+        serial_mutex.unlock();
         counter++;
         // do stuff     
         delay(100);
@@ -33,9 +33,9 @@ void loop2() {
     vTaskPrioritySet(NULL,0); //set Priority
     
     while(true) {
-        print_mutex.lock();
+        serial_mutex.lock();
         Serial.println((String)"this is loop2, counter="+counter);
-        print_mutex.unlock();
+        serial_mutex.unlock();
         counter++;
         // do stuff     
         delay(200);     
@@ -56,9 +56,9 @@ void setup() {
 
 void loop() {
     static uint32_t main_loop_counter = 0;
-    print_mutex.lock();
+    serial_mutex.lock();
     Serial.println((String)"\nthis is main loop, main_loop_counter="+main_loop_counter );
-    print_mutex.unlock();
+    serial_mutex.unlock();
     delay(300);
     main_loop_counter++;
 }
