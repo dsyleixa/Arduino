@@ -159,7 +159,7 @@ void GPIO_loop() {
 //--------------------------------------------------------------------
 
 void control_loop() {
-   volatile static uint32_t loop_counter = 0;
+    thread_local  uint32_t loop_counter = 0;
 
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio
    
