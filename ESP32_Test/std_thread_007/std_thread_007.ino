@@ -48,9 +48,9 @@ void shellsort(int size, int* A)
 }
 
 //--------------------------------------------------------------------
-#define tpin1  11  // GPIO test pins digitalWrite
-#define tpin2  12  // GPIO test pins digitalWrite
-#define tpin3  10  // GPIO test pins digitalRead
+#define tpin1  11  // GPIO test pin digitalWrite
+#define tpin2  12  // GPIO test pin digitalWrite
+#define tpin3  10  // GPIO test pin digitalRead
 
 int32_t test_GPIO() {   //
    volatile static bool w=false, r;
