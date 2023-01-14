@@ -20,7 +20,7 @@
 using namespace std;
 
 mutex         serial_mutex;
-atomic<bool>  THREADRUN(false); 
+atomic<bool>  THREADRUN(true); 
 
 uint32_t fibonacci(int n) {
    if(n == 0) {
