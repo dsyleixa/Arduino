@@ -139,7 +139,7 @@ void sort_loop() {
 //--------------------------------------------------------------------
 void GPIO_loop() {
 
-   thread_local uint32_t counter = 0, i=0, timerms;
+   thread_local uint32_t counter = 0, timerms;
    vTaskPrioritySet( NULL, ESP_TASK_MAIN_PRIO ); // set Priority = main prio
    
    Serial.println((String)"GPIO_loop Current priority :" + uxTaskPriorityGet(NULL)+"\n");
