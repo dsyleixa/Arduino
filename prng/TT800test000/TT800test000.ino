@@ -4,8 +4,11 @@
 
 #include <stdint.h>
 
-#define N_TT800  25
-#define M_TT800   7
+//const uint32_t  N_TT800 = 25;
+//const uint32_t  M_TT800 =  7;
+
+#define  N_TT800   25 
+#define  M_TT800    7 
 
 /* 
  * Initialisiere den Vektor mit Pseudozufallszahlen.
@@ -70,20 +73,21 @@ static void  TT800_vector_update (uint32_t* const p)
  * - bei jedem Aufruf wird eine Zufallszahl aus dem Vektor ausgelesen und noch einem Tempering unterzogen.
  */
 
-uint32_t TT800 () 
+uint32_t randTT800() 
 {
    static uint32_t  vektor [N_TT800];  /* Zustandsvektor */
    static int       idx = N_TT800+1;   /* Auslese-Index; idx >= N_TT800: neuer Vektor muss berechnet werden, */
-                                 /* idx=N_TT800+1: Vektor muss überhaupt erst mal initialisiert werden */
+                                 /* idx=N_TT800+1: Vektor muss Ã¼berhaupt erst mal initialisiert werden */
    uint32_t         e;
 
    if (idx >= N_TT800) 
    {
-     if (idx > N_TT800)
+     if (idx > N_TT800) 
      {
-        //REI = analogRead(A0)+millis();   // <<< get random entropy injection REI
+        //REI = analogRead(A0);   // <<< get random entropy injection REI
         TT800_vector_init (vektor, N_TT800);
      }
+      
      TT800_vector_update (vektor);
      idx = 0;
    }
@@ -92,8 +96,36 @@ uint32_t TT800 ()
    e ^= (e <<  7) & 0x2b5b2500;             /* Tempering */
    e ^= (e << 15) & 0xdb8b0000;
    e ^= (e >> 16);
-   return e;
+   return e;  // e min= 26089 max=4294700568
 }
 
-#undef N_TT800
-#undef M_TT800
+
+
+void setup() {
+
+
+   Serial.begin(115200);
+   delay(1000);
+   Serial.println();
+   Serial.println("Serial() started");
+   srand(millis());
+
+   uint32_t i, imax=0, imin=1000000, j;
+   
+   for (j=0; j<100000; j++) {
+      i=randTT800()%RAND_MAX;
+      if(imax<i) imax=i;
+      if(imin>i) imin=i;
+      Serial.println((String)j+": " +i +" imin="+imin + " imax="+imax);
+   }
+
+   Serial.println((String)"\n RAND_MAX=" + RAND_MAX ); // imin=26089 imax=2147469030
+   Serial.println("\n finished!");
+
+
+
+}
+
+void loop() {
+
+}
