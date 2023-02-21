@@ -91,12 +91,13 @@ void blinker_loop() {
       if(!THREADRUN) {         
          break;
       }
-      counter++; 
-      if(!THREADRUN) {
-         Serial.println((String)"blink_loop terminated by THREADRUN");
-      }
+      counter++;      
      
    }  
+   if(!THREADRUN) {
+      Serial.println((String)"blink_loop terminated by THREADRUN");
+   }
+
 
 }
 
@@ -145,10 +146,11 @@ void sort_loop() {
          Serial.println((String)i + "="+array[i]+"\n");
       }
       counter++;
-      if(!THREADRUN) {
-         Serial.println((String)"sort_loop terminated by THREADRUN");
-      }
    }
+   if(!THREADRUN) {
+      Serial.println((String)"sort_loop terminated by THREADRUN");
+   }
+
 }
 
 //--------------------------------------------------------------------
