@@ -138,6 +138,12 @@ void fibonacci_loop() {
       Serial.println((String)"fibonacci_loop terminated by THREADRUN");
       serial_mutex.unlock();
    }
+   else {
+      serial_mutex.lock();
+      Serial.println((String)"fibonacci_loop self-terminating ");
+      serial_mutex.unlock();
+   }
+
 }
 
 //--------------------------------------------------------------------
@@ -157,7 +163,7 @@ void sort_loop() {
          array[i]= random(0,65000);
       }
       shellsort(1000, array);
-      for(i=0; i<1000; i+=20) { // abgekï¿½rzte Ausgabe  da Serial sehr langsam
+      for(i=0; i<1000; i+=20) { // abgekürzte Ausgabe  da Serial sehr langsam
          serial_mutex.lock();
          Serial.println((String)i + "="+array[i]+"\n");
          serial_mutex.unlock();
@@ -214,11 +220,17 @@ void control_loop() {
       loop_counter++;
       if(loop_counter>40) {
          serial_mutex.lock();
-         Serial.println("loop counter limit reached!  all threads terminate!");
+         Serial.println("loop counter limit reached! set THREADRUN=false to terminate all threads ");
          serial_mutex.unlock();
          THREADRUN=false; // after 20sec
       }
    }
+   if(!THREADRUN) {
+      serial_mutex.lock();
+      Serial.println((String)"control_loop terminated by THREADRUN");
+      serial_mutex.unlock();
+   }
+
 }
 
 //--------------------------------------------------------------------
