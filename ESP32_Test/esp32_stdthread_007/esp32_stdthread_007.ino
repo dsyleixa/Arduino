@@ -80,17 +80,24 @@ void blinker_loop() {
       Serial.println((String)"\nblinker_loop (HIGH) counter: "+ counter+"\n");
       //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       delay(1000);
+      if(!THREADRUN) {
+         break;
+      }
 
       digitalWrite(LED_BUILTIN, LOW);
       Serial.println((String)"\nblinker_loop (LOW) counter: "+ counter+"\n");
       //std::this_thread::sleep_for(std::chrono::milliseconds(500));
       delay(500);
-
-      counter++;
+      if(!THREADRUN) {         
+         break;
+      }
+      counter++; 
       if(!THREADRUN) {
          Serial.println((String)"blink_loop terminated by THREADRUN");
       }
-   }
+     
+   }  
+
 }
 
 //--------------------------------------------------------------------
@@ -105,14 +112,19 @@ void fibonacci_loop() {
          uint32_t f = fibonacci(i);
          Serial.println( (String)"\nfibonacci of "+i+"="+ f +"\n");
          if(!THREADRUN) {
-            Serial.println((String)"fibonacci_loop terminated by THREADRUN");
             break;
          }
       }
       counter++;
-      Serial.println((String)"\nfibonacci_loop counter: "+counter+"\n");
+      Serial.println((String)"\nfibonacci_loop counter: "+counter+"\n");      
    }
-}
+   if(!THREADRUN) {
+      Serial.println((String)"fibonacci_loop terminated by THREADRUN");
+   }
+   else
+      Serial.println((String)"fibonacci_loop self-terminating ");
+
+} 
 
 //--------------------------------------------------------------------
 void sort_loop() {
@@ -152,11 +164,12 @@ void GPIO_loop() {
       test_GPIO();
       timerms = millis() - timerms;
       Serial.println((String)"\nGPIO test timerms=" + (String)timerms + "\n");
-      counter++;
-      if(!THREADRUN) {
-         Serial.println((String)"GPIO_loop terminated by THREADRUN");
-      }
+      counter++;      
    }
+   if(!THREADRUN) {
+      Serial.println((String)"GPIO_loop terminated by THREADRUN");
+   }
+
 }
 
 //--------------------------------------------------------------------
