@@ -16,7 +16,7 @@
 // ver 3.1i
 
 // change log:
-// 3.1. SDfilelistFix d,e:chessInit+stopThink :chesstrash g:ChessTimer i:noWD i2:#include <vector>
+// 3.1. SDfilelistFix d,e:chessInit+stopThink :chesstrash g:ChessTimer i:noWD
 // 3.0. c:SDlist2Heap; d:SDVector da:illegal
 // 3.0: ChessMoveHistory
 // 2.9. d:redrawU e,f:redrawTS
@@ -46,11 +46,10 @@
 
 static bool DEBUG=true;
 
-#include <vector>  // new just for core 2.0.4++
-
+#include <vector>  // just for board core 2.0.x
 
 //---------------------------------------------------------------------
-// brownout detector
+// brownout detector // error? soc/soc.h: No such file or directory? wrong board?
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 /*
@@ -71,7 +70,8 @@ std::mutex display_mutex;
 
 volatile static int8_t THREADRUN=1, THREADSUSPENDED=0;
 
-
+// prototypes
+void ls(std::vector<String> list);
 
 //===========================================================
 // TFT
@@ -2499,16 +2499,16 @@ void showAppsMenu() {
          for(int i=0; i<256; i++) {
             if( !(i%20) ) {
                sprintf(cbuf, "\n%3d ", l);
-               display.print(cbuf);
+               display.print(cbuf); printf(cbuf);
                l+=20;
             }
-            if(i=='\n') display.write('N');
-            else if(i=='\r') display.write('R');
-            else display.write( (char)i );
+            if(i=='\n')      { display.write('N'); printf("N"); }
+            else if(i=='\r') { display.write('R'); printf("N");}
+            else             { display.write((char)i); printf("%c",(char)i); }
          }
-         display.println("\n");
-         display.print("page # ");  display.print(MENULEVEL);
-         display.print(" press switch-button: top \nto scroll through menu options!");
+         display.println("\n"); printf("\n");
+         //display.print("page # ");  display.print(MENULEVEL);
+         display.print(" quit: switch-button: top/ESC \n");
          newMenuLevel=false;
       }
       if(!newMenuLevel) {
