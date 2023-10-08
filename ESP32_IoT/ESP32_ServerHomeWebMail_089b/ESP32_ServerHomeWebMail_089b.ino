@@ -1,11 +1,12 @@
 //----------------------------------------------------------------------------
 //  ESP32 Adafrit Feather
-//  wifiserver,  webserver 
-//  ESP8266WiFi Server für website (remote display und remote control)
+//  wifiserver,  webserver
+//  ESP WiFi Server für website (remote display und remote control)
 //
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
+//  ESP32 Adafruit Feather
 //
-// History: 
+// History:
 // 0.8.9b: ESP32 DateTime
 // 0.8.9: min/maxreset buttons
 // 0.8.8f: IR fire sensor
@@ -99,27 +100,27 @@ extern char* website_url;       //  website url               "http:\\mysite.com
 //----------------------------------------------------------------------------
 // i2c Wire
 #include <Wire.h>
-
-#define SCL         D1      // SCL
-#define SDA         D2      // SDA    
-
-#define OLED_RESET  10      // GPIO10 
-
+/*
+   // esp8266
+   #define SCL         D1      // SCL
+   #define SDA         D2      // SDA
+   #define OLED_RESET  10      // GPIO10
+*/
 
 //----------------------------------------------------------------------------
 // IO pins
 //----------------------------------------------------------------------------
 /*
- * 
-    13 - This is GPIO #13 and also an analog input A12 on ADC #2. 
+   // ESP32 Adafruit Feather
+    13 - This is GPIO #13 and also an analog input A12 on ADC #2.
          It's also connected to the red LED next to the USB port
-    12 - This is GPIO #12 and also an analog input A11 on ADC #2. 
+    12 - This is GPIO #12 and also an analog input A11 on ADC #2.
          This pin has a pull-down resistor built into it, we recommend using it as an output only, or making sure that the pull-down is not affected during boot.
     27 - This is GPIO #27 and also an analog input A10 on ADC #2
-    33 - This is GPIO #33 and also an analog input A9 on ADC #1. 
+    33 - This is GPIO #33 and also an analog input A9 on ADC #1.
          It can also be used to connect a 32 KHz crystal.
     15 - This is GPIO #15 and also an analog input A8 on ADC #2
-    32 - This is GPIO #32 and also an analog input A7 on ADC #1. 
+    32 - This is GPIO #32 and also an analog input A7 on ADC #1.
          It can also be used to connect a 32 KHz crystal.
     14 - This is GPIO #14 and also an analog input A6 on ADC #2
 
@@ -127,7 +128,7 @@ extern char* website_url;       //  website url               "http:\\mysite.com
 
 #define PIN_RESETAlarm  15 /*D3*/      //  Btn 0=D3 reset Alarm
 
-#define PIN_OUT0     LED_BUILTIN      //  out Alert LED_BUILTIN
+#define PIN_OUT0     LED_BUILTIN /*13*/      //  GPIO 13 out Alert LED_BUILTIN
 #define PIN_OUT1     27 /*D6*/               //  out Alarmanlage ext
 #define PIN_OUT2     33 /*D8*/               //  out Alarmanlage int
 #define PIN_OUT3     12 /*D4*/               //  Alarm-Sirene pwm/tone
@@ -200,7 +201,7 @@ String c3OUT3name = "3-KLIMA";
 const double  FNNcorr = 1013.0 - 984.0; // ca. 250m
 
 const double fINVAL = -999.0;
-float    fFireLIMIT =  6.0;   // fSmokeLIMIT Gas-S.= 82.0;
+float   fFireLIMIT =  6.0;   // fSmokeLIMIT Gas-S.= 82.0;
 
 char    sNEXIST[10] = "--";
 char    sINVAL[10]  = "??";
@@ -365,17 +366,17 @@ char sdhPa[4] = "";  // ++, =+, ==, =-, ≤, --
 // WiFi Router
 
 #if TARGET=='Z'
-  #define     this_iph     200      // <<< local host ip (200:website=Z)
-  #define     http_port     80
+#define     this_iph     200      // <<< local host ip (200:website=Z)
+#define     http_port     80
 #elif TARGET=='F'
-  #define     this_iph     201      // <<< local host ip (201:website=T)
-  #define     http_port   8080
+#define     this_iph     201      // <<< local host ip (201:website=T)
+#define     http_port   8080
 #elif TARGET=='T'
-  #define     this_iph     202      // <<< local host ip (209:test)
-  #define     http_port   8008      //     test  
+#define     this_iph     202      // <<< local host ip (209:test)
+#define     http_port   8008      //     test  
 #else
-  #define     this_iph     200      // <<< local host ip (200: default)
-  #define     http_port     80
+#define     this_iph     200      // <<< local host ip (200: default)
+#define     http_port     80
 #endif
 
 IPAddress    this_ip(192, 168, 2, this_iph); // <<< Feste lokale IP dieses ESP8266-Servers
@@ -421,8 +422,8 @@ struct tm  timeinfo;  // timeinfo
 
 char* ntpServer = "de.pool.ntp.org";
 /*
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 0;
+   const long  gmtOffset_sec = 3600;
+   const int   daylightOffset_sec = 0;
 */
 
 //----------------------------------------------------------------------------
@@ -455,7 +456,7 @@ void buildDateTimeString() {
    datestr = "";
    strftime (sbuf,80,"%a %d %b %Y", &timeinfo);
    datestr = sbuf;
-   //Serial.println(datestr);   
+   //Serial.println(datestr);
    //Serial.println();
 }
 
@@ -701,7 +702,7 @@ int checkAlarms() {
    }
 
    c0espA0.vact=50;               //  N/A
-   if(c0espA0.vact<fFireLIMIT) {  //  N/A          
+   if(c0espA0.vact<fFireLIMIT) {  //  N/A
       // tempEmergencyCnt++;      //  N/A
    }
    if(c1espA0.vact<fFireLIMIT) {
@@ -755,10 +756,10 @@ void dashboard(int mode) {
 
    display.setFont();
    display.clearDisplay();
-   
-   if(refreshcntr>=10) refreshcntr=0; 
-   if(refreshcntr==0)  {                  
-      lcd.clear();      
+
+   if(refreshcntr>=10) refreshcntr=0;
+   if(refreshcntr==0)  {
+      lcd.clear();
    }
 
    if (mode == 0)  {
@@ -927,7 +928,7 @@ void dashboard(int mode) {
       }
    }
    refreshcntr++;
-   display.display();   
+   display.display();
    display.setFont();
    delay(10);                // <<<<<<<<<<<<<<<<<<<<<<<<<< Test, neu
 }
@@ -1103,7 +1104,7 @@ void setup() {
    Serial.println("WiFi Server started");
 
    //----------------------------------------
-   // Start the ESP LAN server (-> ESP client)
+   // Start the ESP web server (connect -> ESP clients)
    webserver.on("/", handleRoot) ;
    webserver.on("/client/client0/", handleClients);
    delay(10);
@@ -1114,7 +1115,7 @@ void setup() {
    webserver.on("/client/client3/", handleClients);
    delay(10);
    webserver.begin(8081);
-   Serial.println("ESP Server started");
+   Serial.println("Web Server started");
 
    // Print the IP address
    Serial.print("Use this URL to connect: ");
@@ -1127,22 +1128,22 @@ void setup() {
 
    //---------------------------------------------------------
    // NTP Timeserver
-   
-   #define MY_TZ "CET-1CEST,M3.5.0/02,M10.5.0/03" // Europe/Berlin  CT-1CEST,M3.5.0,M10.5.0/3
+
+#define MY_TZ "CET-1CEST,M3.5.0/02,M10.5.0/03" // Europe/Berlin  CT-1CEST,M3.5.0,M10.5.0/3
 
    configTime(0, 0, ntpServer); // 0, 0 because we will use TZ in the next line
    setenv("TZ", MY_TZ, 1);      // Set environment variable with your time zone
    tzset();
    Serial.println();
    Serial.println("  NTP TimeServer started!");
-   
+
    //------------------------------------
    displayLocalTime();
 
    //----------------------------------------
-   // setup done   
+   // setup done
    LCDmode = 0;
-   dashboard(LCDmode);   
+   dashboard(LCDmode);
    Serial.println("setup done \n");
 
 }
@@ -1165,15 +1166,22 @@ void loop() {
    //---------------------------------------
    // Check log-in
 
-   if (!authorized) {
+
+   /*
+      if (!authorized) {
       handleNotAuthorized();
       delay(100);
-   }
+      }
 
-   if (authorized) {
+      if (authorized) {
       handleWebsite();
       delay(10);
-   }
+      }
+   */
+
+   handleWebsite();
+
+
 
    webserver.handleClient();
    delay(10);
@@ -1182,8 +1190,15 @@ void loop() {
    // Read local + Udp data
 
    EmergencyCnt = checkAlarms();
-   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1); // reverse led_buitin pin switch
+   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1); // reverse led_builtin pin switch
    else digitalWrite(PIN_OUT0, 0);
+
+   //---------------------------------------------------------------------
+   //test, debug
+   if(OUT1==1) digitalWrite(PIN_OUT0, 1); //  led_builtin pin switch
+   else digitalWrite(PIN_OUT0, 0);
+   //---------------------------------------------------------------------
+
 
    dmillisLastConfirm = millis() - millisLastConfirm;
    dhrsLastConfirm = dmillisLastConfirm/(1000ul*60*60);
@@ -1196,7 +1211,7 @@ void loop() {
 
       //---------------------------------------
       // build date + time strings
-      buildDateTimeString();   
+      buildDateTimeString();
       Serial.println(timestr+"   "+datestr);
 
       //---------------------------------------
@@ -1285,6 +1300,8 @@ void loop() {
 //----------------------------------------------------------------------------
 //  handle Websites
 //----------------------------------------------------------------------------
+
+
 
 void handleNotAuthorized() {
    String readString = "";
@@ -1391,25 +1408,559 @@ void handleNotAuthorized() {
 
 
 
+//----------------------------------------------------------------------------
+// test site which works!
+
+void handleWebsite() {
+   /*
+      char timestr[80];
+      getLocalTime(timestr);
+      Serial.println(timestr);
+   */
+
+   String script="";
+   String website_title = "myESP32WifiServer";
+
+   WiFiClient client = wifiserver.available();   // listen for incoming clients
+
+   //if(!client) return;  // <<<<<<<< needed?
+
+   if (client) {                               // if you get a client,
+      Serial.println("New Client.");           // print a message out the serial port
+      String currentLine = "";                 // make a String to hold incoming data from the client
+     
+      while (client.connected()) {             // loop while the client's connected
+         if (client.available()) {             // if there's bytes to read from the client,
+            char c = client.read();            // read a byte, then
+            Serial.write(c);                   // print it out the serial monitor
+            if (c == '\n') {                   // if the byte is a newline character
+
+               // if the current line is blank, you got two newline characters in a row.
+               // that's the end of the client HTTP request, so send a response:
+               if (currentLine.length() == 0) {
+                  // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
+                  // and a content-type so the client knows what's coming, then a blank line:
+                  /*
+                     script += "HTTP/1.1 200 OK \n";
+                     script += "Content-type:text/html \n";
+                     script += "\n";
+
+                     script += "<head> \n";
+                     // autom. Aktualisierung alle 10 sec.
+                     script += "<meta http-equiv=\"refresh\" content=\"10\" > \n" ;
+
+                     // utf-8 für "°" Zeichen
+                     script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"> \n" ;
+                     script += "<title>";
+                     script += website_title;
+                     script += "</title> ";
+
+                     script += "</head> \n";
+
+
+                     script += "<h1>My First WiFiServer with ESP32 - Station Mode &#128522;</h1> \n";
+
+                     script += "<h2>";
+                     script += (String)timestr +"<br>\n";
+                     script += "</h2> \n";
+
+                     //---------------------------------------
+                     // text font Courier, color black
+                     script += "<p> <font face=\"courier\">"; // <<<<<<<<<<<<<<<< Courier
+                     script += "<font style=\"color:rgb(0,0,0);\" > </p>";
+                     script += "<br> \n";
+
+                     script += "<h3> ";
+                  */
+
+                  // init website
+
+                  script += ("HTTP/1.1 200 OK \n");
+                  script += ("Content-Type: text/html \n");
+                  script += ("\n"); //  <<<<<<<<<<<<<<<<<<
+                  script += ("<!DOCTYPE html> \n");
+                  script += ("<html> \n");
+
+                  // head + title
+                  script += ("<head> \n");
+                  // autom. Aktualisierung alle 20 sec.
+
+                  script += "<meta http-equiv=\"refresh\" content=\"20; URL=";
+                  script += (String)website_url + ":" + (String)http_port + "\"> \n" ;
+
+
+                  // utf-8 für "°" Zeichen
+                  script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"> \n" ;
+                  script += ("<title>");
+                  script += (website_title);
+                  script += ("</title> \n");
+
+                  script += ("</head> \n");
+
+                  // body + caption
+                  script += ("<body> \n");
+                  script += ("<h1> <p> ");
+                  script += ("<font style=\"color:rgb(255,0,204);\"> DON'T PANIC ! ");
+                  script += ("&nbsp; <wbr> <wbr> ");
+                  script += ("<font style=\"color:rgb(0,205,102);\"> SmartHome by " + (String)website_url );
+                  script += ("! </p> </h1>  ");
+
+                  // date + time
+                  script += "<h2><p style=\"color:rgb(0,205,102);\"> " ;
+                  script += datestr + " &nbsp; <wbr> <wbr> " + timestr + " &nbsp; <wbr> <wbr> <wbr> ";
+                  script += "<font style=\"color:rgb(0,0,0);\" >  ";
+
+                  script += ("<br>");
+                  script += "<font style=\"color:rgb(255,0,0);\"> " ;
+                  script += " Notfall Alarms: " + String(EmergencyCnt);
+                  script += "<font style=\"color:rgb(255,209,22);\"> " ;
+                  script += " &nbsp; <wbr> <wbr> <wbr> Erinnerungen: " + String(RemindCnt) + " ";
+                  script += "</p> </h2> ";
+                  script += "</br> ";
+
+                  //---------------------------------------
+                  // text font Courier, color black
+                  //script += ("<p> <font face=\"courier\">"); // <<<<<<<<<<<<<<<< Courier
+                  script += "<p> "; // <<<<<<<<<<<<<<<<
+                  script += "<font style=\"color:rgb(0,0,0);\" > </p>";
+
+                  script += "<h3> " + (String)("letztes confirm (Std): &nbsp;") + (String)dhrsLastConfirm + " &nbsp;&nbsp;&nbsp; ";
+
+                  script += "<a href=\" /CONFIRM=ON\"\"> <button style=\"height:50px;width:100px\" > Confirm </button></a>";
+                  script += "</h3> ";
+                  script += "</br> ";
+
+                  //---------------------------------------
+                  // text font Courier, color black
+                  script += "<p> <font face=\"courier\">"; // <<<<<<<<<<<<<<<< Courier
+                  script += "<font style=\"color:rgb(0,0,0);\" > </p>";
+                  //---------------------------------------
+
+                  delay(1);
+
+                  //---------------------------------------
+
+                  script += OUT1name + " ist: ";
+                  if (OUT1 == 1)
+                  {
+                     script += ("SCHARF &nbsp; <wbr> <wbr> ");
+                  }
+                  else if (OUT1 == -1)
+                  {  // test, debug
+                     script += ("REV &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ");
+                  }
+                  else
+                  {
+                     script += ("AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ");
+                  }
+
+                  script += "<a href=\" /OUT1=ON\"\"> <button style=\"height:70px;width:140px\" > SCHARF </button></a>  ";
+                  script += "<a href=\" /OUT1=OFF\"\"> <button style=\"height:70px;width:140px\" >  AUS  </button></a>  ";
+                  script += "<br> \n\n";
+
+                  script += (OUT2name + " ist: ");
+                  if (OUT2 == 1)
+                  {
+                     script += ("SCHARF &nbsp; <wbr> <wbr> ");
+                  }
+                  else
+                  {
+                     script += ("AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ");
+                  }
+
+                  script += ("<a href=\" /OUT2=ON\"\"> <button style=\"height:70px;width:140px\" > SCHARF </button></a>  ");
+                  script += ("<a href=\" /OUT2=OFF\"\"> <button style=\"height:70px;width:140px\" >  AUS  </button></a> ");
+                  script += ("<br> \n\n");
+
+
+                  script += "</h3> ";
+                  script += "</br> ";
+
+                  script += "\n";
+                  // The HTTP response ends with another blank line:
+                  script += "\n";
+/*
+                  client.print(script);
+                  script="";
+*/
+                  //---------------------------------------
+                  // sensors  Server
+                  // chart table
+                  //---------------------------------------
+                  // text font Courier, color black
+                  script += ("<p> <font face=\"courier\"> "); // <<< Courier
+                  script += "<h2> ";
+                  script += "<p style=\"color:rgb(0,0,0);\" > </p>  " ;
+                  script += ("<br> \n");
+                  script += "<table border=4 cellpadding=4>"; // "<table>";
+
+                  script +=    "<caption>  Messwerte " + SERVERname + "  </caption> ";
+
+                  // reset
+                  script += ("<a href=\" /svreset\"\"> <button style=\"height:35px;width:70px\" > reset </button></a> </h3> ");
+
+
+                  script +=     "<thead> ";
+                  // Zeile 1 Server
+                  script +=      "<tr> ";
+                  script +=         "<td bgcolor='Peru'> " + svSECT1name + " </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmin  </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmax  </td>";
+                  script +=         "<td bgcolor='White'> rF%  </td>";
+                  script +=         "<td bgcolor='Orange'>" + (String)A0intname + " % </td>";
+                  script +=         "<td bgcolor='Orange'>" + (String)"&nbsp;∅&nbsp;" + "</td>";
+                  script +=         "<td bgcolor='Fuchsia'>" + (String)A0muxname + " </td>";
+                  script +=         "<td bgcolor='Fuchsia'>" + (String)A1muxname + " </td>";
+                  script +=     "</tr> ";
+                  script +=     "</thead> ";
+
+                  script +=     "<tbody> ";
+
+                  // Zeile 2 Server
+                  script +=       "<tr> ";
+                  script +=         (String)"<th>" + svt1.sact  + " °C  </th> ";
+                  script +=         (String)"<th>" + svt1.smin   + "</th> ";
+                  script +=         (String)"<th>" + svt1.smax   + "</th> ";
+                  script +=         (String)"<th>" + svh1.sact + "</th> ";
+
+                  if (svespA0.vact<fFireLIMIT) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=                  (String)svespA0.sact + "</th> ";
+                  script +=           "<th>"+(String)(int)round(svespA0.vmean) + "</th> ";
+
+                  script +=         "<th>" + (String)(" - ")  + "</th> ";
+                  script +=         "<th>" + (String)(" - ")  + "</th> ";
+                  "<th>" + (String)("")  + "</th> ";
+                  script +=       "</tr> ";
+
+
+                  script +=     "</tbody> ";
+
+                  script +=   "</table>  ";
+                  script += "</h2>";
+
+                  script += ("<br> \n");
+                  script += ("<br> \n");
+/*
+                  client.print(script);
+                  script = "";
+*/
+
+
+                  //---------------------------------------
+                  // Client 0
+                  //---------------------------------------
+
+                  //---------------------------------------
+                  //script +=  "<h1> <br> \n  C0: GEW.-HAUS  <br> \n </h1>";
+                  script +=  "<p><font style=\"color:rgb(0,205,102);\" > </p>";
+                  script +=  "<h1> <br> \n" + CLIENT0name + "<br> \n </h1>";
+                  script +=  "<p><font style=\"color:rgb(0,0,0);\" > </p>";
+                  //---------------------------------------
+                  // remote buttons Client 0
+                  //---------------------------------------
+
+                  // <input type="button" value="submit" style="height: 100px; width: 100px; left: 250; top: 250;">
+                  // <button style=\"height:200px;width:200px\"> </button>
+
+                  script += (c0OUT1name + " ist: "); // script+= (" <h2>" + OUT1name + " ist: ");
+                  if (c0out1 == 1)
+                  {
+                     script += ("VOR &nbsp; <wbr> <wbr> ");
+                  }
+                  else if (c0out1 == -1)
+                  {
+                     script += ("REV &nbsp; <wbr> <wbr> ");
+                  }
+                  else
+                  {
+                     script += ("AUS &nbsp; <wbr> <wbr> ");
+                  }
+                  script += ("<a href=\" /c0out1=ON\"\"> <button style=\"height:70px;width:140px\" > ÖFFNEN </button></a>  ");
+                  script += ("<a href=\" /c0out1=OFF\"\"> <button style=\"height:70px;width:140px\" >  STOP  </button></a>  ");
+                  script += ("<a href=\" /c0out1=REV\"\"> <button style=\"height:70px;width:140px\" > SCHLIESSEN </button></a> "); // <br/>
+                  script += ("<br> \n\n");
+
+
+                  script += (c0OUT2name + " ist: ");
+                  if (c0out2 == 1)
+                  {
+                     script += ("EIN &nbsp; <wbr> <wbr> ");
+                  }
+                  else
+                  {
+                     script += ("AUS &nbsp; <wbr> <wbr> ");
+                  }
+                  script += ("<a href=\" /c0out2=ON\"\"> <button style=\"height:70px;width:140px\" > EIN </button></a>  ");
+                  script += ("<a href=\" /c0out2=OFF\"\"> <button style=\"height:70px;width:140px\" >  AUS  </button></a> ");
+                  script += ("<br> \n\n");
+
+
+                  script += (c0OUT3name + " ist: ");
+                  if (c0out3 == 1)
+                  {
+                     script += ("EIN &nbsp; <wbr> <wbr> ");
+                  }
+                  else
+                  {
+                     script += ("AUS &nbsp; <wbr> <wbr> ");
+                  }
+                  script += ("<a href=\" /c0out3=ON\"\"> <button style=\"height:70px;width:140px\" > EIN </button></a>  ");
+                  script += ("<a href=\" /c0out3=OFF\"\"> <button style=\"height:70px;width:140px\" >  AUS  </button></a> ");
+
+/*
+                  Serial.println((String)"\n script.length()="+script.length());
+                  client.print(script);
+                  script = "";
+*/
+
+
+                  //---------------------------------------
+                  // sensors  Client 0
+                  // chart table
+                  //---------------------------------------
+
+                  // text font Courier, color black
+                  script += ("<p> <font face=\"courier\"> "); // <<< Courier
+                  script += "<h2> ";
+                  //script += "<p style=\"color:rgb(0,0,0);\" > </p>  " ;  // <<<<<<<<<<<<<<<<<
+                  script += "<style=\"color:rgb(0,0,0);\" > </p>  " ;  // <<<<<<<<<<<<<<<<<
+                  script += ("<br> \n");
+                  script += "<table border=4 cellpadding=4>"; // "<table>";
+
+                  script +=  "<caption>  Messwerte " + CLIENT0name;
+                  script +=  "(Verb.-Fehler: " + (String)( c0t1.tFail )  + " min)" ;
+                  script +=  "</caption>" ;
+
+                  // reset
+                  script += ("<a href=\" /c0reset\"\"> <button style=\"height:35px;width:70px\" > reset </button></a> </h3> ");
+
+                  script +=     "<thead> ";
+                  // Zeile 1 Client 0
+                  script +=      "<tr> ";
+                  script +=         "<td bgcolor='Peru'> " + c0SECT1name + " </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmin  </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmax  </td>";
+                  script +=         "<td bgcolor='White'> rF%  </td>";
+                  script +=         "<td bgcolor='Avocado'>  " + c0SECT2name + " </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmin  </td>";
+                  script +=         "<td bgcolor='Yellow'> °Cmax  </td>";
+                  script +=         "<td bgcolor='White'> rF%  </td>";
+                  script +=         "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+                  script +=         "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+                  script +=     "</tr> ";
+                  script +=     "</thead> ";
+
+                  script +=     "<tbody> ";
+
+                  // Zeile 2 Client 0
+                  script +=       "<tr> ";
+                  script +=         (String)"<th>" + c0t1.sact  + " °C  </th> ";
+                  script +=         (String)"<th>" + c0t1.smin   + "</th> ";
+                  script +=         (String)"<th>" + c0t1.smax   + "</th> ";
+                  script +=         (String)"<th>" + c0h1.sact + "</th> ";
+                  script +=         (String)"<th>" + c0t2.sact  + " °C  </th> ";
+                  script +=         (String)"<th>" + c0t2.smin   + "</th> ";
+                  script +=         (String)"<th>" + c0t2.smax  + "</th> ";
+                  script +=         (String)"<th>" + c0h2.sact + "</th> ";
+                  script +=         "<th>   &nbsp;   </th> ";
+                  script +=         "<th>   &nbsp;   </th> ";
+                  script +=       "</tr> ";
+
+/*
+                  Serial.println((String)"\n script.length()="+script.length());
+                  client.print(script);
+                  script = "";
+*/
+                
+
+                  // Zeile 3 Client 0
+                  script +=       "<tr> ";
+                  script +=         "<td bgcolor='Yellow'> hPa </td>";
+                  script +=         "<td bgcolor='Yellow'> &nbsp; ±  </td>";
+                  script +=         "<td bgcolor='Yellow'> hPa ∅ </td>";
+                  script +=         "<td bgcolor='White'>  &nbsp;  </td>";
+
+                  script +=         "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
+                  script +=         "<td bgcolor='Avocado'>" + (String)c0A1muxname + "</td>";
+                  script +=         "<td bgcolor='Avocado'>" + (String)c0A2muxname + "</td>";
+                  script +=         "<td bgcolor='Avocado'>" + (String)c0A3muxname + "</td>";
+                  script +=         "<td bgcolor='Orange'>" + (String)c0A0intname + "</td>";
+                  script +=         "<td bgcolor='Orange'>" + (String)"&nbsp;∅&nbsp;" + "</td>";
+                  script +=       "</tr> ";
+
+                  // Zeile 4 Client 0
+                  strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean) );
+                  script +=  "<tr> ";
+                  script +=      "<th>" + (String)(int)round(c0p1.vact) + "</th> ";
+                  script +=      "<th> " + (String)dsymbol  + " </th> ";
+                  script +=      "<th>" + (String)(int)round(c0p1.vmean) + " </th> ";
+                  script +=      "<th>" + (String)(" &nbsp; ")  + "</th> ";
+
+                  if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=               (String)c0adc0.sact + "</th> ";
+
+                  if (c0adc1.tFail>60 || c0adc1.vmean<adcSoilMin) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=               (String)c0adc1.sact + "</th> ";
+
+                  if (c0adc2.tFail>60 || c0adc2.vmean<adcSoilMin) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=               (String)c0adc2.sact + "</th> ";
+
+                  if (c0adc3.tFail>60 || c0adc3.vmean<adcSoilMin) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=               (String)c0adc3.sact + "</th> ";
+
+                  if (c0espA0.vact<fFireLIMIT) {
+                     script += (String)"<td bgcolor='red'>";
+                  } else script += (String)"<th>";
+                  script +=                  (String)c0espA0.sact + "</th> ";
+                  script +=           "<th>"+(String)(int)round(c0espA0.vmean) + "</th> ";
+
+                  script +=    "</tr> ";
+
+                  script +=  "</tbody> ";
+
+                  script +=   "</table> ";
+                  script += "</h2>";
+
+                  script += ("<br> \n");
+                  script += ("<br> \n");
+
+                  Serial.println((String)"\n script.length()="+script.length());
+                  client.print(script);
+                  script = "";
+
+
+ 
 
 
 
 
 
-String htmlButton(String Shref, String Label, int h, int w) {
-   String buf="";
 
-   buf  = "<a href= \" /";
-   buf += Shref;
-   buf += " \" \" >";
-   buf += " <button style= \" height:"+String(h)+"px;width:"+String(w)+"px \" > ";
-   buf += Label;
-   buf += " </button></a>  ";
+
+
+
+
+                  delay(1);
+
+                  // break out of the while loop:
+                  break;
+
+               }
+               else {    // if you got a newline, then clear currentLine:
+                  currentLine = "";
+               }
+            }
+            else if (c != '\r') {  // if you got anything else but a carriage return character,
+               currentLine += c;      // add it to the end of the currentLine
+            }
+            delay(1);
+
+
+            //---------------------------------------
+            //------  react on html widgets  --------
+            //---------------------------------------
+
+            //---------------------------------------
+            // Match the request on Server
+            //---------------------------------------
+
+            //------------------------
+            //  server Confirm-button
+            if (currentLine.endsWith("/CONFIRM=ON")) {
+               resetConfirmTime();
+            }
+
+            //------------------------
+            //  server local button 1
+            // Check if the client request was "GET /OUT1=1" or "GET /OUT1=0" etc.:
+
+            if (currentLine.endsWith("GET /OUT1=ON")) {
+               OUT1=HIGH;              // GET /OUT1=ON turns the LED on
+            }
+            if (currentLine.endsWith("GET /OUT1=OFF")) {
+               OUT1=LOW;               // GET /OUT1=OFF turns the LED off
+            }
+
+            //------------------------
+            //  server local button 2
+            if (currentLine.endsWith("GET /OUT2=ON")) {
+               OUT2=HIGH;              // GET /OUT2=ON turns the LED on
+            }
+            if (currentLine.endsWith("GET /OUT2=OFF")) {
+               OUT2=LOW;               // GET /OUT2=OFF turns the LED off
+            }
+
+            //  server local Reset min/max button
+            if (currentLine.endsWith("/svreset"))  {
+               resetMinMaxValues(svt1);
+               resetMinMaxValues(svt2);
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+         }   //  if client.available
+      }   //  while client.connected
+
+
+      // close the connection:
+      client.stop();
+      delay(1);
+      Serial.println("Client Disconnected.");
+   }
+   delay(5);
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //----------------------------------------------------------------------------
 
-void handleWebsite() {
+void handleOldsite() {
    char istr[5];
    WiFiClient client = wifiserver.available();
 
@@ -1448,8 +1999,8 @@ void handleWebsite() {
       OUT2 = 0;
    }
 
-   // Reset   
-    if (request.indexOf("/svreset") != -1)  {
+   // Reset
+   if (request.indexOf("/svreset") != -1)  {
       resetMinMaxValues(svt1);
       resetMinMaxValues(svt2);
    }
@@ -1485,8 +2036,8 @@ void handleWebsite() {
       c0out3 = 0;
    }
 
-   // Reset   
-    if (request.indexOf("/c0reset") != -1)  {
+   // Reset
+   if (request.indexOf("/c0reset") != -1)  {
       resetMinMaxValues(c0t1);
       resetMinMaxValues(c0t2);
    }
@@ -1523,8 +2074,8 @@ void handleWebsite() {
    }
 
 
-   // Reset   
-    if (request.indexOf("/c1reset") != -1)  {
+   // Reset
+   if (request.indexOf("/c1reset") != -1)  {
       resetMinMaxValues(c1t1);
       resetMinMaxValues(c1t2);
    }
@@ -1552,8 +2103,8 @@ void handleWebsite() {
       c2out2 = -1;
    }
 
-   // Reset   
-    if (request.indexOf("/c2reset") != -1)  {
+   // Reset
+   if (request.indexOf("/c2reset") != -1)  {
       resetMinMaxValues(c2t1);
       resetMinMaxValues(c2t2);
    }
@@ -1586,8 +2137,8 @@ void handleWebsite() {
       c3tx3 = c3tx3-1;
    }
 
-   // Reset   
-    if (request.indexOf("/c3reset") != -1)  {
+   // Reset
+   if (request.indexOf("/c3reset") != -1)  {
       resetMinMaxValues(c3t1);
       resetMinMaxValues(c3t2);
    }
@@ -1686,9 +2237,9 @@ void handleWebsite() {
 
    //---------------------------------------
    // remote buttons Server
-   // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern  
+   // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern
    // <button style="background-color:red; border-color:blue; color:white">
-   // https://www.w3schools.com/colors/colors_shades.asp 
+   // https://www.w3schools.com/colors/colors_shades.asp
    // HTML LightGray    #D3D3D3  rgb(211,211,211)
    //---------------------------------------
 
@@ -1716,12 +2267,6 @@ void handleWebsite() {
    {
       script += ("SCHARF &nbsp; <wbr> <wbr> ");
    }
-
-   /*
-      else
-      if(OUT2 == -1)
-      { script+= ("Rev &nbsp; <wbr> <wbr> ");  }
-   */
    else
    {
       script += ("AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ");
@@ -1817,6 +2362,9 @@ void handleWebsite() {
    client.print(script);
 
    script = "";
+
+
+
 
 
    //---------------------------------------
@@ -2340,7 +2888,7 @@ void handleWebsite() {
 //----------------------
 // Thermostat
 //----------------------
-   
+
    script += ("c3-Thermost= ");
    sprintf(istr, "%+3d", c3tx3);
    script += (String)( istr ) ;
@@ -2375,7 +2923,7 @@ void handleWebsite() {
    script +=  "(Verb.-Fehler: " + (String)( c3t1.tFail )  + " min)" ;
    script +=  "</caption>" ;
 
-  // reset
+   // reset
    script += ("<a href=\" /c3reset\"\"> <button style=\"height:35px;width:70px\" > reset </button></a> </h3> ");
 
 
@@ -2833,12 +3381,12 @@ void handleClients() {
 
 /*-------- NTP code ----------*/
 /*
-const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
-byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
+   const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
+   byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
 
-time_t getNtpTime()
-{
+   time_t getNtpTime()
+   {
    time_t timebuf;
    while (UdpTime.parsePacket() > 0) ; // discard any previously received packets
    Serial.println("Transmit NTP Request");
@@ -2863,14 +3411,14 @@ time_t getNtpTime()
    }
    Serial.println("No NTP Response :-(");
    return 0; // return 0 if unable to get the time
-}
+   }
 
 
 
 
-// send an NTP request to the time server at the given address
-void sendNTPpacket(IPAddress &address)
-{
+   // send an NTP request to the time server at the given address
+   void sendNTPpacket(IPAddress &address)
+   {
    // set all bytes in the buffer to 0
    memset(packetBuffer, 0, NTP_PACKET_SIZE);
    // Initialize values needed to form NTP request
@@ -2889,7 +3437,7 @@ void sendNTPpacket(IPAddress &address)
    UdpTime.beginPacket(address, 123); //NTP requests are to port 123
    UdpTime.write(packetBuffer, NTP_PACKET_SIZE);
    UdpTime.endPacket();
-}
+   }
 
 */
 
@@ -2922,9 +3470,9 @@ void sendNTPpacket(IPAddress &address)
     http://www.aip.de/groups/soe/local/handbuch/html/tceb.htm
 
     // html colors: https://www.w3schools.com/tags/ref_colornames.asp
-    // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern  
+    // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern
     // <button style="background-color:red; border-color:blue; color:white">
-    // https://www.w3schools.com/colors/colors_shades.asp 
+    // https://www.w3schools.com/colors/colors_shades.asp
     // HTML LightGray    #D3D3D3  rgb(211,211,211)
 */
 
