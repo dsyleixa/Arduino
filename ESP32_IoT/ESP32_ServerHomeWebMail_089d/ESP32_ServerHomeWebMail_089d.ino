@@ -7,7 +7,7 @@
 //  ESP32 Adafruit Feather
 //
 // History:
-// 0.8.9b: ESP32 DateTime
+// 0.8.9d: ESP32 DateTime, ESP32 log-in fixed
 // 0.8.9: min/maxreset buttons
 // 0.8.8f: IR fire sensor
 // 0.8.8c: fINVAL, html red BGnd c1(2)t1.vmean>-4.0
