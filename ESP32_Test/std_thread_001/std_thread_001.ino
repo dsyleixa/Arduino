@@ -43,7 +43,9 @@ std::thread blinker_loop_thread(blinker_loop);
 void setup() {
     Serial.begin(115200);
     pinMode(LED_BUILTIN, OUTPUT);
-    
+    delay(2000);
+    counter_loop_thread = new std::thread(counter_loop);
+    blinker_loop_thread = new std::thread(blinker_loop);    
 }
 
 uint32_t main_loop_counter = 0;
