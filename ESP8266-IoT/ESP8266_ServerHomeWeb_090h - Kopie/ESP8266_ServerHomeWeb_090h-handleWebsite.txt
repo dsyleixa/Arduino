@@ -1,0 +1,632 @@
+void handleWebsite() {
+   char istr[5];
+   WiFiClient client = wifiserver.available();
+
+   //---------------------------------------
+   // Check if a client has connected
+   if (!client) {
+      return;
+   }
+
+   // --- Warte auf Daten (safety) ---
+   unsigned long start = millis();
+   while (!client.available()) {
+      if (millis() - start > 1000) {
+         // nichts empfangen -> Verbindung freigeben
+         client.stop();
+         return;
+      }
+      yield();
+   }
+
+   // Read the first line of the request (bis '\r')
+   String request = client.readStringUntil('\r');
+   request.trim();
+   Serial.println(request);
+
+   // consume the trailing '\n' after '\r' if any
+   if (client.peek() == '\n') client.read();
+
+   // --- Parse the request line safely: METHOD PATH VERSION ---
+   // Example: "GET /OUT1=ON HTTP/1.1"
+   String method = "";
+   String path = "";
+   String version = "";
+   int sp1 = request.indexOf(' ');
+   if (sp1 != -1) {
+      int sp2 = request.indexOf(' ', sp1 + 1);
+      if (sp2 != -1) {
+         method = request.substring(0, sp1);
+         path = request.substring(sp1 + 1, sp2);
+         version = request.substring(sp2 + 1);
+      } else {
+         // malformed request line -> bail out
+         client.stop();
+         return;
+      }
+   } else {
+      // malformed -> bail out
+      client.stop();
+      return;
+   }
+
+   // ============================================================
+   // *** neu:  HIER KOMMT DER LOGOUT-BLOCK HIN – GANZ WICHTIG ***
+   // ============================================================
+   //---------------------------------------
+   // LogOut / Confirm  neu !
+   //---------------------------------------
+   if ( (method == "GET") && (path == "/logout") ) {
+      authorized = false;
+
+      // 1) HTTP-Header (komplett, korrekt, sauber)
+      String script = "";
+      script += "HTTP/1.1 303 See Other\r\n";        // << WICHTIG: 303 ist stabiler als 302!
+      script += "Location: /\r\n";
+      script += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+      script += "Pragma: no-cache\r\n";
+      script += "Expires: 0\r\n";
+      script += "Content-Length: 0\r\n";             // << WICHTIG für Firefox
+      script += "Connection: close\r\n\r\n";
+
+      // 2) komplett senden
+      client.print(script);
+      client.flush();
+
+      // 3) Warten, bis der Buffer definitiv leer ist
+      delay(50);                                     // << Firefox braucht diese Verzögerung
+
+      // 4) Verbindung sauber beenden
+      client.stop();
+      delay(20);
+
+      return;
+   }
+
+   // --- Restliche Header vollständig konsumieren (vermeidet Fragment-Probleme) ---
+   // Lese Headerzeilen bis zur leeren Zeile
+   while (client.connected()) {
+      String headerLine = client.readStringUntil('\n');
+      if (headerLine == "\r" || headerLine.length() == 0) break;
+      // optional: Serial.println(headerLine);
+      // safety: wenn keine Daten mehr, abbrechen
+      if (!client.available()) break;
+   }
+
+   //---------------------------------------
+   // Match the request on Server (exact path comparisons)
+   //---------------------------------------
+   if ((method == "GET") && (path == "/OUT1=ON"))  {
+      digitalWrite(PIN_OUT1, 1);
+      OUT1 = +1;
+   }
+   if ((method == "GET") && (path == "/OUT1=OFF")) {
+      digitalWrite(PIN_OUT1, 0);
+      OUT1 = 0;
+   }
+
+   if ((method == "GET") && (path == "/OUT2=ON"))  {
+      digitalWrite(PIN_OUT2, 1);
+      OUT2 = +1;
+   }
+   if ((method == "GET") && (path == "/OUT2=OFF")) {
+      digitalWrite(PIN_OUT2, 0);
+      OUT2 = 0;
+   }
+
+   // Reset
+   if ((method == "GET") && (path == "/svreset"))  {
+      resetMinMaxValues(svt1);
+      resetMinMaxValues(svt2);
+   }
+
+   //---------------------------------------
+   // Match the request on Client 0
+   //---------------------------------------
+   if ((method == "GET") && (path == "/c0out1=ON"))  { c0out1 = +1; }
+   if ((method == "GET") && (path == "/c0out1=OFF")) { c0out1 = 0; }
+   if ((method == "GET") && (path == "/c0out1=REV")) { c0out1 = -1; }
+
+   if ((method == "GET") && (path == "/c0out2=ON"))  { c0out2 = +1; }
+   if ((method == "GET") && (path == "/c0out2=OFF")) { c0out2 = 0; }
+
+   if ((method == "GET") && (path == "/c0out3=ON"))  { c0out3 = +1; }
+   if ((method == "GET") && (path == "/c0out3=OFF")) { c0out3 = 0; }
+
+   if ((method == "GET") && (path == "/c0reset"))  {
+      resetMinMaxValues(c0t1);
+      resetMinMaxValues(c0t2);
+   }
+
+   //---------------------------------------
+   // Match the request for Client 1
+   //---------------------------------------
+   if ((method == "GET") && (path == "/c1out1=ON"))  { c1out1 = +1; }
+   if ((method == "GET") && (path == "/c1out1=OFF")) { c1out1 = 0; }
+
+   if ((method == "GET") && (path == "/c1out2=ON"))  { c1out2 = +1; }
+   if ((method == "GET") && (path == "/c1out2=OFF")) { c1out2 = 0; }
+   if ((method == "GET") && (path == "/c1out2=REV")) { c1out2 = -1; }
+
+   if ((method == "GET") && (path == "/c1out3=ON"))  { c1out3 = +1; }
+   if ((method == "GET") && (path == "/c1out3=OFF")) { c1out3 = 0; }
+
+   if ((method == "GET") && (path == "/c1reset"))  {
+      resetMinMaxValues(c1t1);
+      resetMinMaxValues(c1t2);
+   }
+
+   //---------------------------------------
+   // Match the request for Client 2
+   //---------------------------------------
+   if ((method == "GET") && (path == "/c2out1=ON"))  { c2out1 = +1; }
+   if ((method == "GET") && (path == "/c2out1=OFF")) { c2out1 = 0; }
+
+   if ((method == "GET") && (path == "/c2out2=ON"))  { c2out2 = +1; }
+   if ((method == "GET") && (path == "/c2out2=OFF")) { c2out2 = 0; }
+   if ((method == "GET") && (path == "/c2out2=REV")) { c2out2 = -1; }
+
+   if ((method == "GET") && (path == "/c2reset"))  {
+      resetMinMaxValues(c2t1);
+      resetMinMaxValues(c2t2);
+   }
+
+   //---------------------------------------
+   // Match the request for Client 3
+   //---------------------------------------
+   if ((method == "GET") && (path == "/c3out1=ON"))  { c3out1 = +1; }
+   if ((method == "GET") && (path == "/c3out1=OFF")) { c3out1 = 0; }
+
+   if ((method == "GET") && (path == "/c3out2=ON"))  { c3out2 = +1; }
+   if ((method == "GET") && (path == "/c3out2=OFF")) { c3out2 = 0; }
+
+   if ((method == "GET") && (path == "/c3tx3=UP"))  { c3tx3 = c3tx3 + 1; }
+   if ((method == "GET") && (path == "/c3tx3=DN"))  { c3tx3 = c3tx3 - 1; }
+
+   if ((method == "GET") && (path == "/c3reset"))  {
+      resetMinMaxValues(c3t1);
+      resetMinMaxValues(c3t2);
+   }
+
+   if ((method == "GET") && (path == "/CONFIRM=ON"))   {
+      resetConfirmTime();
+   }
+
+   delay(1);
+
+   //---------------------------------------
+   // Return the response (1:1 String-Verkettung, in Blöcken)
+   //---------------------------------------
+
+   String script = "";
+
+   // init website - HTTP-Header
+   script += "HTTP/1.1 200 OK\r\n";
+   script += "Content-Type: text/html; charset=utf-8\r\n";
+   script += "Connection: close\r\n";
+   script += "\r\n";
+
+   // HTML head
+   script += "<!DOCTYPE html>\n";
+   script += "<html>\n";
+   script += "<head>\n";
+   // automatische Aktualisierung alle 20 sec.
+   script += "<meta http-equiv=\"refresh\" content=\"20; URL=";
+   script += String(website_url) + ":" + String(http_port);
+   script += "\">\n";
+   script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
+   script += "<title>" + String(website_title) + "</title>\n";
+   script += "</head>\n";
+   script += "<body>\n";
+
+   // Header & Status
+   script += "<h1><p><font style=\"color:rgb(255,0,204);\"> DON'T PANIC ! </font>";
+   script += "&nbsp; <wbr> <wbr> ";
+   script += "<font style=\"color:rgb(0,205,102);\"> Welcome to " + String(website_url) + "! </font></p></h1>\n";
+
+   script += "<h2><p style=\"color:rgb(0,205,102);\">" + datestr + " &nbsp; <wbr> <wbr> " + timestr + " &nbsp; <wbr> <wbr> <wbr>";
+   script += "<font style=\"color:rgb(0,0,0);\">";
+   script += "<br>";
+   script += "<font style=\"color:rgb(255,0,0);\"> Notfall Alarms: " + String(EmergencyCnt) + "</font>";
+   script += "<font style=\"color:rgb(255,209,22);\"> &nbsp; <wbr> <wbr> <wbr> Erinnerungen: " + String(RemindCnt) + "</font>";
+   script += "</p></h2>\n";
+
+   script += "<p> </p>\n";
+
+   script += "<h3>letztes confirm (Std): &nbsp;" + String(dhrsLastConfirm) + " &nbsp;&nbsp;&nbsp;";
+   script += "<a href=\"/CONFIRM=ON\"><button style=\"height:50px;width:100px\"> Confirm </button></a>";
+   script += "</h3>\n";
+
+   script += "<p><font face=\"courier\"><font style=\"color:rgb(0,0,0);\"></font></p>\n";
+
+   // SERVER block - Buttons
+   script += "<h1><br>" + SERVERname + "<br></h1>\n";
+
+   script += OUT1name + " ist: ";
+   if (OUT1 == 1) script += "SCHARF &nbsp; <wbr> <wbr> ";
+   else if (OUT1 == -1) script += "REV &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
+
+   script += "<a href=\"/OUT1=ON\"><button style=\"height:70px;width:140px\"> SCHARF </button></a> ";
+   script += "<a href=\"/OUT1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   script += OUT2name + " ist: ";
+   if (OUT2 == 1) script += "SCHARF &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
+
+   script += "<a href=\"/OUT2=ON\"><button style=\"height:70px;width:140px\"> SCHARF </button></a> ";
+   script += "<a href=\"/OUT2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   // Server sensors table (Block)
+   script += "<p><font face=\"courier\"></font></p>\n";
+   script += "<h2>\n";
+   script += "<table border=4 cellpadding=4>";
+   script += "<caption> Messwerte " + SERVERname + " </caption>";
+   script += "<a href=\"/svreset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += "<thead><tr>";
+   script += "<td bgcolor='Peru'>" + svSECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>" + String(A0intname) + " % </td>";
+   script += "<td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
+   script += "<td bgcolor='Fuchsia'>" + String(A0muxname) + "</td>";
+   script += "<td bgcolor='Fuchsia'>" + String(A1muxname) + "</td>";
+   script += "</tr></thead><tbody>";
+   script += "<tr>";
+   script += "<th>" + String(svt1.sact) + " °C</th>";
+   script += "<th>" + String(svt1.smin) + "</th>";
+   script += "<th>" + String(svt1.smax) + "</th>";
+   script += "<th>" + String(svh1.sact) + "</th>";
+   if (svespA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+   else script += "<th>";
+   script += String(svespA0.sact) + "</th>";
+   script += "<th>" + String(svespA0.smean) + "</th>";
+   script += "<th>-</th><th>-</th>";
+   script += "</tr>";
+   script += "</tbody></table></h2>\n<br><br>\n";
+
+   // SEND server block
+   client.print(script);
+   
+   //---------------------------------------
+   // sensors  Client 0
+   // chart table
+   //---------------------------------------
+   
+   script = ""; 
+   // text font Courier, color black
+   script += ("<p> <font face=\"courier\"> ");
+   script += "<h2> ";
+   script += "<style=\"color:rgb(0,0,0);\" > </p>  ";
+   script += ("<br> \n");
+   script += "<table border=4 cellpadding=4>";
+
+   script += "<caption> Messwerte " + CLIENT0name;
+   script += "(Verb.-Fehler: " + (String)(c0t1.tFail) + " min)";
+   script += "</caption>";
+
+   // reset
+   script += "<a href=\"/c0reset\"><button style=\"height:35px;width:70px\"> reset </button></a> </h3>";
+
+   // --------- Zeile 1 ----------
+   script += "<thead><tr>";
+   script += "<td bgcolor='Peru'> " + c0SECT1name + " </td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td>";
+   script += "<td bgcolor='Yellow'> °Cmax </td>";
+   script += "<td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Avocado'> " + c0SECT2name + " </td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td>";
+   script += "<td bgcolor='Yellow'> °Cmax </td>";
+   script += "<td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+   script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+   script += "</tr></thead>";
+
+   script += "<tbody>";
+
+   // --------- Zeile 2 ----------
+   script += "<tr>";
+   script += "<th>" + (String)c0t1.sact + " °C</th>";
+   script += "<th>" + (String)c0t1.smin + "</th>";
+   script += "<th>" + (String)c0t1.smax + "</th>";
+   script += "<th>" + (String)c0h1.sact + "</th>";
+
+   script += "<th>" + (String)c0t2.sact + " °C</th>";
+   script += "<th>" + (String)c0t2.smin + "</th>";
+   script += "<th>" + (String)c0t2.smax + "</th>";
+   script += "<th>" + (String)c0h2.sact + "</th>";
+
+   script += "<th>&nbsp;</th><th>&nbsp;</th>";
+   script += "</tr>";
+
+   // --------- Zeile 3 ----------
+   script += "<tr>";
+   script += "<td bgcolor='Yellow'> hPa </td>";
+   script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
+   script += "<td bgcolor='Yellow'> hPa ∅ </td>";
+   script += "<td bgcolor='White'> &nbsp; </td>";
+
+   script += "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A1muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A2muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A3muxname + "</td>";
+   script += "<td bgcolor='Orange'>" + (String)c0A0intname + "</td>";
+   script += "<td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
+   script += "</tr>";
+
+   // --------- Zeile 4 ----------
+   strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean));
+
+   script += "<tr>";
+   script += "<th>" + (String)(c0p1.sact) + "</th>";
+   script += "<th>" + (String)dsymbol + "</th>";
+   script += "<th>" + (String)(c0p1.smean) + "</th>";
+   script += "<th>&nbsp;</th>";
+
+   // ADC 0..3
+   if (c0adc0.tFail > 60 || c0adc0.vmean < adcSoilMin)
+      script += "<td bgcolor='red'>" + String(c0adc0.sact) + "</td>";
+   else
+      script += "<th>" + String(c0adc0.sact) + "</th>";
+
+   if (c0adc1.tFail > 60 || c0adc1.vmean < adcSoilMin)
+      script += "<td bgcolor='red'>" + String(c0adc1.sact) + "</td>";
+   else
+      script += "<th>" + String(c0adc1.sact) + "</th>";
+
+   if (c0adc2.tFail > 60 || c0adc2.vmean < adcSoilMin)
+      script += "<td bgcolor='red'>" + String(c0adc2.sact) + "</td>";
+   else
+      script += "<th>" + String(c0adc2.sact) + "</th>";
+
+   if (c0adc3.tFail > 60 || c0adc3.vmean < adcSoilMin)
+      script += "<td bgcolor='red'>" + String(c0adc3.sact) + "</td>";
+   else
+      script += "<th>" + String(c0adc3.sact) + "</th>";
+
+   // ESP A0 + Mittelwert
+   if (c0espA0.vact < fFireLIMIT)
+      script += "<td bgcolor='red'>" + String(c0espA0.sact) + "</td>";
+   else
+      script += "<th>" + String(c0espA0.sact) + "</th>";
+
+   script += "<th>" + String(c0espA0.smean) + "</th>";
+   script += "</tr>";
+
+   script += "</tbody>";
+   script += "</table>";
+   script += "</h2>";
+
+   script += "<br>\n";
+   script += "<br>\n";
+
+   client.print(script);
+   script = "";
+
+   // ----------------------
+   // Client 1 - Buttons + sensors (Block)
+   // ----------------------
+   
+   script = "";
+   
+   script += "<h1><br>" + CLIENT1name + "<br></h1>\n";
+   script += c1OUT2name + " ist: ";
+   if (c1out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else if (c1out2 == -1) script += "Rev &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c1out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
+   script += "<a href=\"/c1out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
+   script += "<a href=\"/c1out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
+
+   // client 1 sensors (detailliert)
+   script += "<h2>\n<table border=4 cellpadding=4>";
+   script += "<caption> Messwerte " + CLIENT1name + " (Verb.-Fehler: " + String(c1t1.tFail) + " min)</caption>";
+   script += "<a href=\"/c1reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += "<thead><tr>";
+   script += "<td bgcolor='Teal'>" + c1SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
+   script += "<td bgcolor='White'> rF% </td><td bgcolor='LightCyan'>" + c1SECT2name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>" + String(c1A0intname) + "</td><td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
+   script += "</tr></thead><tbody>";
+   script += "<tr>";
+   if (c1t1.tFail > 60 || c1t1.vmean > -4.0 ) {
+      script += "<td bgcolor='red'>";
+   } else script += "<th>";
+   script += String(c1t1.sact) + " °C</th>";
+   script += "<th>" + String(c1t1.smin) + "</th>";
+   script += "<th>" + String(c1t1.smax) + "</th>";
+   script += "<th>" + String(c1t1.smean) + "</th>";
+   script += "<th>" + String(c1h1.sact) + "</th>";
+   script += "<th>" + String(c1t2.sact) + " °C</th>";
+   script += "<th>" + String(c1t2.smin) + "</th>";
+   script += "<th>" + String(c1t2.smax) + "</th>";
+   script += "<th>" + String(c1h2.sact) + "</th>";
+   if (c1espA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+   else script += "<th>";
+   script += String(c1espA0.sact) + "</th>";
+   script += "<th>" + String(c1espA0.smean) + "</th>";
+   script += "</tr></tbody></table></h2>\n<br><br>\n";
+
+   client.print(script);
+   script = "";
+
+   // ----------------------
+   // Client 2 - Buttons + sensors (Block)
+   // ----------------------
+   script += "<h1><br>" + CLIENT2name + "<br></h1>\n";
+   script += c2OUT2name + " ist: ";
+   if (c2out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else if (c2out2 == -1) script += "Rev &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c2out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
+   script += "<a href=\"/c2out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
+   script += "<a href=\"/c2out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
+
+   script += "<h2>\n<table border=4 cellpadding=4>";
+   script += "<caption> Messwerte " + CLIENT2name + " (Verb.-Fehler: " + String(c2t1.tFail) + " min)</caption>";
+   script += "<a href=\"/c2reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += "<thead><tr>";
+   script += "<td bgcolor='Teal'>" + c2SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
+   script += "<td bgcolor='White'> rF% </td><td bgcolor='LightCyan'>" + c2SECT2name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>" + String(c2A0intname) + "</td><td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
+   script += "</tr></thead><tbody>";
+   script += "<tr>";
+   if (c2t1.tFail > 60 || c2t1.vmean > -4.0 ) {
+      script += "<td bgcolor='red'>";
+   } else script += "<th>";
+   script += String(c2t1.sact) + " °C</th>";
+   script += "<th>" + String(c2t1.smin) + "</th>";
+   script += "<th>" + String(c2t1.smax) + "</th>";
+   script += "<th>" + String(c2t1.smean) + "</th>";
+   script += "<th>" + String(c2h1.sact) + "</th>";
+   script += "<th>" + String(c2t2.sact) + " °C</th>";
+   script += "<th>" + String(c2t2.smin) + "</th>";
+   script += "<th>" + String(c2t2.smax) + "</th>";
+   script += "<th>" + String(c2h2.sact) + "</th>";
+   if (c2espA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+   else script += "<th>";
+   script += String(c2espA0.sact) + "</th>";
+   script += "<th>" + String(c2espA0.smean) + "</th>";
+   script += "</tr></tbody></table></h2>\n<br><br>\n";
+
+   client.print(script);
+   
+   script = "";
+
+   // ----------------------
+   // Client 3 - Buttons + sensors (Block)
+   // ----------------------
+   script += "<h1><br>" + CLIENT3name + "<br></h1>\n";
+   script += c3OUT1name + " ist: ";
+   if (c3out1 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c3out1=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   script += "<a href=\"/c3out1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   script += c3OUT2name + " ist: ";
+   if (c3out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c3out2=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   script += "<a href=\"/c3out2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   // Thermostat controls
+   sprintf(istr, "%+3d", c3tx3);
+   script += "c3-Thermost= " + String(istr) + " &nbsp;&nbsp; ";
+   script += "<a href=\"/c3tx3=UP\"><button style=\"height:70px;width:140px\">Therm +1</button></a> ";
+   script += "<a href=\"/c3tx3=DN\"><button style=\"height:70px;width:140px\">Therm -1</button></a><br>\n\n";
+
+   script += "<h2>\n<table border=4 cellpadding=4>";
+   script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c3t1.tFail) + " min)</caption>";
+   script += "<a href=\"/c3reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += "<thead><tr>";
+   script += "<td bgcolor='Peru'>" + c3SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Avocado'>" + c3SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='White'>&nbsp;&nbsp;</td><td bgcolor='White'>&nbsp;&nbsp;</td>";
+   script += "</tr></thead><tbody>";
+   script += "<tr>";
+   script += "<th>" + String(c3t1.sact) + " °C</th>";
+   script += "<th>" + String(c3t1.smin) + "</th>";
+   script += "<th>" + String(c3t1.smax) + "</th>";
+   script += "<th>" + String(c3h1.sact) + "</th>";
+   script += "<th>" + String(c3t2.sact) + " °C</th>";
+   script += "<th>" + String(c3t2.smin) + "</th>";
+   script += "<th>" + String(c3t2.smax) + "</th>";
+   script += "<th>" + String(c3h2.sact) + "</th>";
+   script += "<th>&nbsp;</th><th>&nbsp;</th>";
+   script += "</tr>";
+
+   // --- Zeile 3: Status / Mux-Namen ---
+   script += "<tr>";
+   script += "<td bgcolor='White'>   - </td>";
+   script += "<td bgcolor='LightGray'> c3out1 </td>";
+   script += "<td bgcolor='LightGray'> c3out2 </td>";
+   script += "<td bgcolor='LightGray'> c3out3 </td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A0muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A1muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A2muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A3muxname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)c3A0intname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)"&nbsp;∅&nbsp;" + "</td>";
+   script += "</tr>";
+
+   // --- Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
+   script += "<tr>";
+   script += "<th>" + (String)"  -  " + "</th>";
+   script += "<th>" + (String)(c3outMon1)  + "</th>";
+   script += "<th>" + (String)(c3outMon2)  + "</th>";
+   script += "<th>" + (String)(c3outMon3)  + "</th>";
+
+   if (c3adc0.tFail>60 || c3adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc0.sact;
+      script += "</th>";
+   }
+
+   if (c3adc1.tFail>60 || c3adc1.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc1.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc1.sact;
+      script += "</th>";
+   }
+
+   if (c3adc2.tFail>60 || c3adc2.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc2.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc2.sact;
+      script += "</th>";
+   }
+
+   if (c3adc3.tFail>60 || c3adc3.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc3.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc3.sact;
+      script += "</th>";
+   }
+
+   if (c3espA0.vact<fFireLIMIT) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3espA0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3espA0.sact;
+      script += "</th>";
+   }
+
+   script += "<th>"+(String)(c3espA0.smean) + "</th>";
+   script += "</tr>";
+
+   script += "</tbody></table></h2>\n<br><br>\n";
+
+   client.print(script);
+   script = "";
+
+   // Logout + footer
+   script += "<h3>Log Out: <a href=\"/logout\"><button style=\"height:70px;width:140px\"> Log Out </button></a></h3>\n";
+   script += ver + " " + WiFi.localIP().toString() + " " + String(ssid) + " <br>\n";
+   script += "</body>\n</html>\n";
+   script += "<br>\n<br>\n";
+
+   client.print(script);
+   client.flush();
+
+   // Sauber beenden
+   delay(1);
+   client.stop();
+} // end:  handleWebsite
