@@ -1,0 +1,251 @@
+//-------------------------------------------
+// handleWebsite()  009i neu
+//-------------------------------------------
+
+void handleWebsite() {
+
+// --- 090i : handleWebsite() — PART A (bis vor HTML-Ausgabe) ---
+// (Einfügen an Stelle der bisherigen handleWebsite()-Kopfes)
+
+
+   char istr[5];
+   WiFiClient client = wifiserver.available();
+
+   //---------------------------------------
+   // Check if a client has connected
+   if (!client) {
+      return;
+   }
+
+   // --- Warte auf Daten (safety) ---
+   unsigned long start = millis();
+   while (!client.available()) {
+      if (millis() - start > 1000) {
+         // nichts empfangen -> Verbindung freigeben
+         client.stop();
+         return;
+      }
+      yield();
+   }
+
+   // Read the first line of the request (bis '\r')
+   String request = client.readStringUntil('\r');
+   request.trim();
+   Serial.println(request);
+
+   // consume the trailing '\n' after '\r' if any
+   if (client.peek() == '\n') client.read();
+
+   // --- Parse the request line safely: METHOD PATH VERSION ---
+   // Example: "GET /OUT1=ON HTTP/1.1"
+   String method = "";
+   String path = "";
+   String version = "";
+   int sp1 = request.indexOf(' ');
+   if (sp1 != -1) {
+      int sp2 = request.indexOf(' ', sp1 + 1);
+      if (sp2 != -1) {
+         method = request.substring(0, sp1);
+         path = request.substring(sp1 + 1, sp2);
+         version = request.substring(sp2 + 1);
+      } else {
+         // malformed request line -> bail out
+         client.stop();
+         return;
+      }
+   } else {
+      // malformed -> bail out
+      client.stop();
+      return;
+   }
+
+   // ------------------ Validierungs-Fix (Option A: minimal) -----------------------
+   // Nur saubere Pfade zulassen; sonst ignorieren und die Website zurückgeben.
+   bool validPath = true;
+   if (path.length() == 0) validPath = false;
+
+   // 1) Ungültige Zeichen blockieren
+   for (unsigned int i = 0; i < path.length(); i++) {
+     char c = path.charAt(i);
+     bool ok =
+       (c >= 'A' && c <= 'Z') ||
+       (c >= 'a' && c <= 'z') ||
+       (c >= '0' && c <= '9') ||
+       (c == '/') ||
+       (c == '=');
+     if (!ok) { validPath = false; break; }
+   }
+   // 2) Pfade mit Query- oder Fragmentanteilen blockieren
+   if (path.indexOf('?') >= 0 || path.indexOf('&') >= 0 || path.indexOf('%') >= 0 || path.indexOf('#') >= 0) {
+     validPath = false;
+   }
+   // 3) Pfade mit doppeltem Slash blockieren (kommen durch Browser vor)
+   if (path.indexOf("//") >= 0) {
+     validPath = false;
+   }
+   // 4) Pfade, die unrealistisch lang sind → verwerfen
+   if (path.length() > 64) {   // großzügiger Grenzwert, aber safe
+     validPath = false;
+   }
+
+   // ============================================================
+   // *** neu:  HIER KOMMT DER LOGOUT-BLOCK HIN – GANZ WICHTIG ***
+   // ============================================================
+   //---------------------------------------
+   // LogOut / Confirm  neu !
+   //---------------------------------------
+   if ( (method == "GET") && (path == "/logout") ) {
+      authorized = false;
+
+      // 1) HTTP-Header (komplett, korrekt, sauber)
+      String script = "";
+      script += "HTTP/1.1 303 See Other\r\n";        // << WICHTIG: 303 ist stabiler als 302!
+      script += "Location: /\r\n";
+      script += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+      script += "Pragma: no-cache\r\n";
+      script += "Expires: 0\r\n";
+      script += "Content-Length: 0\r\n";             // << WICHTIG für Firefox
+      script += "Connection: close\r\n\r\n";
+
+      // 2) komplett senden
+      client.print(script);
+      client.flush();
+
+      // 3) Warten, bis der Buffer definitiv leer ist
+      delay(50);                                     // << Firefox braucht diese Verzögerung
+
+      // 4) Verbindung sauber beenden
+      client.stop();
+      delay(20);
+
+      return;
+   }
+
+   // --- Restliche Header vollständig konsumieren (vermeidet Fragment-Probleme) ---
+   // Lese Headerzeilen bis zur leeren Zeile
+   while (client.connected()) {
+      String headerLine = client.readStringUntil('\n');
+      if (headerLine == "\r" || headerLine.length() == 0) break;
+      // optional: Serial.println(headerLine);
+      // safety: wenn keine Daten mehr, abbrechen
+      if (!client.available()) break;
+   }
+
+   // -----------------------------
+   // Nur wenn validPath == true, werden Schaltbefehle verarbeitet.
+   // Andernfalls wird nur die Website zurückgegeben (kein Schalten).
+   // -----------------------------
+   if (validPath) {
+
+     //---------------------------------------
+     // Match the request on Server (exact path comparisons)
+     //---------------------------------------
+     if ((method == "GET") && (path == "/OUT1=ON"))  {
+        digitalWrite(PIN_OUT1, 1);
+        OUT1 = +1;
+     }
+     if ((method == "GET") && (path == "/OUT1=OFF")) {
+        digitalWrite(PIN_OUT1, 0);
+        OUT1 = 0;
+     }
+
+     if ((method == "GET") && (path == "/OUT2=ON"))  {
+        digitalWrite(PIN_OUT2, 1);
+        OUT2 = +1;
+     }
+     if ((method == "GET") && (path == "/OUT2=OFF")) {
+        digitalWrite(PIN_OUT2, 0);
+        OUT2 = 0;
+     }
+
+     // Reset
+     if ((method == "GET") && (path == "/svreset"))  {
+        resetMinMaxValues(svt1);
+        resetMinMaxValues(svt2);
+     }
+
+     //---------------------------------------
+     // Match the request on Client 0
+     //---------------------------------------
+     if ((method == "GET") && (path == "/c0out1=ON"))  { c0out1 = +1; }
+     if ((method == "GET") && (path == "/c0out1=OFF")) { c0out1 = 0; }
+     if ((method == "GET") && (path == "/c0out1=REV")) { c0out1 = -1; }
+
+     if ((method == "GET") && (path == "/c0out2=ON"))  { c0out2 = +1; }
+     if ((method == "GET") && (path == "/c0out2=OFF")) { c0out2 = 0; }
+
+     if ((method == "GET") && (path == "/c0out3=ON"))  { c0out3 = +1; }
+     if ((method == "GET") && (path == "/c0out3=OFF")) { c0out3 = 0; }
+
+     if ((method == "GET") && (path == "/c0reset"))  {
+        resetMinMaxValues(c0t1);
+        resetMinMaxValues(c0t2);
+     }
+
+     //---------------------------------------
+     // Match the request for Client 1
+     //---------------------------------------
+     if ((method == "GET") && (path == "/c1out1=ON"))  { c1out1 = +1; }
+     if ((method == "GET") && (path == "/c1out1=OFF")) { c1out1 = 0; }
+
+     if ((method == "GET") && (path == "/c1out2=ON"))  { c1out2 = +1; }
+     if ((method == "GET") && (path == "/c1out2=OFF")) { c1out2 = 0; }
+     if ((method == "GET") && (path == "/c1out2=REV")) { c1out2 = -1; }
+
+     if ((method == "GET") && (path == "/c1out3=ON"))  { c1out3 = +1; }
+     if ((method == "GET") && (path == "/c1out3=OFF")) { c1out3 = 0; }
+
+     if ((method == "GET") && (path == "/c1reset"))  {
+        resetMinMaxValues(c1t1);
+        resetMinMaxValues(c1t2);
+     }
+
+     //---------------------------------------
+     // Match the request for Client 2
+     //---------------------------------------
+     if ((method == "GET") && (path == "/c2out1=ON"))  { c2out1 = +1; }
+     if ((method == "GET") && (path == "/c2out1=OFF")) { c2out1 = 0; }
+
+     if ((method == "GET") && (path == "/c2out2=ON"))  { c2out2 = +1; }
+     if ((method == "GET") && (path == "/c2out2=OFF")) { c2out2 = 0; }
+     if ((method == "GET") && (path == "/c2out2=REV")) { c2out2 = -1; }
+
+     if ((method == "GET") && (path == "/c2reset"))  {
+        resetMinMaxValues(c2t1);
+        resetMinMaxValues(c2t2);
+     }
+
+     //---------------------------------------
+     // Match the request for Client 3
+     //---------------------------------------
+     if ((method == "GET") && (path == "/c3out1=ON"))  { c3out1 = +1; }
+     if ((method == "GET") && (path == "/c3out1=OFF")) { c3out1 = 0; }
+
+     if ((method == "GET") && (path == "/c3out2=ON"))  { c3out2 = +1; }
+     if ((method == "GET") && (path == "/c3out2=OFF")) { c3out2 = 0; }
+
+     if ((method == "GET") && (path == "/c3tx3=UP"))  { c3tx3 = c3tx3 + 1; }
+     if ((method == "GET") && (path == "/c3tx3=DN"))  { c3tx3 = c3tx3 - 1; }
+
+     if ((method == "GET") && (path == "/c3reset"))  {
+        resetMinMaxValues(c3t1);
+        resetMinMaxValues(c3t2);
+     }
+
+     if ((method == "GET") && (path == "/CONFIRM=ON"))   {
+        resetConfirmTime();
+     }
+
+   } // end if(validPath)
+
+   delay(1);
+
+   //---------------------------------------
+   // Return the response (1:1 String-Verkettung, in Blöcken)
+   //---------------------------------------
+
+
+   // (...)  (build website)
+
+
+}
