@@ -1,0 +1,116 @@
+//-----------------------------------------------
+// neu   handleNotAuthorized() (GET, größer)
+//-----------------------------------------------
+
+void handleNotAuthorized() {
+    String readString = "";
+    char strinput[MAXLEN] = "";
+    char strupwd[TOKLEN] = "";
+    char struname[TOKLEN] = "";
+
+    WiFiClient client = wifiserver.available();
+    if (!client) return;
+
+    while (client.connected()) {
+        if (authorized) return;
+
+        if (client.available()) {
+            char c = client.read();
+            readString = "";
+
+            // Lese die GET-Zeile komplett
+            while ((readString.length() < TOKLEN) && (c != '\n')) {
+                readString += c;
+                c = client.read();
+            }
+
+            // Konvertiere zu char-Array für cstringarg
+            readString.toCharArray(strinput, MAXLEN);
+
+            // Extrahiere Username / Passwort
+            cstringarg(strinput, "uname", struname);
+            cstringarg(strinput, "upwd", strupwd);
+
+            // Debug
+            Serial.print("strupwd     >>>"); Serial.print(strupwd); Serial.println("<<<");
+            Serial.print("website_upwd>>>"); Serial.print(website_upwd); Serial.println("<<<");
+            Serial.print("readString>>>"); Serial.println(readString);
+
+            // Vergleich Name + Passwort
+            if ((strlen(strupwd) == strlen(website_upwd)) && (strcmp(website_upwd, strupwd) == 0)
+                && (strlen(struname) == strlen(website_uname)) && (strcmp(website_uname, struname) == 0)) {
+                
+                authorized = true;
+                readString = "";
+                return;
+            }
+
+            // HTTP request beendet? → Login-Formular senden
+            if (c == '\n') {
+                client.flush();
+
+                String script = "";
+                script += "<!DOCTYPE html>\n";
+                script += "<html>\n";
+                script += "<head>\n";
+                script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
+                script += String("<title>") + website_title + "</title>\n";
+                script += "</head>\n";
+                script += "<body>\n";
+                script += "<h2><p style=\"color:rgb(255,0,191);\"> log in to proceed: </p></h2>\n";
+
+                script += "<FORM ACTION='/' method=GET>\n";
+                script += "<h2>user name: ";
+                script += "<INPUT TYPE=text NAME='uname' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+                script += "<h2>password : ";
+                script += "<INPUT TYPE=PASSWORD NAME='upwd' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+                script += "<h2><INPUT TYPE=SUBMIT VALUE='Login' style='height:50px;width:150px;font-size:20px'></h2>\n";
+                script += "</FORM>\n";
+
+                script += "<BR>\n";
+                script += "</body>\n";
+                script += "</html>\n";
+
+                // HTTP-Header
+                String header = "";
+                header += "HTTP/1.1 200 OK\r\n";
+                header += "Content-Type: text/html; charset=utf-8\r\n";
+                header += "Content-Length: " + String(script.length()) + "\r\n";
+                header += "Connection: close\r\n";
+                header += "\r\n";
+
+                client.print(header + script);
+                delay(100);
+                client.stop();
+            }
+        }
+        delay(1);
+    }
+} // Ende handleNotAuthorized
+
+
+
+
+String htmlButton(String Shref, String Label, int h, int w, int fontSize = 16) {
+    String buf = "";
+
+    buf  = "<a href=\"/" + Shref + "\">";
+    buf += "<button style=\"height:" + String(h) + "px;width:" + String(w) + "px;font-size:" + String(fontSize) + "px\">";
+    buf += Label;
+    buf += "</button></a>";
+
+    return buf;
+}
+/*
+Features:
+
+Shref → Ziel-Link
+Label → Text auf dem Button
+h / w → Höhe / Breite
+fontSize → optional, Standard 16px
+
+Beispiel-Aufruf in deinem HTML-String:
+script += htmlButton("OUT1=ON", "SCHARF", 70, 140, 20);
+script += htmlButton("OUT1=OFF", "AUS", 70, 140, 20);
+
+*/
