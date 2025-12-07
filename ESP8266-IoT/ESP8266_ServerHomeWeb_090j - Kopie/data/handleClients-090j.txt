@@ -1,3 +1,7 @@
+//----------------------------------------------
+// void handleClients() 090j neu
+//----------------------------------------------
+
 void handleClients() {
 
    // Sicherheitscheck: nur echte Seitenaufrufe zulassen (PATCH 2+3)
@@ -59,6 +63,16 @@ void handleClients() {
    ftmp = fINVAL;
    if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
    logval(ftmp, c0adc3);
+
+   // c3out Monitore (PATCH 2)
+   msgtok = webserver.arg("c0out1");
+   if (legit && msgtok != "") { c3outMon1 = msgtok.toInt(); }
+
+   msgtok = webserver.arg("c0out2");
+   if (legit && msgtok != "") { c3outMon2 = msgtok.toInt(); }
+
+   msgtok = webserver.arg("c0out3");
+   if (legit && msgtok != "") { c3outMon3 = msgtok.toInt(); }
 
    //------------------------------------------
 
@@ -191,7 +205,8 @@ void handleClients() {
    // CLIENT 0
    message += "&c0out1=" + (String)c0out1;
    message += "&c0out2=" + (String)c0out2;
-   message += "&c0out3=" + (String)c0out3;
+   // c0out3 = intern auto ctrl, daher nicht gesendet
+   message += "&c0tx3=" + (String)c0tx3;
 
    // CLIENT 1
    message += "&c1out0=" + (String)c1out0;
@@ -203,6 +218,7 @@ void handleClients() {
    message += "&c2out0=" + (String)c2out0;
    message += "&c2out1=" + (String)c2out1;
    message += "&c2out2=" + (String)c2out2;
+   message += "&c2out3=" + (String)c2out3;
 
    // CLIENT 3
    message += "&c3out0=" + (String)c3out0;
