@@ -282,19 +282,16 @@ void handleClients() {
    message += "&c0tx3=" + (String)c0tx3;
 
    // CLIENT 1
-   message += "&c1out0=" + (String)c1out0;
    message += "&c1out1=" + (String)c1out1;
    message += "&c1out2=" + (String)c1out2;
    message += "&c1out3=" + (String)c1out3;
 
    // CLIENT 2
-   message += "&c2out0=" + (String)c2out0;
    message += "&c2out1=" + (String)c2out1;
    message += "&c2out2=" + (String)c2out2;
    message += "&c2out3=" + (String)c2out3;
 
    // CLIENT 3
-   message += "&c3out0=" + (String)c3out0;
    message += "&c3out1=" + (String)c3out1;
    message += "&c3out2=" + (String)c3out2;
    // c3out3 = intern auto ctrl, daher nicht gesendet
