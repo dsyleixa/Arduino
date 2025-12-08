@@ -87,17 +87,17 @@ void handleClients() {
    // c0out Monitore (PATCH 2)
    msgtok = webserver.arg("c0out1");
    if (legit && msgtok != "") {
-      c3outMon1 = msgtok.toInt();
+      c0outMon1 = msgtok.toInt();
    }
 
    msgtok = webserver.arg("c0out2");
    if (legit && msgtok != "") {
-      c3outMon2 = msgtok.toInt();
+      c0outMon2 = msgtok.toInt();
    }
 
    msgtok = webserver.arg("c0out3");
    if (legit && msgtok != "") {
-      c3outMon3 = msgtok.toInt();
+      c0outMon3 = msgtok.toInt();
    }
 
    //------------------------------------------
@@ -317,10 +317,21 @@ void handleClients() {
    // --- Warnungs- und Event-Handling ---
    if (changeWarningActive) {
 
-      // Erste Message nach affiliat fixieren
+
+      // --- Erste gültige Message nach affiliat einmalig fixieren ---
       if (next_WebserverMessage == "!!!NEXT") {
-         next_WebserverMessage = message; // erste Message nach Event
+         // Mindestlänge prüfen, damit keine leere/fragmentierte Message übernommen wird
+         if (message.length() > 12) {                 // ~grobe Mindestlänge (anpassbar)
+            next_WebserverMessage = message;          // erste Message nach Event
+            sav_timestr_set_for_event = false;        // Event-Fixierung freigeben für das nächste Event
+            Serial.println("[CHANGE] captured first after-message for event.");
+         } else {
+            // Ignore very short/empty message and keep waiting for a real one
+            Serial.println("[CHANGE] Ignored short/empty after-message; waiting for real message...");
+         }
       }
+
+
 
       // Ausgabe des Warn-Logs
       Serial.println();
@@ -338,6 +349,4 @@ void handleClients() {
       Serial.println("===================================================");
    }
 
-
 }  // Ende: handleClients()
-
