@@ -1,0 +1,73 @@
+// =========================================================================
+// ChangeLogger(): prüft Änderungen aller OUT- und c*out-Werte
+//                 und loggt welche Änderungen erfolgt sind.
+//                 Zusätzlich wird die vorherige und vor-vorherige
+//                 an Clients gesendete Message angezeigt.
+// =========================================================================
+
+void ChangeLogger() {
+   // Hilfs-Lambda für Wertevergleich + Update
+   bool changed = false;
+
+   auto check = [&](const char* name, int8_t &oldVal, int8_t newVal) {
+      if (oldVal != newVal) {
+         SwitchChangeLog=(String)"[CHANGE] " + name + ": " + oldVal + " -> " + newVal;
+         Serial.println(SwitchChangeLog);
+         oldVal = newVal;
+         changed = true;
+      }
+   };
+
+   // Alle OUT-Werte prüfen
+   check("OUT1", old_OUT1, OUT1);
+   check("OUT2", old_OUT2, OUT2);
+   check("OUT3", old_OUT3, OUT3);
+
+   // Alle Client-Werte prüfen
+   check("c0out1", old_c0out1, c0out1);
+   check("c0out2", old_c0out2, c0out2);
+   check("c0out3", old_c0out3, c0out3);
+
+   check("c1out1", old_c1out1, c1out1);
+   check("c1out2", old_c1out2, c1out2);
+   check("c1out3", old_c1out3, c1out3);
+
+   check("c2out1", old_c2out1, c2out1);
+   check("c2out2", old_c2out2, c2out2);
+   check("c2out3", old_c2out3, c2out3);
+
+   check("c3out1", old_c3out1, c3out1);
+   check("c3out2", old_c3out2, c3out2);
+   check("c3out3", old_c3out3, c3out3);
+
+   // ----------------------------------------------------
+   // CHANGE LOGGER – Event-Ausgabe
+   // ----------------------------------------------------
+   next_WebserverMessage = "";  // Standard: noch nichts bekannt
+
+   if (changed) {
+      changeWarningActive = true;
+
+      // Nur beim ersten Erkennen des Events fixieren
+      if (!sav_timestr_set_for_event) {
+         sav_timestr = timestr;
+         prev_WebserverMessage = savold_WebserverMessage;
+         affiliat_ChangeMessage = old_WebserverMessage;
+         next_WebserverMessage = "!!!NEXT";  // Signalisierung für handleClients
+         sav_timestr_set_for_event = true;
+      }
+
+      // Debug-Log
+      Serial.println("[CHANGE] Previous Message (before affiliated):");
+      Serial.println("   " + prev_WebserverMessage);
+      Serial.println("[CHANGE] Affiliated Message (triggering event):");
+      Serial.println("   " + affiliat_ChangeMessage);
+   }
+
+   // Flag zurücksetzen nur, wenn Event **abgeschlossen** ist
+   if (!changeWarningActive) {
+      sav_timestr_set_for_event = false;
+   }
+
+} // Ende: ChangeLogger()
+
