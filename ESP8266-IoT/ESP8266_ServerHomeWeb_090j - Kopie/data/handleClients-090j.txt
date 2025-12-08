@@ -16,70 +16,98 @@ void handleClients() {
 
    msgtok = webserver.arg("c0t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0t1);
 
    msgtok = webserver.arg("c0h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0h1);
 
    msgtok = webserver.arg("c0t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0t2);
 
    msgtok = webserver.arg("c0h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0h2);
 
    msgtok = webserver.arg("c0p1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0p1);
 
    msgtok = webserver.arg("c0espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0espA0);
 
    msgtok = webserver.arg("c0adc0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc0);
 
    msgtok = webserver.arg("c0adc1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc1);
 
    msgtok = webserver.arg("c0adc2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc2);
 
    msgtok = webserver.arg("c0adc3");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc3);
 
-   // c3out Monitore (PATCH 2)
+   // c0out Monitore (PATCH 2)
    msgtok = webserver.arg("c0out1");
-   if (legit && msgtok != "") { c3outMon1 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon1 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c0out2");
-   if (legit && msgtok != "") { c3outMon2 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon2 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c0out3");
-   if (legit && msgtok != "") { c3outMon3 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon3 = msgtok.toInt();
+   }
 
    //------------------------------------------
 
    msgtok = webserver.arg("LocalAlive");
    if (msgtok != "") {
       int itemp = msgtok.toInt();
-      if (itemp == 1) { resetConfirmTime(); }  // PATCH 1: nur ein Block
+      if (itemp == 1) {
+         resetConfirmTime();   // PATCH 1: nur ein Block
+      }
    }
 
    //------------------------------------------
@@ -87,27 +115,37 @@ void handleClients() {
 
    msgtok = webserver.arg("c1t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1t1);
 
    msgtok = webserver.arg("c1h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1h1);
 
    msgtok = webserver.arg("c1t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1t2);
 
    msgtok = webserver.arg("c1h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1h2);
 
    msgtok = webserver.arg("c1espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1espA0);
 
    //------------------------------------------
@@ -115,27 +153,37 @@ void handleClients() {
 
    msgtok = webserver.arg("c2t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2t1);
 
    msgtok = webserver.arg("c2h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2h1);
 
    msgtok = webserver.arg("c2t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2t2);
 
    msgtok = webserver.arg("c2h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2h2);
 
    msgtok = webserver.arg("c2espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2espA0);
 
    //------------------------------------------
@@ -143,62 +191,87 @@ void handleClients() {
 
    msgtok = webserver.arg("c3t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3t1);
 
    msgtok = webserver.arg("c3h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3h1);
 
    msgtok = webserver.arg("c3t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3t2);
 
    msgtok = webserver.arg("c3h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3h2);
 
    msgtok = webserver.arg("c3espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3espA0);
 
    msgtok = webserver.arg("c3adc0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc0);
 
    msgtok = webserver.arg("c3adc1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc1);
 
    msgtok = webserver.arg("c3adc2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc2);
 
    msgtok = webserver.arg("c3adc3");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc3);
 
    //------------------------------------------
    // c3out Monitore (PATCH 2)
    msgtok = webserver.arg("c3out1");
-   if (legit && msgtok != "") { c3outMon1 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon1 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c3out2");
-   if (legit && msgtok != "") { c3outMon2 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon2 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c3out3");
-   if (legit && msgtok != "") { c3outMon3 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon3 = msgtok.toInt();
+   }
 
    //------------------------------------------
    // Ausgabe der Werte zurück an Clients
+   //------------------------------------------
 
    String message = "*** ";
 
@@ -230,10 +303,44 @@ void handleClients() {
    // all clients
    message += "&remindcnt=" + (String)RemindCnt;
    message += "&emergencycnt=" + (String)EmergencyCnt;
-
    message += " ###";
 
+
+   // --- Message an Client senden ---
    Serial.println(message);
    webserver.send(200, "text/plain", message);
 
+   // --- ChangeLogger-Historie vorbereiten ---
+   savold_WebserverMessage = old_WebserverMessage; // vorherige-vorherige Message
+   old_WebserverMessage = message;                          // aktuelle letzte Message
+
+   // --- ChangeLogger aufrufen ---
+   ChangeLogger();
+
+   // --- Warnungs- und Event-Handling ---
+   if (changeWarningActive) {
+
+      // Erste Message nach affiliat fixieren
+      if (next_WebserverMessage == "!!!NEXT") {
+         next_WebserverMessage = message; // erste Message nach Event
+      }
+
+      // Ausgabe des Warn-Logs
+      Serial.println();
+      Serial.println("===================================================");
+      Serial.println("⚠️  WARNING: ACTUATOR CHANGE DETECTED!");
+      Serial.println("⚠️  Time of Detection: " + sav_timestr);
+      Serial.println("⚠️ " + SwitchChangeLog );
+      Serial.println("---------------------------------------------------");
+      Serial.println("Message before affiliated:");
+      Serial.println("   " + prev_WebserverMessage);
+      Serial.println("Affiliated Message (triggering event):");
+      Serial.println("   " + affiliat_ChangeMessage);
+      Serial.println("Message after affiliated:");
+      Serial.println("   " + next_WebserverMessage);
+      Serial.println("===================================================");
+   }
+
+
 }  // Ende: handleClients()
+
