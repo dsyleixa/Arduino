@@ -1,0 +1,58 @@
+// handleClients() ab Ende message-String- Zusammenbau:
+
+
+// all clients
+   message += "&remindcnt=" + (String)RemindCnt;
+   message += "&emergencycnt=" + (String)EmergencyCnt;
+   message += " ###";
+
+   updateTime();
+   buildDateTimeString();
+   
+   // --- Message an Client senden ---
+   Serial.println(message);
+   webserver.send(200, "text/plain", message);
+
+   // Ghost switch ErrorTracker: GhostDetection()
+   GhostDetection();
+
+   old_WebserverMessage = message; // vorherige mit aktueller msg überschreiben
+
+   // switch Tracker: ChangeLogger()
+   ChangeLogger();
+
+   savold_WebserverMessage = old_WebserverMessage; // vorherige-vorherige Message
+
+   // --- Warnungs- und Event-Handling ---
+   if (changeWarningActive) {
+
+      // --- Erste gültige Message nach affiliat einmalig fixieren ---
+      if (next_WebserverMessage == "!!!NEXT") {
+         // Mindestlänge prüfen, damit keine leere/fragmentierte Message übernommen wird
+         if (message.length() > 12) {                 // ~grobe Mindestlänge (anpassbar)
+            next_WebserverMessage = message;          // erste Message nach Event
+            sav_timestr_set_for_event = false;        // Event-Fixierung freigeben für das nächste Event
+            Serial.println("[CHANGE] captured first after-message for event.");
+         } else {
+            // Ignore very short/empty message and keep waiting for a real one
+            Serial.println("[CHANGE] Ignored short/empty after-message; waiting for real message...");
+         }
+      }
+
+      // Ausgabe des Warn-Logs
+      Serial.println();
+      Serial.println("===================================================");
+      Serial.println("⚠️  WARNING: ACTUATOR CHANGE DETECTED!");
+      Serial.println("⚠️  Time of Detection: " + sav_timestr);
+      Serial.println("⚠️ " + SwitchChangeLog );
+      Serial.println("---------------------------------------------------");
+      Serial.println("Message before affiliated:");
+      Serial.println("   " + prev_WebserverMessage);
+      Serial.println("Affiliated Message (triggering event):");
+      Serial.println("   " + affiliat_ChangeMessage);
+      Serial.println("Message after affiliated:");
+      Serial.println("   " + next_WebserverMessage);
+      Serial.println("===================================================");
+   }
+
+}  // Ende: handleClients()
