@@ -164,34 +164,12 @@ volatile int8_t  c3out1=0, c3out2=0, c3out3=0; // Client3; stop=0, fwd=1, rev=-1
 volatile int8_t  c3outMon1=0, c3outMon2=0, c3outMon3=0;
 volatile int16_t c3tx3=21; // Thermostat-Sollwert
 
-// ---------------------------------------------------------------------
-// Globale Kopien aller OUT- und Client-Werte (für Change-Logger)
-// ---------------------------------------------------------------------
-int8_t old_OUT1, old_OUT2, old_OUT3;
-int8_t old_c0out1, old_c0out2, old_c0out3;
-int8_t old_c1out1, old_c1out2, old_c1out3;
-int8_t old_c2out1, old_c2out2, old_c2out3;
-int8_t old_c3out1, old_c3out2, old_c3out3;
-// ---------------------------------------------------------------------
-// Messagespeicher für Rückschau
-// ---------------------------------------------------------------------
-String old_WebserverMessage = "";
-String savold_WebserverMessage = "";
-String prev_WebserverMessage = "";   // vor-affiliated
-String affiliat_ChangeMessage = "";   // affiliated
-String next_WebserverMessage = "";    // nach-affiliated
-String SwitchChangeLog = "";
+// -------------------- Ergänzende Globals für Ghost+Change --------------------
 
-bool   changeWarningActive = false;   // Dauer-Warnflag
-unsigned long lastWarningTime = 0;  // Timer für Wiederholung
 
-// ==================== GhostDetection Globals ====================
-const int NUM_OUTPUTS = 15;
-volatile int8_t lastOutState[NUM_OUTPUTS] = {0};
-bool ghostActive[NUM_OUTPUTS] = {false};
-String lastGhostMsg = "";
-String lastGhostTime = "";
-bool expectedChange[NUM_OUTPUTS] = {false};
+
+
+
 
 
 
@@ -490,7 +468,6 @@ IPAddress timeServer(129, 6, 15, 28); // 129.6.15.28 NIST, Gaithersburg, Marylan
 
 String timestr = "--:--:--", datestr = "--.--.----";
 String sav_timestr = timestr;
-bool   sav_timestr_set_for_event = false;
 
 #define CHR_DEGREE (unsigned char)247               // ° symbol for OLED font
 //char    STR_DEGREE[] = {247, 0, 0};               // ° OLED font specimen (°,°C,°F,K)
@@ -723,175 +700,8 @@ void logval( double f, vlog &v) {
 
 
 // ===================================================================
-// ChangeAndGhostLogger
+// ChangeAndGhostLogger (ehem. ChangeLogger + Ghostlogger
 // ===================================================================
-// --------------------------------------------------------------------------
-// Gemeinsamer Logger: erkennt reguläre Änderungen
-// und zusätzlich Ghost-Schaltungen, falls kein ButtonPress passiert war.
-// message = aktuelle Webserver-Message (string)
-// --------------------------------------------------------------------------
-void ChangeAndGhostLogger(const String &message)
-{
-   // 1. Alle aktuellen Werte extrahieren (Ausgänge aller Clients)
-   // Index: 0..2 = c0  / 3..5 = c1 / 6..8 = c2 / 9..11 = c3
-   int8_t cur[NUM_OUTPUTS];
-   for (int i = 0; i < NUM_OUTPUTS; i++)
-      cur[i] = readOutput(i);
-
-   // 2. Normale erwartete Änderung zurücksetzen
-   for (int i = 0; i < NUM_OUTPUTS; i++)
-      expectedChange[i] = false;
-
-   // 3. Change-Erkennung gegenüber alten Werten
-   bool changeDetected = false;
-   String changeLog = "";
-
-   for (int i = 0; i < NUM_OUTPUTS; i++)
-   {
-      if (cur[i] != lastOutState[i])
-      {
-         changeDetected = true;
-
-         int8_t oldv = lastOutState[i];
-         int8_t newv = cur[i];
-
-         changeLog += getKeyName(i)+": "+String(oldv)+" -> "+String(newv)+"\n";
-
-
-         // Änderung merken (für Change)
-         lastOutState[i] = newv;
-
-         // Erwartete Änderung markieren (wichtig für Ghost-Erkennung)
-         expectedChange[i] = true;
-      }
-   }
-
-   // 4. Falls reguläre Änderung erfolgt ist → Ausgabe (ChangeLogger)
-   if (changeDetected)
-   {
-      Serial.println("===================================================");
-      Serial.println("Actuator change detected:");
-      Serial.print(changeLog);
-      Serial.println("Prev-WebserverMessage:");
-      Serial.println("   " + old_WebserverMessage);
-      Serial.println("Current-WebserverMessage:");
-      Serial.println("   " + message);
-      Serial.println("===================================================");
-
-      // vorherige Message merken
-      old_WebserverMessage = message;
-
-      return; // WICHTIG: kein Ghost prüfen bei echter Änderung
-   }
-
-   // 5. Ghost-Detection: Änderung NICHT erwartet, aber cur != lastOutState?
-   // Da cur == lastOutState vorausgesetzt wird (kein changeDetected),
-   // prüfen wir, ob GhostActive Flags nötig wären – in diesem System
-   // reicht aber: Wenn keine Änderung → kein Ghost.
-   // ABER: Ghost tritt nur auf, wenn die Werte NICHT zur Message passen.
-   // Wir prüfen daher direkt in der Message:
-
-   bool ghostReported = false;
-
-   // Strings der aktuellen Message überprüfen:
-   // Wenn cur[i] != dem, was im message-String steht → Ghost
-   for (int i = 0; i < NUM_OUTPUTS; i++)
-   {
-      String key = getKeyName(i);      // "c0out1", "c1out2", ...
-      String sval = extractArg(message, key);  // extrahierter Wert
-
-      if (sval != "")
-      {
-         int msgValue = sval.toInt();
-         if (msgValue != cur[i] && expectedChange[i] == false)
-         {
-            ghostReported = true;
-            lastGhostMsg = "Ghost change on " + key +
-                           ": message=" + String(msgValue) +
-                           " device=" + String(cur[i]);
-            lastGhostTime = timestr;
-         }
-      }
-   }
-
-   if (ghostReported)
-   {
-      // Ausgabe Ghost-Warnung
-      Serial.println("===================================================");
-      Serial.println("GHOST SWITCH DETECTED!");
-      Serial.println(lastGhostMsg);
-      Serial.println("Time: " + lastGhostTime);
-      Serial.println("WebserverMessage:");
-      Serial.println("   " + message);
-      Serial.println("===================================================");
-   }
-
-   // zuletzt bekannte Message erneut sichern
-   old_WebserverMessage = message;
-
-}  // Ende: ChangeAnd GhostLogger
-
-
-
-
-int8_t readOutput(int idx) {
-   switch(idx) {
-      case 0: return c0out1;
-      case 1: return c0out2;
-      case 2: return c0out3;
-      case 3: return c1out1;
-      case 4: return c1out2;
-      case 5: return c1out3;
-      case 6: return c2out1;
-      case 7: return c2out2;
-      case 8: return c2out3;
-      case 9: return c3out1;
-      case 10: return c3out2;
-      case 11: return c3out3;
-      case 12: return OUT1;
-      case 13: return OUT2;
-      case 14: return OUT3;
-   }
-   return 0;
-} // Ende:  readOutput
-
-
-
-String getKeyName(int idx) {
-   switch (idx)
-   {
-      case 0: return "OUT1";
-      case 1: return "OUT2";
-      case 2: return "OUT3";
-      case 3: return "c0out1";
-      case 4: return "c0out2";
-      case 5: return "c0out3";
-      case 6: return "c1out1";
-      case 7: return "c1out2";
-      case 8: return "c1out3";
-      case 9: return "c2out1";
-      case 10: return "c2out2";
-      case 11: return "c2out3";
-      case 12: return "c3out1";
-      case 13: return "c3out2";
-      case 14: return "c3out3";
-   }
-   return "";
-} // Ende: getKeyName
-
-
-
-String extractArg(const String &msg, const String &key) {
-   int p = msg.indexOf(key + "=");
-   if (p < 0) return "";
-
-   p += key.length() + 1;
-   int e = msg.indexOf("&", p);
-   if (e < 0) e = msg.length();
-
-   return msg.substring(p, e);
-
-} // Ende:  extractArg
 
 
 
@@ -2941,12 +2751,6 @@ void handleClients() {
    Serial.println(message);
    webserver.send(200, "text/plain", message);
 
-   // NEUER gemeinsamer Block (den ich dir gleich liefere)
-   ChangeAndGhostLogger(message);
-   // vorherige Nachricht aktualisieren
-   prev_WebserverMessage = message;
-
-
 
 
 }  // Ende: handleClients()
@@ -2957,13 +2761,8 @@ void handleClients() {
 //  resetChangeLoggerVals()
 // -----------------------
 void  resetChangeLoggerVals() {
-   // Beispiel: Event manuell/automatisch abschließen
-   changeWarningActive = false;
-   sav_timestr = "--:--:--";
-   prev_WebserverMessage = "";
-   affiliat_ChangeMessage = "";
-   next_WebserverMessage = "";
-   sav_timestr_set_for_event = false;
+
+
 }
 
 
