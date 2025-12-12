@@ -6,8 +6,7 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// 0.9.l:  snapshot Change+GhostLogger unified test
-// 0.9.l:  Change+GhostLogger unified test: failed
+// 0.9.l:  Change+GhostLogger unified test
 // 0.9.k:  Datalogging zur Fehlersuche: changeLogger:ok, GhostLogger:nein
 // 0.9.j:  zus. Buttons c0, Vorbereitung für Datalogging zur Fehlersuche
 // 0.9.i:  ?
@@ -165,8 +164,27 @@ volatile int8_t  c3out1=0, c3out2=0, c3out3=0; // Client3; stop=0, fwd=1, rev=-1
 volatile int8_t  c3outMon1=0, c3outMon2=0, c3outMon3=0;
 volatile int16_t c3tx3=21; // Thermostat-Sollwert
 
-// -------------------- Ergänzende Globals für Ghost+Change --------------------
+// =========================================================
+// GLOBAL: Snapshot- & Event-Monitoring
+// =========================================================
+const int NUM_OUTPUTS = 12;
 
+static String snap_prevMsg = "";
+static String snap_affilMsg = "";
+static String snap_nextMsg  = "";
+
+static String snap_prevTime = "";
+static String snap_affilTime = "";
+static String snap_nextTime  = "";
+
+static bool snap_affil_set = false;
+static bool snap_next_set  = false;
+
+static int8_t snap_prevOut[NUM_OUTPUTS];
+static int8_t snap_affilOut[NUM_OUTPUTS];
+static int8_t snap_nextOut[NUM_OUTPUTS];
+
+static bool snap_initialized = false;
 
 
 
@@ -701,8 +719,247 @@ void logval( double f, vlog &v) {
 
 
 // ===================================================================
-// ChangeAndGhostLogger (ehem. ChangeLogger + Ghostlogger
+// ChangeAndGhostLogger (ehem. ChangeLogger + Ghostlogger)
 // ===================================================================
+
+// ===================================================================
+// ChangeAndGhostLogger v2.0  (Snapshot-basiert, vollständig neu)
+// ===================================================================
+void ChangeAndGhostLogger(const String &message)
+{
+   // 1) Aktuelle hardware-Zustände lesen
+   int8_t cur[NUM_OUTPUTS];
+   for (int i = 0; i < NUM_OUTPUTS; i++)
+      cur[i] = readOutput(i);
+
+   // Erster Start → Initial-Snapshot
+   if (!snap_initialized) {
+      copySnapshot(snap_prevOut, cur);
+      snap_prevMsg  = message;
+      snap_prevTime = timestr;
+      snap_initialized = true;
+      return;
+   }
+
+   // 2) Prüfe reale Änderungen (hardwareseitig)
+   bool changeDetected = false;
+   for (int i = 0; i < NUM_OUTPUTS; i++) {
+      if (cur[i] != snap_prevOut[i]) {
+         changeDetected = true;
+         break;
+      }
+   }
+
+   // ===================================================================
+   // FALL A → Hardware hat sich geändert → echtes Change-Event
+   // ===================================================================
+   if (changeDetected) {
+
+      // affiliated snapshot erzeugen
+      if (!snap_affil_set) {
+         copySnapshot(snap_affilOut, cur);
+         snap_affilMsg  = message;
+         snap_affilTime = timestr;
+         snap_affil_set = true;
+         snap_next_set  = false; // Reset
+      }
+
+      Serial.println();
+      Serial.println("===================================================");
+      Serial.println("REAL ACTUATOR CHANGE DETECTED!");
+      printSnapshot("PREV", snap_prevOut, snap_prevMsg, snap_prevTime);
+      printSnapshot("AFFILIATED", snap_affilOut, snap_affilMsg, snap_affilTime);
+      Serial.println("===================================================");
+
+      // prev-Snapshot updaten → aktueller Stand wird Baseline
+      copySnapshot(snap_prevOut, cur);
+      snap_prevMsg  = message;
+      snap_prevTime = timestr;
+
+      return;
+   }
+
+   // ===================================================================
+   // FALL B → Keine Hardwareänderung, aber Message kann Ghost enthalten
+   // ===================================================================
+   bool ghostDetected = false;
+   String ghostLog = "";
+
+   for (int i = 0; i < NUM_OUTPUTS; i++) {
+      String key = getKeyName(i);
+      String sval = extractArg(message, key);
+      if (sval.length() == 0) continue;
+
+      int msgVal = sval.toInt();
+      if (msgVal != cur[i]) {
+         ghostDetected = true;
+         ghostLog += key + ": message=" + String(msgVal) +
+                     " device=" + String(cur[i]) + "\n";
+      }
+   }
+
+   if (ghostDetected) {
+
+      // affiliated snapshot wurde noch nicht gesetzt → jetzt setzen
+      if (!snap_affil_set) {
+         copySnapshot(snap_affilOut, cur);
+         snap_affilMsg  = message;
+         snap_affilTime = timestr;
+         snap_affil_set = true;
+         snap_next_set  = false;
+      }
+
+      Serial.println();
+      Serial.println("===================================================");
+      Serial.println("GHOST SWITCH DETECTED!");
+      Serial.println("Time: " + timestr);
+      Serial.println("Ghost details:");
+      Serial.println(ghostLog);
+      printSnapshot("PREV",       snap_prevOut,  snap_prevMsg,  snap_prevTime);
+      printSnapshot("AFFILIATED", snap_affilOut, snap_affilMsg, snap_affilTime);
+      Serial.println("Current Message:");
+      Serial.println("   " + message);
+      Serial.println("===================================================");
+
+      return;
+   }
+
+   // ===================================================================
+   // FALL C → Keine Änderung, kein Ghost → evtl. NEXT-Snapshot setzen
+   // ===================================================================
+   if (snap_affil_set && !snap_next_set) {
+      copySnapshot(snap_nextOut, cur);
+      snap_nextMsg  = message;
+      snap_nextTime = timestr;
+      snap_next_set = true;
+
+      Serial.println();
+      Serial.println("---------------------------------------------------");
+      Serial.println("NEXT SNAPSHOT CAPTURED (first clean state after event)");
+      printSnapshot("NEXT", snap_nextOut, snap_nextMsg, snap_nextTime);
+      Serial.println("---------------------------------------------------");
+   }
+
+   // Prev bleibt unverändert
+
+
+}  // Ende:  ChangeAndGhostLogger
+
+
+
+// =========================================================
+// Hilfsmodul: extractArg(message, key): tokenName -> TokenWertAsString
+// =========================================================
+
+// ----------------------------------------------------------------------
+String extractArg(const String &message, const String &key) {
+   int keyPos = message.indexOf("&" + key + "=");
+   if (keyPos == -1) keyPos = message.indexOf(key + "="); // falls ohne & am Anfang
+   if (keyPos == -1) return ""; // nicht gefunden
+
+   int valStart = message.indexOf("=", keyPos);
+   if (valStart == -1) return "";
+
+   valStart++; // hinter '='
+   int valEnd = message.indexOf("&", valStart);
+   if (valEnd == -1) valEnd = message.length(); // bis Ende, falls kein & mehr
+
+   return message.substring(valStart, valEnd);
+
+} // Ende:  extractArg
+
+
+
+
+// =========================================================
+// Hilfsmodul: Snapshot drucken
+// =========================================================
+void printSnapshot(const char *title, const int8_t *arr, const String &msg, const String &tstamp) {
+   Serial.println("----- " + String(title) + " -----");
+   Serial.println("Time: " + tstamp);
+   Serial.println("Message:");
+   Serial.println("   " + msg);
+   Serial.println("Outputs:");
+   for (int i = 0; i < NUM_OUTPUTS; i++) {
+      Serial.print("   ");
+      Serial.print(getKeyName(i));
+      Serial.print(" = ");
+      Serial.println(arr[i]);
+   }
+   Serial.println("------------------------------------------");
+}
+
+
+
+// =========================================================
+// Hilfsmodul readOutput(idx): idx -> output-Wert
+// =========================================================
+
+int8_t readOutput(int idx) {
+   // Client outputs
+   if (idx == 0)  return c0out1;
+   if (idx == 1)  return c0out2;
+   if (idx == 2)  return c0out3;
+
+   if (idx == 3)  return c1out1;
+   if (idx == 4)  return c1out2;
+   if (idx == 5)  return c1out3;
+
+   if (idx == 6)  return c2out1;
+   if (idx == 7)  return c2out2;
+   if (idx == 8)  return c2out3;
+
+   if (idx == 9)  return c3out1;
+   if (idx == 10) return c3out2;
+   if (idx == 11) return c3out3;
+
+   // Server outputs (optional — funktionieren auch wenn du NUM_OUTPUTS==12)
+   if (idx == 12) return OUT1;
+   if (idx == 13) return OUT2;
+   if (idx == 14) return OUT3;
+
+   // Fallback: ungültiger Index -> 0
+   return 0;
+
+} // Ende:  readOutput
+
+
+
+
+// =========================================================
+// Hilfsmodul: getKeyName(idx): idx -> output String-Name
+// =========================================================
+String getKeyName(int idx) {
+   switch (idx) {
+      case 0:  return "c0out1";
+      case 1:  return "c0out2";
+      case 2:  return "c0out3";
+      case 3:  return "c1out1";
+      case 4:  return "c1out2";
+      case 5:  return "c1out3";
+      case 6:  return "c2out1";
+      case 7:  return "c2out2";
+      case 8:  return "c2out3";
+      case 9:  return "c3out1";
+      case 10: return "c3out2";
+      case 11: return "c3out3";
+      case 12: return "OUT1";
+      case 13: return "OUT2";
+      case 14: return "OUT3";
+   }
+   return String(""); // Ungültiger Index -> leerer String
+}
+
+
+
+// =========================================================
+// Hilfsmodul: Snapshot kopieren
+// =========================================================
+void copySnapshot(int8_t *dst, int8_t *src) {
+   for (int i = 0; i < NUM_OUTPUTS; i++)
+      dst[i] = src[i];
+
+} //  Ende: copySnapshot
 
 
 
@@ -1242,6 +1499,7 @@ void loop() {
 
    static double ftmp;
    static unsigned long tsec = millis(), tms = millis();
+   static unsigned long snap_lastTick = 0;
 
 
    //---------------------------------------
@@ -1367,6 +1625,13 @@ void loop() {
    }
    dashboard(LCDmode);
    delay(1);
+   // ------------------------------------------------------------
+   //  AUTO-SNAPSHOT CHECK  (ca. 1 Hz, tolerant gegenüber delay()) 
+   if (millis() - snap_lastTick >= 1000) {
+      ChangeAndGhostLogger("[AUTO] periodic state check");
+      snap_lastTick = millis();
+   }
+
 
 } // Ende: loop()
 
@@ -2445,6 +2710,10 @@ void printUrlArg() {
 // void handleClients() 090j neu (mit Reihenfolge-Fix)
 //----------------------------------------------
 
+
+//----------------------------------------------
+// void handleClients() 090m (mit Integration ChangeAndGhostLogger)
+//----------------------------------------------
 void handleClients() {
 
    // Sicherheitscheck: nur echte Seitenaufrufe zulassen (PATCH 2+3)
@@ -2716,7 +2985,7 @@ void handleClients() {
    // Ausgabe der Werte zurück an Clients
    //------------------------------------------
 
-   String message = "*** ";
+   String message = "****";
 
    // CLIENT 0
    message += "&c0out1=" + (String)c0out1;
@@ -2743,7 +3012,7 @@ void handleClients() {
    // all clients
    message += "&remindcnt=" + (String)RemindCnt;
    message += "&emergencycnt=" + (String)EmergencyCnt;
-   message += " ###";
+   message += "####";
 
    updateTime();
    buildDateTimeString();
@@ -2752,9 +3021,17 @@ void handleClients() {
    Serial.println(message);
    webserver.send(200, "text/plain", message);
 
+   // ------------------------------
+   // Integration: Change + Ghost Logger
+   // ------------------------------
+   // Sie übernimmt Vergleich, Fixierung von prev/affil/next, Ghost-Detektion etc.
+   // Wir rufen sie **direkt nach** dem Senden auf, so bleibt das bestehende Verhalten erhalten.
+   ChangeAndGhostLogger(message);
 
 
 }  // Ende: handleClients()
+
+
 
 
 
@@ -2854,17 +3131,8 @@ void updateTime() {
    /*
    //----------------------------------------
    to do:
-   0.90h+
 
-
-
-   zusätzlich die zwei Optimierungen einfügen (einzeilig):
-
-   client.setNoDelay(true); direkt nach WiFiClient client = wifiserver.available();
-
-   request.reserve(128); vor readStringUntil('\r');
 
 
 
 */
-
