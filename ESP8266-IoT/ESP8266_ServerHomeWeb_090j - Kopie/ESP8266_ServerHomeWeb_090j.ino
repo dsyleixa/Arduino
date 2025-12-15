@@ -6,9 +6,13 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// 0.9.h:  handleClients() Fehlerkorrektur + login-widgets größer 
-// 0.9.i:  handleWebsite() GET String Fehler-Kosmetik 
-// 0.9.h:  handleWebsite() statt request.indexOf() jetzt path== 
+// 0.9.l:  Change+GhostLogger unified test
+// 0.9.k:  Datalogging zur Fehlersuche: changeLogger:ok, GhostLogger:nein
+// 0.9.j:  zus. Buttons c0, Vorbereitung für Datalogging zur Fehlersuche
+// 0.9.i:  ?
+// 0.9.h:  handleClients() zus. Fehlerkorrektur + login-widgets größer
+// 0.9.i:  handleWebsite() GET String Fehler-Syntax
+// 0.9.h:  handleWebsite() statt request.indexOf() jetzt path==
 // 0.9.g:  neues authorized Handling
 // 0.9.f:  3.+4. Zeile Tabelle c0, Sensor c3a1 gefixt
 // 0.9.e:  3.+4. Zeile Tabelle c3
@@ -51,7 +55,7 @@
 // target server, version
 
 #define TARGET 'Z'  // Server-Zielpattform (Z,T,Q => versch. IPs, Ports, urls)
-String  ver = (String)TARGET +  ".090g" ;
+String  ver = (String)TARGET +  ".090j" ;
 
 //----------------------------------------------------------------------------
 // Wifi data from  "data\settings.h"
@@ -104,7 +108,7 @@ extern char* website_url;       //  website url               "http:\\mysite.com
 */
 
 
-#include <stringEx.h>  // cstringarg() etc.
+#include <stringEx.h>  // cstringarg(), ssprintf() etc.
 
 //----------------------------------------------------------------------------
 // i2c Wire
@@ -146,15 +150,28 @@ LiquidCrystal_I2C  lcd = LiquidCrystal_I2C(0x27, 20, 4); // Change to (0x27,16,2
 
 
 //----------------------------------------------------------------------------
+// Serial Monitor Comm
+//----------------------------------------------------------------------------
+String SerMonInputString = "";         // Ein String, um die eingehenden Daten zu speichern
+bool   SerMonStringComplete = false;   // Ein Flag, das anzeigt, ob der String komplett ist
+
+
+//----------------------------------------------------------------------------
 // GPIO outputs
 //----------------------------------------------------------------------------
-volatile int8_t  OUT0 = 0, OUT1 = 0, OUT2 = 0, OUT3 = 0; // Server; actual output pin states; stop=0, fwd=1, rev=-1;
-volatile int8_t  c0out0=0, c0out1=0, c0out2=0, c0out3=0; // Client0; stop=0, fwd=1, rev=-1;
-volatile int8_t  c1out0=0, c1out1=0, c1out2=0, c1out3=0; // Client1; stop=0, fwd=1, rev=-1;
-volatile int8_t  c2out0=0, c2out1=0, c2out2=0, c2out3=0; // Client2; stop=0, fwd=1, rev=-1;
-volatile int8_t  c3out0=0, c3out1=0, c3out2=0, c3out3=0; // Client3; stop=0, fwd=1, rev=-1;
-volatile int8_t  c3outMon0=0, c3outMon1=0, c3outMon2=0, c3outMon3=0;
+volatile int8_t  OUT1 = 0, OUT2 = 0, OUT3 = 0; // Server; actual output pin states; stop=0, fwd=1, rev=-1;
+volatile int8_t  c0out1=0, c0out2=0, c0out3=0; // Client0; stop=0, fwd=1, rev=-1;
+volatile int8_t  c0outMon1=0, c0outMon2=0, c0outMon3=0;
+volatile int16_t c0tx3=21; // Thermostat-Sollwert
+volatile int8_t  c1out1=0, c1out2=0, c1out3=0; // Client1; stop=0, fwd=1, rev=-1;
+volatile int8_t  c1outMon1=0, c1outMon2=0, c1outMon3=0;
+volatile int8_t  c2out1=0, c2out2=0, c2out3=0; // Client2; stop=0, fwd=1, rev=-1;
+volatile int8_t  c2outMon1=0, c2outMon2=0, c2outMon3=0;
+volatile int8_t  c3out1=0, c3out2=0, c3out3=0; // Client3; stop=0, fwd=1, rev=-1;
+volatile int8_t  c3outMon1=0, c3outMon2=0, c3outMon3=0;
 volatile int16_t c3tx3=21; // Thermostat-Sollwert
+
+
 
 String OUT1name = "Alarmanlage-ext";     // output captions
 String OUT2name = "Alarmanlage-int";
@@ -173,6 +190,15 @@ String c2OUT2name = "2-JALOU";
 String c3OUT1name = "1-LICHT";   // c3 output names
 String c3OUT2name = "2-PUMPE";
 String c3OUT3name = "3-KLIMA";
+
+
+
+
+
+
+
+
+
 
 
 
@@ -237,8 +263,6 @@ static vlog c2espA0;  // client 2 analog readings
 
 static vlog c3t1, c3h1, c3t2, c3h2; // Client 3: temperature, humidity
 static vlog c3espA0, c3adc0, c3adc1, c3adc2, c3adc3;  // client 3 analog readings
-
-
 
 
 
@@ -386,7 +410,7 @@ int8_t   LocAlive = 0;
 static int8_t  LCDmode = 0;
 
 #define  LCDMAXM  10
-#define  RSTMODE  LCDMAXM+1
+#define  RSTMODE  -1
 
 
 int      RemindCnt    = 0;
@@ -400,31 +424,37 @@ uint32_t hrsConfirmLimit = 72;
 // Internet Udp Time
 //----------------------------------------------------------------------------
 
-#include <Time.h>       // Arduino Time lib https://github.com/PaulStoffregen/Time 
+//#include <Time.h>       // Arduino Time lib https://github.com/PaulStoffregen/Time
 #include <TimeLib.h>    // Arduino Time lib https://github.com/PaulStoffregen/Time 
 #include <WiFiUdp.h>    // esp8266 WiFiUdp.h https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiUdp.h 
+#include <NTPClient.h>
 #include <Timezone.h>   // Timezone Lib  https://github.com/JChristensen/Timezone
 
-WiFiUDP UdpTime;
-unsigned int localTime_port = 8888;  // local port to listen for UDP packets
+// -----------------------
+// NTP & Timezone
+// -----------------------
+WiFiUDP UdpTime;                     // dein WiFiUDP Objekt
+NTPClient timeClient(UdpTime, "pool.ntp.org", 0, 60000);  // offset 0, update alle 60s
 
+// Sommerzeit / Standardzeit Regeln definieren
+// Beispiel für Mitteleuropäische Zeit (CET/CEST)
+TimeChangeRule myDST = {"CEST", Last, Sun, Mar, 2, 120};   // Sommerzeit
+TimeChangeRule mySTD = {"CET", Last, Sun, Oct, 3, 60};     // Normalzeit
+Timezone CE(myDST, mySTD);
 
-// manual time zone settings
-const int timeZone = 0;     // GMT, auto mode (CEST)
-//const int timeZone =  1;  // Central European Time (Berlin, Paris)
-//const int timeZone = -4;  // Eastern Daylight Time (USA)
-//const int timeZone = -5;  // Eastern Standard Time (USA)
-//const int timeZone = -6;  // Central Standard Time (USA)
-//const int timeZone = -7;  // Pacific Daylight Time (USA)
-//const int timeZone = -8;  // Pacific Standard Time (USA)
+// Globale Zeitstruktur
+tmElements_t currentTime;   // Stellt hour(), minute(), second(), day(), month(), year() bereit
 
-// automatic Timezone setting
-// Central European Time (Frankfurt, Paris)
-TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
-TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
-Timezone CE(CEST, CET);
-TimeChangeRule *tcr;        //pointer to the time change rule, use to get the TZ abbrev
-
+/*
+   // manual time zone settings
+   const int timeZone = 0;     // GMT, auto mode (CEST)
+   //const int timeZone =  1;  // Central European Time (Berlin, Paris)
+   //const int timeZone = -4;  // Eastern Daylight Time (USA)
+   //const int timeZone = -5;  // Eastern Standard Time (USA)
+   //const int timeZone = -6;  // Central Standard Time (USA)
+   //const int timeZone = -7;  // Pacific Daylight Time (USA)
+   //const int timeZone = -8;  // Pacific Standard Time (USA)
+*/
 
 //----------------------------------------------------------------------------
 // NTP Servers
@@ -444,8 +474,10 @@ IPAddress timeServer(129, 6, 15, 28); // 129.6.15.28 NIST, Gaithersburg, Marylan
 //----------------------------------------------------------------------------
 
 String timestr = "--:--:--", datestr = "--.--.----";
+String sav_timestr = timestr;
+
 #define CHR_DEGREE (unsigned char)247               // ° symbol for OLED font
-//char    STR_DEGREE[] = {247, 0, 0};                 // ° OLED font specimen (°,°C,°F,K)
+//char    STR_DEGREE[] = {247, 0, 0};               // ° OLED font specimen (°,°C,°F,K)
 
 
 
@@ -453,7 +485,48 @@ String timestr = "--:--:--", datestr = "--.--.----";
 // Tools
 //----------------------------------------------------------------------------
 
+//-----------------------
+// vsnprintf() math string:
 
+#include <stdarg.h>
+// ssprintf: Aufruf wie String ssprintf("%d %f", x, y);
+String ssprintf(const char* format, ...) {
+   size_t bufferSize = 64;  // Startpuffer
+   char* buffer = new char[bufferSize];
+   int n;
+
+   while (true) {
+      va_list args;
+      va_start(args, format);
+      n = vsnprintf(buffer, bufferSize, format, args);
+      va_end(args);
+
+      if (n < 0) {
+         delete[] buffer;
+         return String("");  // Formatfehler
+      }
+
+      if ((size_t)n < bufferSize) {
+         // Passt → String erzeugen
+         String result(buffer);
+         delete[] buffer;
+         return result;
+      }
+
+      // Puffer war zu klein → vergrößern
+      delete[] buffer;
+      bufferSize = n + 1;   // exakt benötigte Größe
+      buffer = new char[bufferSize];
+   }
+}
+
+
+
+
+
+//-----------------------
+// sensor reading
+//-----------------------
 double calADS1115 (int ADC) {
    int RES = 16383;
    if (ADC < 0) ADC = 0;
@@ -469,7 +542,12 @@ double calADC1023 (int ADC) {
    return ( (double)ADC * 100.0 * 1.0) / (double)RES;
 }
 
+//-----------------------
+// OLED graphics
+//-----------------------
+
 //-----------------------------------------------------
+
 void drawHorizontalBargraph(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, uint16_t percent)
 {
    uint16_t hsize;
@@ -484,26 +562,6 @@ void drawHorizontalBargraph(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t
       display.fillRect(x + 1 , y + 1 , hsize, h - 2, color);
    }
 }
-
-//-----------------------------------------------------
-// build String timestr, datestr
-
-void buildDateTimeString() {
-   char sbuf[20];
-
-   // digital clock display of the time
-   timestr = "";
-   sprintf(sbuf, "%02d:%02d:%02d", (int)hour(), (int)minute(), (int)second());
-   timestr = sbuf;
-   //Serial.println(timestr);
-
-   datestr = "";
-   sprintf(sbuf, "%02d.%02d.%4d", (int)day(), (int)month(), (int)year());
-   datestr = sbuf;
-   //Serial.println(datestr);
-   //Serial.println();
-}
-
 
 //-----------------------------------------------------
 // Tendenz-Symbol
@@ -521,6 +579,9 @@ char * tendencysymbol(float dpromille) {
    symbol[3] = '\0';
    return symbol;
 }
+
+
+
 
 
 
@@ -610,7 +671,6 @@ void logval( double f, vlog &v) {
       v.tmax = v.tact - 1000ul * 60 * 60 * 29;
    }
 
-
    // mean
    v.vmean = 0.999 * v.vmean + 0.001 * v.vact;
 
@@ -622,32 +682,7 @@ void logval( double f, vlog &v) {
 }
 
 
-/*
 
-   typedef struct {
-   double    vact = fINVAL, vmin = fINVAL, vmax = fINVAL, vmean = fINVAL ; // min,act,max,mean
-   uint32_t  tact = 0, tmin = 0, tmax = 0, tmean = 0, tFail = 0 ; // time (millis)
-   char      sact[20] = "--", smin[20] = "--", smax[20] = "--", smean[20] = "--";
-   } vlog;
-
-
-   static vlog t1, h1, t2, h2;  // Server: temperature, humidity
-   static vlog p1, q1;          // Server: barometr.air pressure, quality
-   static vlog espA0;           // Server: built-in ADC A0
-
-   static vlog c0t1, c0h1, c0t2, c0h2; // Client 0: temperature, humidity
-   static vlog c0p1, c0q1;             // Client 0: barometr.air pressure, quality
-   static vlog c0espA0, c0adc0, c0adc1, c0adc2, c0adc3;  // client 0 analog readings
-
-   static vlog c1t1, c1h1, c1t2, c1h2; // Client 1: temperature, humidity
-
-   static vlog c2t1, c2h1, c2t2, c2h2; // Client 2: temperature, humidity
-
-   static vlog c3t1, c3h1, c3t2, c3h2; // Client 3: temperature, humidity
-   static vlog c3espA0, c3adc0, c3adc1, c3adc2, c3adc3;  // client 3 analog readings
-
-
-*/
 
 //----------------------------------------------------------------------------
 //  handle Alarms
@@ -685,7 +720,7 @@ int checkAlarms() {
    }
 
    c0espA0.vact=50;               //  N/A
-   if(c0espA0.vact<fFireLIMIT) {  //  N/A          
+   if(c0espA0.vact<fFireLIMIT) {  //  N/A
       // tempEmergencyCnt++;      //  N/A
    }
    if(c1espA0.vact<fFireLIMIT) {
@@ -724,9 +759,8 @@ int checkAlarms() {
 
 
 //----------------------------------------------------------------------------
-// OLED dashboard
+// LED/OLED dashboard
 //----------------------------------------------------------------------------
-
 
 void dashboard(int mode) {
    static uint16_t refreshcntr=0;
@@ -739,21 +773,21 @@ void dashboard(int mode) {
 
    display.setFont();
    display.clearDisplay();
-   
-   if(refreshcntr>=10) refreshcntr=0; 
-   if(refreshcntr==0)  {                  
-      lcd.clear();      
+
+   if(refreshcntr>=10) refreshcntr=0;
+   if(refreshcntr==0)  {
+      lcd.clear();
    }
 
    if (mode == 0)  {
       display.setFont(&FreeSans9pt7b);
-      display.setCursor( 0, 12);  display.print(timestr);
-      display.setCursor( 0, 28);  display.print(datestr);
+      display.setCursor( 0, 12);  display.print(timestr + "  " + datestr);
+      display.setCursor( 0, 28);  display.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
       display.setCursor( 0, 44);  display.print("Svr Innen T = " + (String)svt1.sact + "'C");
       display.setCursor( 0, 60);  display.print("    AIR-Q   = " + (String)svespA0.sact + "%");
-      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<  ????
-         lcd.setCursor(0,0); lcd.print(timestr);
-         lcd.setCursor(0,1); lcd.print(datestr);
+      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<
+         lcd.setCursor(0,0); lcd.print(timestr + "  " + datestr);
+         lcd.setCursor(0,1); lcd.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
          lcd.setCursor(0,2); lcd.print("Svr Innen T = " + (String)svt1.sact + "'C");
          lcd.setCursor(0,3); lcd.print("    AIR-Q   = " + (String)svespA0.sact + "%");
       }
@@ -794,10 +828,10 @@ void dashboard(int mode) {
       display.setCursor( 0, 44);  display.print("");
       display.setCursor( 0, 60);  display.print("");
       if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("c0 GH ");
-         lcd.setCursor(0,1); lcd.print("  Aussen T= " + (String)c0t1.sact + "'C");
-         lcd.setCursor(0,2); lcd.print("  Innen  T= " + (String)c0t2.sact + "'C");
-         lcd.setCursor(0,3); lcd.print("  AIR-Q   = " + (String)c0espA0.sact + " %");
+         lcd.setCursor(0,0); lcd.print((String)"c0 GwH  Mot: " +c0out1+" " +c0out2+" " +c0out3);
+         lcd.setCursor(0,1);         lcd.print("   Aussen T= " +(String)c0t1.sact + "'C");
+         lcd.setCursor(0,2);         lcd.print("   Innen  T= " +(String)c0t2.sact + "'C");
+         lcd.setCursor(0,3);         lcd.print("   AIR-Q   = " +(String)c0espA0.sact + " %");
       }
    }
 
@@ -808,10 +842,10 @@ void dashboard(int mode) {
       display.setCursor( 0, 44);  display.print("");
       display.setCursor( 0, 60);  display.print("");
       if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("c0 GH A0= " + (String)c0adc0.sact);
-         lcd.setCursor(0,1); lcd.print("c0 GH A1= " + (String)c0adc1.sact);
-         lcd.setCursor(0,2); lcd.print("c0 GH A2= " + (String)c0adc2.sact);
-         lcd.setCursor(0,3); lcd.print("c0 GH A3= " + (String)c0adc3.sact);
+         lcd.setCursor(0,0); lcd.print("c0 GwH A0= " + (String)c0adc0.sact);
+         lcd.setCursor(0,1); lcd.print("c0 GwH A1= " + (String)c0adc1.sact);
+         lcd.setCursor(0,2); lcd.print("c0 GwH A2= " + (String)c0adc2.sact);
+         lcd.setCursor(0,3); lcd.print("c0 GwH A3= " + (String)c0adc3.sact);
       }
    }
    else if (mode == 5) {
@@ -821,10 +855,10 @@ void dashboard(int mode) {
       display.setCursor( 0, 44);  display.print("");
       display.setCursor( 0, 60);  display.print("");
       if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("c1 Keller:");
-         lcd.setCursor(0,1); lcd.print("Freezer:  " + (String)c1t1.sact+ "'C" );
-         lcd.setCursor(0,2); lcd.print("Kuehlsch: " + (String)c1t2.sact+ "'C" );
-         lcd.setCursor(0,3); lcd.print("AIR-Q:    " + (String)c1espA0.sact+ "%" );
+         lcd.setCursor(0,0); lcd.print((String)"c1 Kel  Mot: "+c1out1+" " +c1out2+" " +c1out3);
+         lcd.setCursor(0,1);         lcd.print("Freezer:     "+(String)c1t1.sact+ "'C" );
+         lcd.setCursor(0,2);         lcd.print("Kuehlsch:    "+(String)c1t2.sact+ "'C" );
+         lcd.setCursor(0,3);         lcd.print("AIR-Q:       "+(String)c1espA0.sact+ "%" );
       }
    }
 
@@ -836,10 +870,10 @@ void dashboard(int mode) {
       display.setCursor( 0, 44);  display.print("");
       display.setCursor( 0, 60);  display.print("");
       if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("c2 Kueche:");
-         lcd.setCursor(0,1); lcd.print("Freezer:  " + (String)c2t1.sact+ "'C" );
-         lcd.setCursor(0,2); lcd.print("Kuehlsch: " + (String)c2t2.sact+ "'C" );
-         lcd.setCursor(0,3); lcd.print("AIR-Q:    " + (String)c2espA0.sact+ "%" );
+         lcd.setCursor(0,0); lcd.print((String)"c2 Kue  Mot: " +c2out1+" " +c2out2+" " +c2out3);
+         lcd.setCursor(0,1);         lcd.print("Freezer:     " +(String)c2t1.sact+ "'C" );
+         lcd.setCursor(0,2);         lcd.print("Kuehlsch:    " +(String)c2t2.sact+ "'C" );
+         lcd.setCursor(0,3);         lcd.print("AIR-Q:       " +(String)c2espA0.sact+ "%" );
       }
    }
 
@@ -850,14 +884,14 @@ void dashboard(int mode) {
       display.setCursor( 0, 44);  display.print("");
       display.setCursor( 0, 60);  display.print("");
       if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("c3 GH ");
-         lcd.setCursor(0,1); lcd.print("  Aussen T= " + (String)c3t1.sact + "'C");
-         lcd.setCursor(0,2); lcd.print("  Innen  T= " + (String)c3t2.sact + "'C");
-         lcd.setCursor(0,3); lcd.print("  AIR-Q   = " + (String)c3espA0.sact + " %");
+         lcd.setCursor(0,0); lcd.print((String)"c3 GwH  Mot: " +c3outMon1+" " +c3outMon2+" " +c3outMon3);
+         lcd.setCursor(0,1);         lcd.print("   Aussen T= " +(String)c3t1.sact + "'C");
+         lcd.setCursor(0,2);         lcd.print("   Innen  T= " +(String)c3t2.sact + "'C");
+         lcd.setCursor(0,3);         lcd.print("   AIR-Q   = " +(String)c3espA0.sact + " %");
       }
    }
 
-   else if (mode == 8) { // c0adc
+   else if (mode == 8) { // c3adc
       display.setFont(&FreeSans9pt7b);
       display.setCursor( 0, 12);  display.print("");
       display.setCursor( 0, 28);  display.print("");
@@ -873,26 +907,26 @@ void dashboard(int mode) {
 
    else if (mode == 9) {
       display.setFont(&FreeSans9pt7b);
-      display.setCursor( 0, 12);  display.print("");
-      display.setCursor( 0, 28);  display.print("");
-      display.setCursor( 0, 44);  display.print("");
-      display.setCursor( 0, 60);  display.print("");
-      if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print("Alarms: " + (String)EmergencyCnt);
-         lcd.setCursor(0,1); lcd.print("Erinn.: " + (String)RemindCnt);
-         lcd.setCursor(0,2); lcd.print("");
-         lcd.setCursor(0,3); lcd.print("");
+      display.setCursor( 0, 12);  display.print(timestr + "  " + datestr);
+      display.setCursor( 0, 28);  display.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
+      display.setCursor( 0, 44);  display.print("Svr Innen T = " + (String)svt1.sact + "'C");
+      display.setCursor( 0, 60);  display.print("    AIR-Q   = " + (String)svespA0.sact + "%");
+      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<
+         lcd.setCursor(0,0); lcd.print(timestr + "  " + datestr);
+         lcd.setCursor(0,1); lcd.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
+         lcd.setCursor(0,2); lcd.print("Svr Innen T = " + (String)svt1.sact + "'C");
+         lcd.setCursor(0,3); lcd.print("    AIR-Q   = " + (String)svespA0.sact + "%");
       }
    }
    else if (mode ==10) {
       display.setFont(&FreeSans9pt7b);
-      display.setCursor( 0, 12);  display.print(timestr);
-      display.setCursor( 0, 28);  display.print(datestr);
+      display.setCursor( 0, 12);  display.print(timestr + "  " + datestr);
+      display.setCursor( 0, 28);  display.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
       display.setCursor( 0, 44);  display.print("Svr Innen T = " + (String)svt1.sact + "'C");
       display.setCursor( 0, 60);  display.print("    AIR-Q   = " + (String)svespA0.sact + "%");
-      if(!refreshcntr%10) {
-         lcd.setCursor(0,0); lcd.print(timestr);
-         lcd.setCursor(0,1); lcd.print(datestr);
+      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<
+         lcd.setCursor(0,0); lcd.print(timestr + "  " + datestr);
+         lcd.setCursor(0,1); lcd.print((String)"Alarmanl.1/2: " + OUT1+"/"+OUT2);
          lcd.setCursor(0,2); lcd.print("Svr Innen T = " + (String)svt1.sact + "'C");
          lcd.setCursor(0,3); lcd.print("    AIR-Q   = " + (String)svespA0.sact + "%");
       }
@@ -911,10 +945,11 @@ void dashboard(int mode) {
       }
    }
    refreshcntr++;
-   display.display();   
+   display.display();
    display.setFont();
-   delay(10);                // <<<<<<<<<<<<<<<<<<<<<<<<<< Test, neu
-}
+   delay(10);                //
+
+} // Ende: Dashboard
 
 
 
@@ -932,6 +967,9 @@ void setup() {
    //----------------------------------------
    Serial.begin(115200);
    delay(1000);
+   SerMonInputString.reserve(200);      // Reserviert Speicher für den Serial String (optional)
+   Serial.println("Serial() started");
+   Serial.println("Warte auf Serial Monitor Befehl...");
 
    //----------------------------------------
    pinMode(PIN_OUT0, OUTPUT);
@@ -1109,19 +1147,14 @@ void setup() {
    Serial.print(":");
    Serial.print(http_port);
    Serial.println("/");
-   Serial.print((String)website_url + ":" + http_port + "/");
-
+   Serial.println((String)website_url + ":" + http_port + "/");
+   Serial.println();
 
    //----------------------------------------
    // Start UDP
-   Serial.println("Starting UdpTime");
-   UdpTime.begin(localTime_port);
-   Serial.print("Local Time port: ");
-   Serial.println(UdpTime.localPort());
-   Serial.println("waiting for sync");
-   delay(250);
-   setSyncProvider(getNtpTime);
-   delay(100);
+   timeClient.begin();
+   timeClient.update();
+   Serial.println((String)"timeClient started");
 
    //----------------------------------------
    // reset watchdog confirm
@@ -1129,9 +1162,9 @@ void setup() {
 
 
    //----------------------------------------
-   // setup done   
+   // setup done
    LCDmode = 0;
-   dashboard(LCDmode);   
+   dashboard(LCDmode);
    Serial.println("setup done \n");
 
 }
@@ -1143,7 +1176,6 @@ void  resetAllOutputs() {
    String message = "*** ";
 
    // re SERVER
-   OUT0 = 0; message += "OUT0=" + (String)OUT0;
    OUT1 = 0; message += "OUT1=" + (String)OUT1;
    OUT2 = 0; message += "OUT2=" + (String)OUT2;
    OUT3 = 0; message += "OUT3=" + (String)OUT3;
@@ -1153,20 +1185,17 @@ void  resetAllOutputs() {
    c0out2=0; message += "&c0out2=" + (String)c0out2;
    c0out3=0; message += "&c0out3=" + (String)c0out3;
    // re CLIENT 1
-   c1out0=0; message += "&c1out0=" + (String)c1out0;
    c1out1=0; message += "&c1out1=" + (String)c1out1;
    c1out2=0; message += "&c1out2=" + (String)c1out2;
    c1out3=0; message += "&c1out3=" + (String)c1out3;
    // re CLIENT 2
-   c2out0=0; message += "&c2out0=" + (String)c2out0;
    c2out1=0; message += "&c2out1=" + (String)c2out1;
    c2out2=0; message += "&c2out2=" + (String)c2out2;
+   c2out3=0; message += "&c2out3=" + (String)c2out3;
    // re CLIENT 3
-   c3out0=0; message += "&c3out0=" + (String)c3out0;
    c3out1=0; message += "&c3out1=" + (String)c3out1;
    c3out2=0; message += "&c3out2=" + (String)c3out2 ;
-   //c3out3=0; message += "&c3out3=" + (String)c3out2 ;   // c3out3=intern auto ctrl
-   c3out3=0; message += "&c3tx3=" + (String)c3tx3;        // Thermostat für c3out3
+   c3out3=0; message += "&c3out3=" + (String)c3out3;        // Thermostat für c3out3
 
    // all clients
    message += "&remindcnt=" + (String)RemindCnt;
@@ -1192,6 +1221,9 @@ void loop() {
 
    static double ftmp;
    static unsigned long tsec = millis(), tms = millis();
+   static unsigned long snap_lastTick = 0;
+
+   CheckSerialResetCommand();
 
 
    //---------------------------------------
@@ -1223,11 +1255,13 @@ void loop() {
       RemindCnt = dhrsLastConfirm-hrsConfirmLimit;
    }
 
-   if ( millis() - tms >= 100 ) {    // refresh data rate
+   if ( millis() - tms >= 2000 ) {    // refresh data rate 100-2000
       tms = millis();
 
       //---------------------------------------
       // build date + time strings
+      timeClient.update();
+      updateTime();
       buildDateTimeString();
       //Serial.println(timestr+"   "+datestr);
 
@@ -1276,39 +1310,48 @@ void loop() {
       delay(1);
 
 
-      Serial.println("Client sensors:");
+      Serial.println("Svr+Clients sensors+motors:");
+
+      Serial.println((String)"Svr ");
+      Serial.println((String)"  Svr OUT1  OUT2  OUT3  " + (String)OUT1 +"  " + OUT2 +"  " + OUT3);
       Serial.print(" c0_t1="); Serial.print(c0t1.sact);
       Serial.print(" c0_h1="); Serial.print(c0h1.sact);
       Serial.print(" c0_t2="); Serial.print(c0t2.sact);
-      Serial.print(" c0_h2="); Serial.print(c0h2.sact);
-      Serial.println(" ");
+      Serial.print(" c0_h2="); Serial.println(c0h2.sact);
+      Serial.println((String)"  c0  out1  out2  out3  " + c0out1 +"  " + c0out2 +"  " + c0out3);
+
       Serial.print(" c1_t1="); Serial.print(c1t1.sact);
       Serial.print(" c1_h1="); Serial.print(c1h1.sact);
       Serial.print(" c1_t2="); Serial.print(c1t2.sact);
-      Serial.print(" c1_h2="); Serial.print(c1h2.sact);
-      Serial.println(" ");
+      Serial.print(" c1_h2="); Serial.println(c1h2.sact);
+      Serial.println((String)"  c1  out1  out2  out3  " + c1out1 +"  " + c1out2 +"  " + c1out3);
+
       Serial.print(" c2_t1="); Serial.print(c2t1.sact);
       Serial.print(" c2_h1="); Serial.print(c2h1.sact);
       Serial.print(" c2_t2="); Serial.print(c2t2.sact);
-      Serial.print(" c2_h2="); Serial.print(c2h2.sact);
-      Serial.println(" ");
+      Serial.print(" c2_h2="); Serial.println(c2h2.sact);
+      Serial.println((String)"  c2  out1  out2  out3  " + c2out1 +"  " + c2out2 +"  " + c2out3);
+
       Serial.print(" c3_t1="); Serial.print(c3t1.sact);
       Serial.print(" c3_h1="); Serial.print(c3h1.sact);
       Serial.print(" c3_t2="); Serial.print(c3t2.sact);
-      Serial.print(" c3_h2="); Serial.print(c3h2.sact);
+      Serial.print(" c3_h2="); Serial.println(c3h2.sact);
+      Serial.println((String)"  c3  out1  out2  out3  " + c3out1 +"  " + c3out2 +"  " + c3out3);
+
       Serial.println(" "); Serial.println(" ");
 
-      //---------------------------------------
-      // display on OLED
-      if ( millis() - tsec >= 4000 ) {
-         tsec = millis();
-         LCDmode++;
-      }
-      dashboard(LCDmode);
-      delay(1);
    }
+   //---------------------------------------
+   // display on OLED
+   if ( millis() - tsec >= 4000 ) {
+      tsec = millis();
+      LCDmode++;
+   }
+   dashboard(LCDmode);
+   delay(1);
 
-}
+
+} // Ende: loop()
 
 
 
@@ -1320,40 +1363,39 @@ void loop() {
 
 
 
+
 //-----------------------------------------------
-// alt   handleNotAuthorized() (GET)
+// neu   handleNotAuthorized() (GET, größer)
 //-----------------------------------------------
-/*
+
 void handleNotAuthorized() {
    String readString = "";
-   char   strinput[MAXLEN], strupwd[TOKLEN], struname[TOKLEN];
+   char strinput[MAXLEN] = "";
+   char strupwd[TOKLEN] = "";
+   char struname[TOKLEN] = "";
 
    WiFiClient client = wifiserver.available();
-
-   strcpy(strinput, "");
-   strcpy(strupwd, "");
-   strcpy(struname, "");
+   if (!client) return;
 
    while (client.connected()) {
       if (authorized) return;
 
       if (client.available()) {
          char c = client.read();
-
-         //read char by request
          readString = "";
+
+         // Lese die GET-Zeile komplett
          while ((readString.length() < TOKLEN) && (c != '\n')) {
             readString += c;
             c = client.read();
          }
 
-         // *** FIX 1: korrektes && statt & ***
-         if (strstr(website_upwd, strupwd) != NULL && strstr(website_uname, struname) != NULL)
-            readString.toCharArray(strinput, MAXLEN);
+         // Konvertiere zu char-Array für cstringarg
+         readString.toCharArray(strinput, MAXLEN);
 
-         // Extract uname/upwd aus GET-Zeile
-         cstringarg(strinput, "uname", struname);  // uname
-         cstringarg(strinput, "upwd",  strupwd);   // upwd
+         // Extrahiere Username / Passwort
+         cstringarg(strinput, "uname", struname);
+         cstringarg(strinput, "upwd", strupwd);
 
          // Debug
          Serial.print("strupwd     >>>"); Serial.print(strupwd); Serial.println("<<<");
@@ -1362,182 +1404,81 @@ void handleNotAuthorized() {
 
          // Vergleich Name + Passwort
          if ((strlen(strupwd) == strlen(website_upwd)) && (strcmp(website_upwd, strupwd) == 0)
-             && (strlen(struname) == strlen(website_uname)) && (strcmp(website_uname, struname) == 0)) {
+               && (strlen(struname) == strlen(website_uname)) && (strcmp(website_uname, struname) == 0)) {
 
             authorized = true;
             readString = "";
             return;
          }
 
-         // HTTP request finished?
+         // HTTP request beendet? → Login-Formular senden
          if (c == '\n') {
             client.flush();
 
-            // HTML body
             String script = "";
             script += "<!DOCTYPE html>\n";
             script += "<html>\n";
             script += "<head>\n";
             script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
-            script += "<title>";
-            script += website_title;
-            script += "</title>\n";
+            script += String("<title>") + website_title + "</title>\n";
             script += "</head>\n";
             script += "<body>\n";
-
             script += "<h2><p style=\"color:rgb(255,0,191);\"> log in to proceed: </p></h2>\n";
+
             script += "<FORM ACTION='/' method=GET>\n";
-            script += "<h2>user name: <INPUT TYPE=text NAME='uname' VALUE='' MAXLENGTH='50'></h2>\n";
-            script += "<h2>password : <INPUT TYPE=PASSWORD NAME='upwd' VALUE='' MAXLENGTH='50'></h2>\n";
-            script += "<h2><INPUT TYPE=SUBMIT></h2>\n";
+            script += "<h2>user name: ";
+            script += "<INPUT TYPE=text NAME='uname' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+            script += "<h2>password : ";
+            script += "<INPUT TYPE=PASSWORD NAME='upwd' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+            script += "<h2><INPUT TYPE=SUBMIT VALUE='Login' style='height:50px;width:150px;font-size:20px'></h2>\n";
             script += "</FORM>\n";
 
             script += "<BR>\n";
             script += "</body>\n";
             script += "</html>\n";
 
-            // *** FIX 2: Sauberer HTTP-Header ***
-            String script1 = "";
-            script1 += "HTTP/1.1 200 OK\r\n";
-            script1 += "Content-Type: text/html; charset=utf-8\r\n";
+            // HTTP-Header
+            String header = "";
+            header += "HTTP/1.1 200 OK\r\n";
+            header += "Content-Type: text/html; charset=utf-8\r\n";
+            header += "Content-Length: " + String(script.length()) + "\r\n";
+            header += "Connection: close\r\n";
+            header += "\r\n";
 
-            // *** FIX 3: Content-Length = Laenge des Body ***
-            script1 += "Content-Length: " + String(script.length()) + "\r\n";
-            script1 += "Connection: close\r\n";
-            script1 += "\r\n";
-
-            // Final
-            script = script1 + script;
-
-            client.print(script);
+            client.print(header + script);
             delay(100);
             client.stop();
          }
       }
       delay(1);
    }
-} // Ende handleNotAuthorized)
-*/
-
-//-----------------------------------------------
-// neu   handleNotAuthorized() (GET, größer)
-//-----------------------------------------------
-
-//-----------------------------------------------
-// handleNotAuthorized() (GET) - große Felder + kompiliert
-//-----------------------------------------------
-void handleNotAuthorized() {
-    String readString = "";
-    char strinput[MAXLEN] = "";
-    char strupwd[TOKLEN] = "";
-    char struname[TOKLEN] = "";
-
-    WiFiClient client = wifiserver.available();
-    if (!client) return;
-
-    while (client.connected()) {
-        if (authorized) return;
-
-        if (client.available()) {
-            char c = client.read();
-            readString = "";
-
-            // Lese die GET-Zeile komplett
-            while ((readString.length() < TOKLEN) && (c != '\n')) {
-                readString += c;
-                c = client.read();
-            }
-
-            // Konvertiere zu char-Array für cstringarg
-            readString.toCharArray(strinput, MAXLEN);
-
-            // Extrahiere Username / Passwort
-            cstringarg(strinput, "uname", struname);
-            cstringarg(strinput, "upwd", strupwd);
-
-            // Debug
-            Serial.print("strupwd     >>>"); Serial.print(strupwd); Serial.println("<<<");
-            Serial.print("website_upwd>>>"); Serial.print(website_upwd); Serial.println("<<<");
-            Serial.print("readString>>>"); Serial.println(readString);
-
-            // Vergleich Name + Passwort
-            if ((strlen(strupwd) == strlen(website_upwd)) && (strcmp(website_upwd, strupwd) == 0)
-                && (strlen(struname) == strlen(website_uname)) && (strcmp(website_uname, struname) == 0)) {
-                
-                authorized = true;
-                readString = "";
-                return;
-            }
-
-            // HTTP request beendet? → Login-Formular senden
-            if (c == '\n') {
-                client.flush();
-
-                String script = "";
-                script += "<!DOCTYPE html>\n";
-                script += "<html>\n";
-                script += "<head>\n";
-                script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
-                script += String("<title>") + website_title + "</title>\n";
-                script += "</head>\n";
-                script += "<body>\n";
-                script += "<h2><p style=\"color:rgb(255,0,191);\"> log in to proceed: </p></h2>\n";
-
-                script += "<FORM ACTION='/' method=GET>\n";
-                script += "<h2>user name: ";
-                script += "<INPUT TYPE=text NAME='uname' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
-                script += "<h2>password : ";
-                script += "<INPUT TYPE=PASSWORD NAME='upwd' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
-                script += "<h2><INPUT TYPE=SUBMIT VALUE='Login' style='height:50px;width:150px;font-size:20px'></h2>\n";
-                script += "</FORM>\n";
-
-                script += "<BR>\n";
-                script += "</body>\n";
-                script += "</html>\n";
-
-                // HTTP-Header
-                String header = "";
-                header += "HTTP/1.1 200 OK\r\n";
-                header += "Content-Type: text/html; charset=utf-8\r\n";
-                header += "Content-Length: " + String(script.length()) + "\r\n";
-                header += "Connection: close\r\n";
-                header += "\r\n";
-
-                client.print(header + script);
-                delay(100);
-                client.stop();
-            }
-        }
-        delay(1);
-    }
 } // Ende handleNotAuthorized
 
 
 
 
-String htmlButton(String Shref, String Label, int h, int w, int fontSize = 16) {
-    String buf = "";
+String htmlButton(String Label, String Shref, int h, int w, int fontSize = 16) {
+   String buf;
 
-    buf  = "<a href=\"/" + Shref + "\">";
-    buf += "<button style=\"height:" + String(h) + "px;width:" + String(w) + "px;font-size:" + String(fontSize) + "px\">";
-    buf += Label;
-    buf += "</button></a>";
+   buf.reserve(120);  
+   buf  = "<a href=\"/" + Shref + "\">";
+   buf += "<button style=\"height:" + String(h) + "px;width:" + String(w) + "px;font-size:" + String(fontSize) + "px\">";
+   buf += Label;
+   buf += "</button></a>";
 
-    return buf;
+   return buf;
 }
 /*
-Features:
+   Features:
 
-Shref → Ziel-Link
-
-Label → Text auf dem Button
-h / w → Höhe / Breite
-fontSize → optional, Standard 16px
-
-Beispiel-Aufruf in deinem HTML-String:
-script += htmlButton("OUT1=ON", "SCHARF", 70, 140, 20);
-script += htmlButton("OUT1=OFF", "AUS", 70, 140, 20);
-
+   Shref → Ziel-Link
+   Label → Text auf dem Button
+   h / w → Höhe / Breite
+   fontSize → optional, Standard 16px
+   Beispiel-Aufruf im HTML-String: */
+/*
+   script += htmlButton("SCHARF", "OUT1=ON", 70, 140, 20);
+   script += htmlButton("AUS", "OUT1=OFF",  70, 140, 20);
 */
 
 
@@ -1562,7 +1503,7 @@ void handleRoot() {
 
 
 //-------------------------------------------
-// handleWebsite()  009i neu
+// handleWebsite()  009j
 //-------------------------------------------
 
 void handleWebsite() {
@@ -1626,26 +1567,29 @@ void handleWebsite() {
 
    // 1) Ungültige Zeichen blockieren
    for (unsigned int i = 0; i < path.length(); i++) {
-     char c = path.charAt(i);
-     bool ok =
-       (c >= 'A' && c <= 'Z') ||
-       (c >= 'a' && c <= 'z') ||
-       (c >= '0' && c <= '9') ||
-       (c == '/') ||
-       (c == '=');
-     if (!ok) { validPath = false; break; }
+      char c = path.charAt(i);
+      bool ok =
+         (c >= 'A' && c <= 'Z') ||
+         (c >= 'a' && c <= 'z') ||
+         (c >= '0' && c <= '9') ||
+         (c == '/') ||
+         (c == '=');
+      if (!ok) {
+         validPath = false;
+         break;
+      }
    }
    // 2) Pfade mit Query- oder Fragmentanteilen blockieren
    if (path.indexOf('?') >= 0 || path.indexOf('&') >= 0 || path.indexOf('%') >= 0 || path.indexOf('#') >= 0) {
-     validPath = false;
+      validPath = false;
    }
    // 3) Pfade mit doppeltem Slash blockieren (kommen durch Browser vor)
    if (path.indexOf("//") >= 0) {
-     validPath = false;
+      validPath = false;
    }
    // 4) Pfade, die unrealistisch lang sind → verwerfen
    if (path.length() > 64) {   // großzügiger Grenzwert, aber safe
-     validPath = false;
+      validPath = false;
    }
 
    // ============================================================
@@ -1697,115 +1641,176 @@ void handleWebsite() {
    // -----------------------------
    if (validPath) {
 
-     //---------------------------------------
-     // Match the request on Server (exact path comparisons)
-     //---------------------------------------
-     if ((method == "GET") && (path == "/OUT1=ON"))  {
-        digitalWrite(PIN_OUT1, 1);
-        OUT1 = +1;
-     }
-     if ((method == "GET") && (path == "/OUT1=OFF")) {
-        digitalWrite(PIN_OUT1, 0);
-        OUT1 = 0;
-     }
+      //---------------------------------------
+      // Match the request on Server (exact path comparisons)
+      //---------------------------------------
+      if ((method == "GET") && (path == "/OUT1=ON"))  {
+         digitalWrite(PIN_OUT1, 1);
+         OUT1 = +1;
+      }
+      if ((method == "GET") && (path == "/OUT1=OFF")) {
+         digitalWrite(PIN_OUT1, 0);
+         OUT1 = 0;
+      }
 
-     if ((method == "GET") && (path == "/OUT2=ON"))  {
-        digitalWrite(PIN_OUT2, 1);
-        OUT2 = +1;
-     }
-     if ((method == "GET") && (path == "/OUT2=OFF")) {
-        digitalWrite(PIN_OUT2, 0);
-        OUT2 = 0;
-     }
+      if ((method == "GET") && (path == "/OUT2=ON"))  {
+         digitalWrite(PIN_OUT2, 1);
+         OUT2 = +1;
+      }
+      if ((method == "GET") && (path == "/OUT2=OFF")) {
+         digitalWrite(PIN_OUT2, 0);
+         OUT2 = 0;
+      }
 
-     // Reset
-     if ((method == "GET") && (path == "/svreset"))  {
-        resetMinMaxValues(svt1);
-        resetMinMaxValues(svt2);
-     }
+      // Reset
+      if ((method == "GET") && (path == "/svreset"))  {
+         resetMinMaxValues(svt1);
+         resetMinMaxValues(svt2);
+      }
 
-     //---------------------------------------
-     // Match the request on Client 0
-     //---------------------------------------
-     if ((method == "GET") && (path == "/c0out1=ON"))  { c0out1 = +1; }
-     if ((method == "GET") && (path == "/c0out1=OFF")) { c0out1 = 0; }
-     if ((method == "GET") && (path == "/c0out1=REV")) { c0out1 = -1; }
+      //---------------------------------------
+      // Match the request on Client 0
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c0out1=ON"))  {
+         c0out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c0out1=OFF")) {
+         c0out1 = 0;
+      }
+      if ((method == "GET") && (path == "/c0out1=REV")) {
+         c0out1 = -1;
+      }
 
-     if ((method == "GET") && (path == "/c0out2=ON"))  { c0out2 = +1; }
-     if ((method == "GET") && (path == "/c0out2=OFF")) { c0out2 = 0; }
+      if ((method == "GET") && (path == "/c0out2=ON"))  {
+         c0out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c0out2=OFF")) {
+         c0out2 = 0;
+      }
+      /*
+         if ((method == "GET") && (path == "/c0out3=ON"))  {
+         c0out3 = +1;
+         }
+         if ((method == "GET") && (path == "/c0out3=OFF")) {
+         c0out3 = 0;
+         }
+      */
+      if ((method == "GET") && (path == "/c0tx3=UP"))  {
+         c0tx3 = c0tx3 + 1;
+      }
+      if ((method == "GET") && (path == "/c0tx3=DN"))  {
+         c0tx3 = c0tx3 - 1;
+      }
 
-     if ((method == "GET") && (path == "/c0out3=ON"))  { c0out3 = +1; }
-     if ((method == "GET") && (path == "/c0out3=OFF")) { c0out3 = 0; }
+      if ((method == "GET") && (path == "/c0reset"))  {
+         resetMinMaxValues(c0t1);
+         resetMinMaxValues(c0t2);
+      }
 
-     if ((method == "GET") && (path == "/c0reset"))  {
-        resetMinMaxValues(c0t1);
-        resetMinMaxValues(c0t2);
-     }
+      //---------------------------------------
+      // Match the request for Client 1
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c1out1=ON"))  {
+         c1out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c1out1=REV"))  {
+         c1out1 = -1;
+      }
+      if ((method == "GET") && (path == "/c1out1=OFF")) {
+         c1out1 = 0;
+      }
 
-     //---------------------------------------
-     // Match the request for Client 1
-     //---------------------------------------
-     if ((method == "GET") && (path == "/c1out1=ON"))  { c1out1 = +1; }
-     if ((method == "GET") && (path == "/c1out1=OFF")) { c1out1 = 0; }
+      if ((method == "GET") && (path == "/c1out2=ON"))  {
+         c1out2 = +1;         
+      }
+      if ((method == "GET") && (path == "/c1out2=REV")) {
+         c1out2 = -1;
+      }
+      if ((method == "GET") && (path == "/c1out2=OFF")) {
+         c1out2 = 0;
+      }
+      
 
-     if ((method == "GET") && (path == "/c1out2=ON"))  { c1out2 = +1; }
-     if ((method == "GET") && (path == "/c1out2=OFF")) { c1out2 = 0; }
-     if ((method == "GET") && (path == "/c1out2=REV")) { c1out2 = -1; }
+      if ((method == "GET") && (path == "/c1out3=ON"))  {
+         c1out3 = +1;
+      }
+      if ((method == "GET") && (path == "/c1out3=REV"))  {
+         c1out3 = 11;
+      }
+      if ((method == "GET") && (path == "/c1out3=OFF")) {
+         c1out3 = 0;
+      }
 
-     if ((method == "GET") && (path == "/c1out3=ON"))  { c1out3 = +1; }
-     if ((method == "GET") && (path == "/c1out3=OFF")) { c1out3 = 0; }
+      if ((method == "GET") && (path == "/c1reset"))  {
+         resetMinMaxValues(c1t1);
+         resetMinMaxValues(c1t2);
+      }
 
-     if ((method == "GET") && (path == "/c1reset"))  {
-        resetMinMaxValues(c1t1);
-        resetMinMaxValues(c1t2);
-     }
+      //---------------------------------------
+      // Match the request for Client 2
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c2out1=ON"))  {
+         c2out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c2out1=REV"))  {
+         c2out1 = -1;
+      }
+      if ((method == "GET") && (path == "/c2out1=OFF")) {
+         c2out1 = 0;
+      }
 
-     //---------------------------------------
-     // Match the request for Client 2
-     //---------------------------------------
-     if ((method == "GET") && (path == "/c2out1=ON"))  { c2out1 = +1; }
-     if ((method == "GET") && (path == "/c2out1=OFF")) { c2out1 = 0; }
+      if ((method == "GET") && (path == "/c2out2=ON"))  {
+         c2out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c2out2=REV")) {
+         c2out2 = -1;
+      }
 
-     if ((method == "GET") && (path == "/c2out2=ON"))  { c2out2 = +1; }
-     if ((method == "GET") && (path == "/c2out2=OFF")) { c2out2 = 0; }
-     if ((method == "GET") && (path == "/c2out2=REV")) { c2out2 = -1; }
+      if ((method == "GET") && (path == "/c2out2=OFF")) {
+         c2out2 = 0;
+      }
+      
+      if ((method == "GET") && (path == "/c2reset"))  {
+         resetMinMaxValues(c2t1);
+         resetMinMaxValues(c2t2);
+      }
 
-     if ((method == "GET") && (path == "/c2reset"))  {
-        resetMinMaxValues(c2t1);
-        resetMinMaxValues(c2t2);
-     }
+      //---------------------------------------
+      // Match the request for Client 3
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c3out1=ON"))  {
+         c3out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c3out1=OFF")) {
+         c3out1 = 0;
+      }
 
-     //---------------------------------------
-     // Match the request for Client 3
-     //---------------------------------------
-     if ((method == "GET") && (path == "/c3out1=ON"))  { c3out1 = +1; }
-     if ((method == "GET") && (path == "/c3out1=OFF")) { c3out1 = 0; }
+      if ((method == "GET") && (path == "/c3out2=ON"))  {
+         c3out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c3out2=OFF")) {
+         c3out2 = 0;
+      }
 
-     if ((method == "GET") && (path == "/c3out2=ON"))  { c3out2 = +1; }
-     if ((method == "GET") && (path == "/c3out2=OFF")) { c3out2 = 0; }
+      if ((method == "GET") && (path == "/c3tx3=UP"))  {
+         c3tx3 = c3tx3 + 1;
+      }
+      if ((method == "GET") && (path == "/c3tx3=DN"))  {
+         c3tx3 = c3tx3 - 1;
+      }
 
-     if ((method == "GET") && (path == "/c3tx3=UP"))  { c3tx3 = c3tx3 + 1; }
-     if ((method == "GET") && (path == "/c3tx3=DN"))  { c3tx3 = c3tx3 - 1; }
+      if ((method == "GET") && (path == "/c3reset"))  {
+         resetMinMaxValues(c3t1);
+         resetMinMaxValues(c3t2);
+      }
 
-     if ((method == "GET") && (path == "/c3reset"))  {
-        resetMinMaxValues(c3t1);
-        resetMinMaxValues(c3t2);
-     }
-
-     if ((method == "GET") && (path == "/CONFIRM=ON"))   {
-        resetConfirmTime();
-     }
+      if ((method == "GET") && (path == "/CONFIRM=ON"))   {
+         resetConfirmTime();
+      }
 
    } // end if(validPath)
 
    delay(1);
-
-   //---------------------------------------
-   // Return the response (1:1 String-Verkettung, in Blöcken)
-   //---------------------------------------
-
-
-
 
 
    //---------------------------------------
@@ -1848,28 +1853,39 @@ void handleWebsite() {
    script += "<p> </p>\n";
 
    script += "<h3>letztes confirm (Std): &nbsp;" + String(dhrsLastConfirm) + " &nbsp;&nbsp;&nbsp;";
-   script += "<a href=\"/CONFIRM=ON\"><button style=\"height:50px;width:100px\"> Confirm </button></a>";
+   //script += "<a href=\"/CONFIRM=ON\"><button style=\"height:50px;width:100px\"> Confirm </button></a>";
+   script += htmlButton("Confirm", "CONFIRM=ON", 50, 100);
+
    script += "</h3>\n";
 
    script += "<p><font face=\"courier\"><font style=\"color:rgb(0,0,0);\"></font></p>\n";
 
+   //------------------------------------------------
    // SERVER block - Buttons
    script += "<h1><br>" + SERVERname + "<br></h1>\n";
 
    script += OUT1name + " ist: ";
-   if (OUT1 == 1) script += "SCHARF &nbsp; <wbr> <wbr> ";
-   else if (OUT1 == -1) script += "REV &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
+   if (OUT1 == 1)
+      script += "SCHARF&nbsp;";
+   else if (OUT1 == 0)
+      script += "AUS&nbsp;&nbsp;&nbsp;&nbsp;";   // +3 zusätzliche Abstände
 
-   script += "<a href=\"/OUT1=ON\"><button style=\"height:70px;width:140px\"> SCHARF </button></a> ";
-   script += "<a href=\"/OUT1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+   script += htmlButton("SCHARF", "OUT1=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS",    "OUT1=OFF",70, 140 ) + "<br>\n\n";
+   //script += "<a href=\"/OUT1=ON\"><button style=\"height:70px;width:140px\"> SCHARF </butt&nbsp;&nbsp; <wbr> <wbr> n></a> ";
+   //script += "<a href=\"/OUT1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
 
-   script += OUT2name + " ist: ";
-   if (OUT2 == 1) script += "SCHARF &nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp;&nbsp;&nbsp;&nbsp; <wbr> <wbr> ";
 
-   script += "<a href=\"/OUT2=ON\"><button style=\"height:70px;width:140px\"> SCHARF </button></a> ";
-   script += "<a href=\"/OUT2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+   script += OUT1name + " ist: ";
+   if (OUT2 == 1)
+      script += "SCHARF&nbsp;";
+   else if (OUT2 == 0)
+      script += "AUS&nbsp;&nbsp;&nbsp;&nbsp;";   // +3 zusätzliche Abstände
+
+   script += htmlButton("SCHARF", "OUT2=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS",    "OUT2=OFF",70, 140 ) + "<br>\n\n";
+   //script += "<a href=\"/OUT2=ON\"><button style=\"height:70px;width:140px\"> SCHARF </button></a> ";
+   //script += "<a href=\"/OUT2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
 
    // Server sensors table (Block)
    script += "<p><font face=\"courier\"></font></p>\n";
@@ -1900,13 +1916,45 @@ void handleWebsite() {
 
    // SEND server block
    client.print(script);
-   
+
+   script="";
+
    //---------------------------------------
-   // sensors  Client 0
+   // Buttons  Client 0
+   //---------------------------------------
+
+   script += "<h1><br>" + CLIENT0name + "<br></h1>\n";
+   script += c0OUT1name + " ist: ";   
+   if (c0out1 == 1) script += "EIN&nbsp;&nbsp;";
+   else if (c0out1 == 0) script += "AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c0out1=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c0out1=OFF",70, 140 ) + "<br>\n\n";
+   
+   //script += "<a href=\"/c0out1=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   //script += "<a href=\"/c0out1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   script += c0OUT2name + " ist: ";
+   if (c0out2 == 1) script += "EIN&nbsp;&nbsp;";
+   else if (c0out2 == 0) script += "AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c0out2=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c0out2=OFF",70, 140 ) + "<br>\n\n"; 
+   //script += "<a href=\"/c0out2=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   //script += "<a href=\"/c0out2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   // Thermostat controls
+   sprintf(istr, "%+3d", c0tx3);
+   script += "c0-Thermost=&nbsp;" + String(istr) + "&nbsp;&nbsp;";
+   script += htmlButton("Therm +1", "c0tx3=UP", 70, 140 ) + "&nbsp;";
+   script += htmlButton("Therm -1", "c0tx3=DN", 70, 140 ) + "<br>\n\n";
+   //script += "<a href=\"/c0tx3=UP\"><button style=\"height:70px;width:140px\">Therm +1</button></a> ";
+   //script += "<a href=\"/c0tx3=DN\"><button style=\"height:70px;width:140px\">Therm -1</button></a><br>\n\n";
+
+
+   //---------------------------------------
+   // sensors Client 0
    // chart table
    //---------------------------------------
-   
-   script = ""; 
+
    // text font Courier, color black
    script += ("<p> <font face=\"courier\"> ");
    script += "<h2> ";
@@ -1919,7 +1967,8 @@ void handleWebsite() {
    script += "</caption>";
 
    // reset
-   script += "<a href=\"/c0reset\"><button style=\"height:35px;width:70px\"> reset </button></a> </h3>";
+   script += htmlButton("reset", "c0reset", 35, 70 ) + "&nbsp;";
+   //script += "<a href=\"/c0reset\"><button style=\"height:35px;width:70px\"> reset </button></a> </h3>";
 
    // --------- Zeile 1 ----------
    script += "<thead><tr>";
@@ -1931,8 +1980,13 @@ void handleWebsite() {
    script += "<td bgcolor='Yellow'> °Cmin </td>";
    script += "<td bgcolor='Yellow'> °Cmax </td>";
    script += "<td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
-   script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+   //script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+   //script += "<td bgcolor='White'> &nbsp;&nbsp; </td>";
+   // vvv   neu, zum Verschieben
+   script += "<td bgcolor='Yellow'> hPa </td>";
+   script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
+   script += "<td bgcolor='Yellow'> hPa ∅ </td>";
+
    script += "</tr></thead>";
 
    script += "<tbody>";
@@ -1948,15 +2002,25 @@ void handleWebsite() {
    script += "<th>" + (String)c0t2.smin + "</th>";
    script += "<th>" + (String)c0t2.smax + "</th>";
    script += "<th>" + (String)c0h2.sact + "</th>";
+   //  vvv  neu, zum Verschieben
+   //script += "<th>&nbsp;</th><th>&nbsp;</th>";
+   strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean));
+   script += "<th>" + (String)(c0p1.sact) + "</th>";
+   script += "<th>" + (String)dsymbol + "</th>";
+   script += "<th>" + (String)(c0p1.smean) + "</th>";
 
-   script += "<th>&nbsp;</th><th>&nbsp;</th>";
+   //script += "<th>&nbsp;</th><th>&nbsp;</th>";
    script += "</tr>";
 
    // --------- Zeile 3 ----------
    script += "<tr>";
-   script += "<td bgcolor='Yellow'> hPa </td>";
-   script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
-   script += "<td bgcolor='Yellow'> hPa ∅ </td>";
+   // script += "<td bgcolor='Yellow'> hPa </td>";
+   // script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
+   // script += "<td bgcolor='Yellow'> hPa ∅ </td>";
+   // script += "<td bgcolor='White'>   - </td>";
+   script += "<td bgcolor='LightGray'> c0out1 </td>";
+   script += "<td bgcolor='LightGray'> c0out2 </td>";
+   script += "<td bgcolor='LightGray'> c0out3 </td>";
    script += "<td bgcolor='White'> &nbsp; </td>";
 
    script += "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
@@ -1969,11 +2033,18 @@ void handleWebsite() {
 
    // --------- Zeile 4 ----------
    strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean));
-
    script += "<tr>";
-   script += "<th>" + (String)(c0p1.sact) + "</th>";
-   script += "<th>" + (String)dsymbol + "</th>";
-   script += "<th>" + (String)(c0p1.smean) + "</th>";
+   // script += "<th>" + (String)(c0p1.sact) + "</th>";
+   // script += "<th>" + (String)dsymbol + "</th>";
+   // script += "<th>" + (String)(c0p1.smean) + "</th>";
+   // Motor Remote-Monitor
+   // script += "<th>" + (String)(c0out1)  + "</th>";
+   // script += "<th>" + (String)(c0out2)  + "</th>";
+   // script += "<th>" + (String)(c0out3)  + "</th>";
+   script += "<th>" + (String)(c0outMon1)  + "</th>";
+   script += "<th>" + (String)(c0outMon2)  + "</th>";
+   script += "<th>" + (String)(c0outMon3)  + "</th>";
+
    script += "<th>&nbsp;</th>";
 
    // ADC 0..3
@@ -2019,22 +2090,33 @@ void handleWebsite() {
    // ----------------------
    // Client 1 - Buttons + sensors (Block)
    // ----------------------
-   
-   script = "";
-   
+
+   script = "";   
    script += "<h1><br>" + CLIENT1name + "<br></h1>\n";
+   
+   script += c1OUT1name + " ist:&nbsp;";
+   if (c1out1 == 1) script += "EIN&nbsp;&nbsp;";
+   //else if (c1out1 == -1) script += "REV&nbsp;&nbsp;";
+   else if (c1out1 == 0) script += "AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c1out1=ON", 70, 140 ) + "&nbsp;";
+   //script += htmlButton("REV", "c1out1=REV", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c1out1=OFF",70, 140 ) + "<br>\n\n";
+
+   /*
    script += c1OUT2name + " ist: ";
    if (c1out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else if (c1out2 == -1) script += "Rev &nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp; <wbr> <wbr> ";
+   else if (c1out2 == -1) script += "REV &nbsp; <wbr> <wbr> ";
+   else if (c1out2 == 0)  script += "AUS &nbsp; <wbr> <wbr> ";   
    script += "<a href=\"/c1out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
    script += "<a href=\"/c1out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
    script += "<a href=\"/c1out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
-
+   */
+   
    // client 1 sensors (detailliert)
    script += "<h2>\n<table border=4 cellpadding=4>";
    script += "<caption> Messwerte " + CLIENT1name + " (Verb.-Fehler: " + String(c1t1.tFail) + " min)</caption>";
-   script += "<a href=\"/c1reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += htmlButton("reset", "c1reset", 35, 70 ) + "&nbsp;";
+   //script += "<a href=\"/c1reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
    script += "<thead><tr>";
    script += "<td bgcolor='Teal'>" + c1SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
@@ -2056,6 +2138,7 @@ void handleWebsite() {
    script += "<th>" + String(c1t2.smax) + "</th>";
    script += "<th>" + String(c1h2.sact) + "</th>";
    if (c1espA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+
    else script += "<th>";
    script += String(c1espA0.sact) + "</th>";
    script += "<th>" + String(c1espA0.smean) + "</th>";
@@ -2068,17 +2151,26 @@ void handleWebsite() {
    // Client 2 - Buttons + sensors (Block)
    // ----------------------
    script += "<h1><br>" + CLIENT2name + "<br></h1>\n";
-   script += c2OUT2name + " ist: ";
+   
+   script += c2OUT1name + " ist:&nbsp;";
+   if (c2out1 == 1) script += "EIN&nbsp;&nbsp;";
+   //else if (c2out1 == -1) script += "REV&nbsp;&nbsp;";
+   else if (c2out1 == 0) script += "AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c2out1=ON", 70, 140 ) + "&nbsp;";
+   //script += htmlButton("REV", "c2out1=REV", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c2out1=OFF",70, 140 ) + "<br>\n\n";
+   /*
    if (c2out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else if (c2out2 == -1) script += "Rev &nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp; <wbr> <wbr> ";
+   else if (c2out2 == -1) script += "REV &nbsp; <wbr> <wbr> ";
+   else if (c2out2 == 0) script += "AUS &nbsp; <wbr> <wbr> ";
    script += "<a href=\"/c2out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
    script += "<a href=\"/c2out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
    script += "<a href=\"/c2out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
-
+   */
    script += "<h2>\n<table border=4 cellpadding=4>";
    script += "<caption> Messwerte " + CLIENT2name + " (Verb.-Fehler: " + String(c2t1.tFail) + " min)</caption>";
-   script += "<a href=\"/c2reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += htmlButton("reset", "c2reset", 35, 70 ) + "&nbsp;";
+   //script += "<a href=\"/c2reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
    script += "<thead><tr>";
    script += "<td bgcolor='Teal'>" + c2SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
@@ -2106,34 +2198,42 @@ void handleWebsite() {
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
    client.print(script);
-   
+
    script = "";
 
    // ----------------------
    // Client 3 - Buttons + sensors (Block)
    // ----------------------
    script += "<h1><br>" + CLIENT3name + "<br></h1>\n";
-   script += c3OUT1name + " ist: ";
-   if (c3out1 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp; <wbr> <wbr> ";
-   script += "<a href=\"/c3out1=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
-   script += "<a href=\"/c3out1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+   script += c3OUT1name + " ist: ";   
+   if (c3out1 == 1) script += "EIN&nbsp;&nbsp;";
+   else if (c3out1 == 0) script +="AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c3out1=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c3out1=OFF",70, 140 ) + "<br>\n\n";   
+   //script += "<a href=\"/c3out1=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   //script += "<a href=\"/c3out1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
 
    script += c3OUT2name + " ist: ";
-   if (c3out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else script += "AUS &nbsp; <wbr> <wbr> ";
-   script += "<a href=\"/c3out2=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
-   script += "<a href=\"/c3out2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+   if (c3out2 == 1) script += "EIN&nbsp;&nbsp;";
+   else if (c3out2 == 0) script += "AUS&nbsp;&nbsp;";
+   script += htmlButton("EIN", "c3out2=ON", 70, 140 ) + "&nbsp;";
+   script += htmlButton("AUS", "c3out2=OFF",70, 140 ) + "<br>\n\n"; 
+   //script += "<a href=\"/c0out2=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   //script += "<a href=\"/c0out2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
 
    // Thermostat controls
    sprintf(istr, "%+3d", c3tx3);
-   script += "c3-Thermost= " + String(istr) + " &nbsp;&nbsp; ";
-   script += "<a href=\"/c3tx3=UP\"><button style=\"height:70px;width:140px\">Therm +1</button></a> ";
-   script += "<a href=\"/c3tx3=DN\"><button style=\"height:70px;width:140px\">Therm -1</button></a><br>\n\n";
+   script += "c3-Thermost=&nbsp;" + String(istr) + "&nbsp;&nbsp;";
+   script += htmlButton("Therm +1", "c3tx3=UP", 70, 140 ) + "&nbsp;";
+   script += htmlButton("Therm -1", "c3tx3=DN", 70, 140 ) + "<br>\n\n";
+   //script += "<a href=\"/c3tx3=UP\"><button style=\"height:70px;width:140px\">Therm +1</button></a> ";
+   //script += "<a href=\"/c3tx3=DN\"><button style=\"height:70px;width:140px\">Therm -1</button></a><br>\n\n";
+
 
    script += "<h2>\n<table border=4 cellpadding=4>";
    script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c3t1.tFail) + " min)</caption>";
-   script += "<a href=\"/c3reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += htmlButton("reset", "c3reset", 35, 70 ) + "&nbsp;";
+   //script += "<a href=\"/c3reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c3SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
@@ -2169,9 +2269,14 @@ void handleWebsite() {
    // --- Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
    script += "<tr>";
    script += "<th>" + (String)"  -  " + "</th>";
+
    script += "<th>" + (String)(c3outMon1)  + "</th>";
    script += "<th>" + (String)(c3outMon2)  + "</th>";
    script += "<th>" + (String)(c3outMon3)  + "</th>";
+   // script += "<th>" + (String)(c3out1)  + "</th>";
+   // script += "<th>" + (String)(c3out2)  + "</th>";
+   // script += "<th>" + (String)(c3out3)  + "</th>";
+
 
    if (c3adc0.tFail>60 || c3adc0.vmean<adcSoilMin) {
       script += (String)"<td bgcolor='red'>";
@@ -2232,7 +2337,9 @@ void handleWebsite() {
    script = "";
 
    // Logout + footer
-   script += "<h3>Log Out: <a href=\"/logout\"><button style=\"height:70px;width:140px\"> Log Out </button></a></h3>\n";
+    
+   script += htmlButton("Log Out:", "logout",70, 140 ) + "<br>\n\n"; 
+   //script += "<h3>Log Out: <a href=\"/logout\"><button style=\"height:70px;width:140px\"> Log Out </button></a></h3>\n";
    script += ver + " " + WiFi.localIP().toString() + " " + String(ssid) + " <br>\n";
    script += "</body>\n</html>\n";
    script += "<br>\n<br>\n";
@@ -2243,6 +2350,7 @@ void handleWebsite() {
    // Sauber beenden
    delay(1);
    client.stop();
+   
 } // end:  handleWebsite
 
 
@@ -2270,6 +2378,7 @@ void printUrlArg() {
    Serial.println(message);
    Serial.println("### ----------------- end msg ----------------- ###");
    Serial.println();
+
 }
 
 
@@ -2277,10 +2386,11 @@ void printUrlArg() {
 
 
 
-//----------------------------------------------
-// void handleClients() 090j
-//----------------------------------------------
 
+
+//----------------------------------------------
+// void handleClients() 090m (mit Integration ChangeAndGhostLogger)
+//----------------------------------------------
 void handleClients() {
 
    // Sicherheitscheck: nur echte Seitenaufrufe zulassen (PATCH 2+3)
@@ -2291,64 +2401,120 @@ void handleClients() {
    double ftmp;
 
    //------------------------------------------
+   // Server
+
+   msgtok = webserver.arg("OUT1");
+   if (legit && msgtok != "") {
+      OUT1 = msgtok.toInt();
+   }
+
+   msgtok = webserver.arg("OUT2");
+   if (legit && msgtok != "") {
+      OUT2 = msgtok.toInt();
+   }
+
+   msgtok = webserver.arg("OUT3");
+   if (legit && msgtok != "") {
+      OUT3 = msgtok.toInt();
+   }
+
+   //------------------------------------------
    // c0
 
    msgtok = webserver.arg("c0t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0t1);
 
    msgtok = webserver.arg("c0h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0h1);
 
    msgtok = webserver.arg("c0t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0t2);
 
    msgtok = webserver.arg("c0h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0h2);
 
    msgtok = webserver.arg("c0p1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0p1);
 
    msgtok = webserver.arg("c0espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0espA0);
 
    msgtok = webserver.arg("c0adc0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc0);
 
    msgtok = webserver.arg("c0adc1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc1);
 
    msgtok = webserver.arg("c0adc2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc2);
 
    msgtok = webserver.arg("c0adc3");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c0adc3);
+
+   // c0out Monitore
+   msgtok = webserver.arg("c0out1");
+   if (legit && msgtok != "") {
+      c0outMon1 = msgtok.toInt();
+   }
+
+   msgtok = webserver.arg("c0out2");
+   if (legit && msgtok != "") {
+      c0outMon2 = msgtok.toInt();
+   }
+
+   msgtok = webserver.arg("c0out3");
+   if (legit && msgtok != "") {
+      c0outMon3 = msgtok.toInt();
+   }
 
    //------------------------------------------
 
    msgtok = webserver.arg("LocalAlive");
    if (msgtok != "") {
       int itemp = msgtok.toInt();
-      if (itemp == 1) { resetConfirmTime(); }  // PATCH 1: nur ein Block
+      if (itemp == 1) {
+         resetConfirmTime();   // PATCH 1: nur ein Block
+      }
    }
 
    //------------------------------------------
@@ -2356,27 +2522,37 @@ void handleClients() {
 
    msgtok = webserver.arg("c1t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1t1);
 
    msgtok = webserver.arg("c1h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1h1);
 
    msgtok = webserver.arg("c1t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1t2);
 
    msgtok = webserver.arg("c1h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1h2);
 
    msgtok = webserver.arg("c1espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c1espA0);
 
    //------------------------------------------
@@ -2384,27 +2560,37 @@ void handleClients() {
 
    msgtok = webserver.arg("c2t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2t1);
 
    msgtok = webserver.arg("c2h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2h1);
 
    msgtok = webserver.arg("c2t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2t2);
 
    msgtok = webserver.arg("c2h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2h2);
 
    msgtok = webserver.arg("c2espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c2espA0);
 
    //------------------------------------------
@@ -2412,83 +2598,112 @@ void handleClients() {
 
    msgtok = webserver.arg("c3t1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3t1);
 
    msgtok = webserver.arg("c3h1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3h1);
 
    msgtok = webserver.arg("c3t2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3t2);
 
    msgtok = webserver.arg("c3h2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3h2);
 
    msgtok = webserver.arg("c3espA0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3espA0);
 
    msgtok = webserver.arg("c3adc0");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc0);
 
    msgtok = webserver.arg("c3adc1");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc1);
 
    msgtok = webserver.arg("c3adc2");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc2);
 
    msgtok = webserver.arg("c3adc3");
    ftmp = fINVAL;
-   if (legit && msgtok != "") { ftmp = msgtok.toFloat(); }
+   if (legit && msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
    logval(ftmp, c3adc3);
 
    //------------------------------------------
    // c3out Monitore (PATCH 2)
    msgtok = webserver.arg("c3out1");
-   if (legit && msgtok != "") { c3outMon1 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon1 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c3out2");
-   if (legit && msgtok != "") { c3outMon2 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon2 = msgtok.toInt();
+   }
 
    msgtok = webserver.arg("c3out3");
-   if (legit && msgtok != "") { c3outMon3 = msgtok.toInt(); }
+   if (legit && msgtok != "") {
+      c3outMon3 = msgtok.toInt();
+   }
 
    //------------------------------------------
    // Ausgabe der Werte zurück an Clients
+   //------------------------------------------
 
-   String message = "*** ";
+   String message = "****";
+
+   // SERVER
+   message += "&OUT1=" + (String)OUT1;
+   message += "&OUT2=" + (String)OUT2;
+   message += "&OUT3=" + (String)OUT3;
 
    // CLIENT 0
    message += "&c0out1=" + (String)c0out1;
    message += "&c0out2=" + (String)c0out2;
-   message += "&c0out3=" + (String)c0out3;
+   // c0out3 = intern auto ctrl, daher nicht gesendet
+   message += "&c0tx3=" + (String)c0tx3;
 
    // CLIENT 1
-   message += "&c1out0=" + (String)c1out0;
    message += "&c1out1=" + (String)c1out1;
    message += "&c1out2=" + (String)c1out2;
    message += "&c1out3=" + (String)c1out3;
 
    // CLIENT 2
-   message += "&c2out0=" + (String)c2out0;
    message += "&c2out1=" + (String)c2out1;
    message += "&c2out2=" + (String)c2out2;
+   message += "&c2out3=" + (String)c2out3;
 
    // CLIENT 3
-   message += "&c3out0=" + (String)c3out0;
    message += "&c3out1=" + (String)c3out1;
    message += "&c3out2=" + (String)c3out2;
    // c3out3 = intern auto ctrl, daher nicht gesendet
@@ -2497,11 +2712,15 @@ void handleClients() {
    // all clients
    message += "&remindcnt=" + (String)RemindCnt;
    message += "&emergencycnt=" + (String)EmergencyCnt;
+   message += "####";
 
-   message += " ###";
+   updateTime();
+   buildDateTimeString();
 
+   // --- Message an Client senden ---
    Serial.println(message);
    webserver.send(200, "text/plain", message);
+
 
 }  // Ende: handleClients()
 
@@ -2512,75 +2731,87 @@ void handleClients() {
 
 
 
+//----------------------------------------------------------------------------
+// NTP UDP Time, timestr, datestr
+//----------------------------------------------------------------------------
+
+// -----------------------
+// Zeit aus NTP aktualisieren
+// -----------------------
+void updateTime() {
+   // NTPClient abrufen
+   if (timeClient.update()) {
+      time_t utc = timeClient.getEpochTime();
+      time_t local = CE.toLocal(utc); // Sommerzeit/Winterzeit berücksichtigen
+      setTime(local);                // TimeLib setzen
+   }
+} // Ende:  updateTime
+
+
+
+//-----------------------
+// build timestr, datestr
+//-----------------------
+void buildDateTimeString() {
+   char sbuf[20];
+
+   // digital clock display of the time
+   timestr = "";
+   sprintf(sbuf, "%02d:%02d:%02d", (int)hour(), (int)minute(), (int)second());
+   timestr = sbuf;
+   //Serial.println(timestr);
+
+   datestr = "";
+   sprintf(sbuf, "%02d.%02d.%4d", (int)day(), (int)month(), (int)year());
+   datestr = sbuf;
+   //Serial.println(datestr);
+   //Serial.println();
+}  //  Ende:  buildDateTimeString
 
 
 
 //----------------------------------------------------------------------------
-// UDP Time
+// Serial Monitor Comm
 //----------------------------------------------------------------------------
 
-/*-------- NTP code ----------*/
+// Funktion, die bei Empfang  Tokens ausgeführt wird
+void handleSerialResetCommand() {
+   Serial.println("--- RESET-Funktion wird ausgeführt ---");
+   // Hier kommt dein Code für den Reset-Befehl hin
+   // z.B. Variablen zurücksetzen, Pins neu konfigurieren etc.
+   Serial.println("--- Reset-Funktion beendet ---");
+} // Ende:  handleSerialResetCommand
 
-const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
-byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
-
-time_t getNtpTime()
-{
-   time_t timebuf;
-   while (UdpTime.parsePacket() > 0) ; // discard any previously received packets
-   Serial.println("Transmit NTP Request");
-   sendNTPpacket(timeServer);
-   uint32_t beginWait = millis();
-
-   while (millis() - beginWait < 1500) {
-      int size = UdpTime.parsePacket();
-      if (size >= NTP_PACKET_SIZE) {
-         Serial.println("Receive NTP Response");
-         UdpTime.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
-         unsigned long secsSince1900;
-         // convert four bytes starting at location 40 to a long integer
-         secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
-         secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
-         secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
-         secsSince1900 |= (unsigned long)packetBuffer[43];
-         timebuf = secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;  // timezone=0 for auto sync (CEST)
-         timebuf = CE.toLocal(timebuf, &tcr);
-         return timebuf;
+void CheckSerialResetCommand() {
+   // 1. Daten lesen, wenn verfügbar
+   while (Serial.available()) {
+      char inChar = (char)Serial.read(); // Lese ein Zeichen
+      if (inChar == '\n' || inChar == '\r') {              // Wenn Zeilenumbruch (Enter)
+         SerMonStringComplete = true;
+      } else {
+         SerMonInputString += inChar;           // Füge das Zeichen zum String hinzu
       }
    }
-   Serial.println("No NTP Response :-(");
-   return 0; // return 0 if unable to get the time
-}
+   // 2. Prüfen, ob ein String vollständig empfangen wurde
+   if (SerMonStringComplete) {
+      Serial.print("Empfangen: ");
+      Serial.println(SerMonInputString); // Gib den empfangenen String aus
+      // 3. Befehl prüfen und Funktion ausführen
+      if (SerMonInputString == "reset") {
+         handleSerialResetCommand(); // Deine Funktion aufrufen
+      } else if (SerMonInputString == "hallo") {
+         Serial.println("Hallo zurück!"); // Beispiel für einen anderen Befehl
+      } else if (SerMonInputString == "Test") {
+         Serial.println("Test bestanden!"); // Beispiel für einen anderen Befehl
+      }
+      // 4. String zurücksetzen für die nächste Eingabe
+      SerMonInputString = "";
+      SerMonStringComplete = false;
+      Serial.println("Warte auf neuen Befehl...");
+   }
 
-
-
-
-// send an NTP request to the time server at the given address
-void sendNTPpacket(IPAddress &address)
-{
-   // set all bytes in the buffer to 0
-   memset(packetBuffer, 0, NTP_PACKET_SIZE);
-   // Initialize values needed to form NTP request
-   // (see URL above for details on the packets)
-   packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-   packetBuffer[1] = 0;     // Stratum, or type of clock
-   packetBuffer[2] = 6;     // Polling Interval
-   packetBuffer[3] = 0xEC;  // Peer Clock Precision
-   // 8 bytes of zero for Root Delay & Root Dispersion
-   packetBuffer[12]  = 49;
-   packetBuffer[13]  = 0x4E;
-   packetBuffer[14]  = 49;
-   packetBuffer[15]  = 52;
-   // all NTP fields have been given values, now
-   // you can send a packet requesting a timestamp:
-   UdpTime.beginPacket(address, 123); //NTP requests are to port 123
-   UdpTime.write(packetBuffer, NTP_PACKET_SIZE);
-   UdpTime.endPacket();
-}
-
-
-
+} // Ende:   CheckResetCommand
 
 
 //----------------------------------------------------------------------------
@@ -2610,9 +2841,9 @@ void sendNTPpacket(IPAddress &address)
     http://www.aip.de/groups/soe/local/handbuch/html/tceb.htm
 
     // html colors: https://www.w3schools.com/tags/ref_colornames.asp
-    // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern  
+    // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern
     // <button style="background-color:red; border-color:blue; color:white">
-    // https://www.w3schools.com/colors/colors_shades.asp 
+    // https://www.w3schools.com/colors/colors_shades.asp
     // HTML LightGray    #D3D3D3  rgb(211,211,211)
 */
 
@@ -2622,7 +2853,7 @@ void sendNTPpacket(IPAddress &address)
 
 
 /*
-Log:
+   Log:
 
 
 
@@ -2635,26 +2866,14 @@ Log:
 
 
 
-
-
-
-
-
-
+*/
 
 /*
-//----------------------------------------
-to do:
-0.90h+  
+
+   //----------------------------------------
+   to do:
 
 
 
- zusätzlich die zwei Optimierungen einfügen (einzeilig):
 
-client.setNoDelay(true); direkt nach WiFiClient client = wifiserver.available();
-
-request.reserve(128); vor readStringUntil('\r');
-
-
-
- */
+*/
