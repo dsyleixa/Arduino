@@ -6,9 +6,8 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// 0.9.l:  Change+GhostLogger unified test
-// 0.9.k:  Datalogging zur Fehlersuche: changeLogger:ok, GhostLogger:nein
-// 0.9.j:  zus. Buttons c0, Vorbereitung für Datalogging zur Fehlersuche
+
+// 0.9.j:  zus. Buttons c0, ohne ChangeLogger, mit Serial Monitor comm
 // 0.9.i:  ?
 // 0.9.h:  handleClients() zus. Fehlerkorrektur + login-widgets größer
 // 0.9.i:  handleWebsite() GET String Fehler-Syntax
@@ -2877,3 +2876,4 @@ void CheckSerialResetCommand() {
 
 
 */
+
