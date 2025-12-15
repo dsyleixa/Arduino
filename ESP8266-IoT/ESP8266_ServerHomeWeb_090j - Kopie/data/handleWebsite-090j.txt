@@ -3,8 +3,6 @@
 //-------------------------------------------
 
 void handleWebsite() {
-
-// --- 090i : handleWebsite() — PART A (bis vor HTML-Ausgabe) ---
    char istr[5];
    WiFiClient client = wifiserver.available();
 
@@ -314,6 +312,7 @@ void handleWebsite() {
    //---------------------------------------
 
    String script = "";
+   pageNonce = millis();  // TimeStamp
 
    // init website - HTTP-Header
    script += "HTTP/1.1 200 OK\r\n";
@@ -846,11 +845,6 @@ void handleWebsite() {
    // Sauber beenden
    delay(1);
    client.stop();
-
+   
 } // end:  handleWebsite
-
-
-
-
-
 
