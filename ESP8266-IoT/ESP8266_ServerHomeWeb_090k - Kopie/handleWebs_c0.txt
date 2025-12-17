@@ -1,0 +1,122 @@
+   // ----------------------
+   // Client 3 - Buttons + Sensors (Block)
+   // ----------------------
+   script = "";
+
+   script += "<h1><br>" + CLIENT3name + "<br></h1>\n";
+   script += c0OUT1name + " ist: ";
+   if (c0out1 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c0out1=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   script += "<a href=\"/c0out1=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   script += c0OUT2name + " ist: ";
+   if (c0out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
+   else script += "AUS &nbsp; <wbr> <wbr> ";
+   script += "<a href=\"/c0out2=ON\"><button style=\"height:70px;width:140px\"> EIN </button></a> ";
+   script += "<a href=\"/c0out2=OFF\"><button style=\"height:70px;width:140px\"> AUS </button></a><br>\n\n";
+
+   // Thermostat controls
+   sprintf(istr, "%+3d", c0tx3);
+   script += "c0-Thermost= " + String(istr) + " &nbsp;&nbsp; ";
+   script += "<a href=\"/c0tx3=UP\"><button style=\"height:70px;width:140px\">Therm +1</button></a> ";
+   script += "<a href=\"/c0tx3=DN\"><button style=\"height:70px;width:140px\">Therm -1</button></a><br>\n\n";
+
+   script += "<h2>\n<table border=4 cellpadding=4>";
+   script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c0t1.tFail) + " min)</caption>";
+   script += "<a href=\"/c0reset\"><button style=\"height:35px;width:70px\"> reset </button></a>";
+   script += "<thead><tr>";
+   script += "<td bgcolor='Peru'>" + c0SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Avocado'>" + c0SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='White'>&nbsp;&nbsp;</td><td bgcolor='White'>&nbsp;&nbsp;</td>";
+   script += "</tr></thead><tbody>";
+   script += "<tr>";
+   script += "<th>" + String(c0t1.sact) + " °C</th>";
+   script += "<th>" + String(c0t1.smin) + "</th>";
+   script += "<th>" + String(c0t1.smax) + "</th>";
+   script += "<th>" + String(c0h1.sact) + "</th>";
+   script += "<th>" + String(c0t2.sact) + " °C</th>";
+   script += "<th>" + String(c0t2.smin) + "</th>";
+   script += "<th>" + String(c0t2.smax) + "</th>";
+   script += "<th>" + String(c0h2.sact) + "</th>";
+   script += "<th>&nbsp;</th><th>&nbsp;</th>";
+   script += "</tr>";
+
+   // --- Zeile 3: Status / Mux-Namen ---
+   script += "<tr>";
+   script += "<td bgcolor='White'>   - </td>";
+   script += "<td bgcolor='LightGray'> c0out1 </td>";
+   script += "<td bgcolor='LightGray'> c0out2 </td>";
+   script += "<td bgcolor='LightGray'> c0out3 </td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A1muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A2muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A3muxname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)c0A0intname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)"&nbsp;∅&nbsp;" + "</td>";
+   script += "</tr>";
+
+   // --- Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
+   script += "<tr>";
+   script += "<th>" + (String)"  -  " + "</th>";
+   script += "<th>" + (String)(c0outMon1)  + "</th>";
+   script += "<th>" + (String)(c0outMon2)  + "</th>";
+   script += "<th>" + (String)(c0outMon3)  + "</th>";
+
+   if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc0.sact;
+      script += "</th>";
+   }
+
+   if (c0adc1.tFail>60 || c0adc1.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc1.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc1.sact;
+      script += "</th>";
+   }
+
+   if (c0adc2.tFail>60 || c0adc2.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc2.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc2.sact;
+      script += "</th>";
+   }
+
+   if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc0.sact;
+      script += "</th>";
+   }
+
+   if (c0espA0.vact<fFireLIMIT) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0espA0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0espA0.sact;
+      script += "</th>";
+   }
+
+   script += "<th>"+(String)(c0espA0.smean) + "</th>";
+   script += "</tr>";
+
+   script += "</tbody></table></h2>\n<br><br>\n";
+
+   client.print(script);
