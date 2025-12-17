@@ -1,8 +1,10 @@
+
 //-------------------------------------------
 // handleWebsite()  009j
 //-------------------------------------------
 
 void handleWebsite() {
+
    char istr[5];
    WiFiClient client = wifiserver.available();
 
@@ -86,9 +88,7 @@ void handleWebsite() {
       validPath = false;
    }
 
-   // ============================================================
-   // *** neu:  HIER KOMMT DER LOGOUT-BLOCK HIN – GANZ WICHTIG ***
-   // ============================================================
+
    //---------------------------------------
    // LogOut / Confirm  neu !
    //---------------------------------------
@@ -312,7 +312,6 @@ void handleWebsite() {
    //---------------------------------------
 
    String script = "";
-   pageNonce = millis();  // TimeStamp
 
    // init website - HTTP-Header
    script += "HTTP/1.1 200 OK\r\n";
@@ -332,6 +331,11 @@ void handleWebsite() {
    script += "<title>" + String(website_title) + "</title>\n";
    script += "</head>\n";
    script += "<body>\n";
+
+   
+//--------------------   Teil 3  -------------------------
+ 
+   
 
    // Header & Status
    script += "<h1><p><font style=\"color:rgb(255,0,204);\"> DON'T PANIC ! </font>";
@@ -597,15 +601,6 @@ void handleWebsite() {
    //script += htmlButton("REV", "c1out1=REV", 70, 140 ) + "&nbsp;";
    script += htmlButton("AUS", "c1out1=OFF",70, 140 ) + "<br>\n\n";
 
-   /*
-   script += c1OUT2name + " ist: ";
-   if (c1out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else if (c1out2 == -1) script += "REV &nbsp; <wbr> <wbr> ";
-   else if (c1out2 == 0)  script += "AUS &nbsp; <wbr> <wbr> ";   
-   script += "<a href=\"/c1out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
-   script += "<a href=\"/c1out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
-   script += "<a href=\"/c1out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
-   */
    
    // client 1 sensors (detailliert)
    script += "<h2>\n<table border=4 cellpadding=4>";
@@ -654,14 +649,7 @@ void handleWebsite() {
    script += htmlButton("EIN", "c2out1=ON", 70, 140 ) + "&nbsp;";
    //script += htmlButton("REV", "c2out1=REV", 70, 140 ) + "&nbsp;";
    script += htmlButton("AUS", "c2out1=OFF",70, 140 ) + "<br>\n\n";
-   /*
-   if (c2out2 == 1) script += "EIN &nbsp; <wbr> <wbr> ";
-   else if (c2out2 == -1) script += "REV &nbsp; <wbr> <wbr> ";
-   else if (c2out2 == 0) script += "AUS &nbsp; <wbr> <wbr> ";
-   script += "<a href=\"/c2out2=ON\"><button style=\"height:70px;width:140px\"> ÖFFNEN </button></a> ";
-   script += "<a href=\"/c2out2=OFF\"><button style=\"height:70px;width:140px\"> STOP </button></a> ";
-   script += "<a href=\"/c2out2=REV\"><button style=\"height:70px;width:140px\"> SCHLIESSEN </button></a><br>\n\n";
-   */
+
    script += "<h2>\n<table border=4 cellpadding=4>";
    script += "<caption> Messwerte " + CLIENT2name + " (Verb.-Fehler: " + String(c2t1.tFail) + " min)</caption>";
    script += htmlButton("reset", "c2reset", 35, 70 ) + "&nbsp;";
@@ -847,4 +835,3 @@ void handleWebsite() {
    client.stop();
    
 } // end:  handleWebsite
-
