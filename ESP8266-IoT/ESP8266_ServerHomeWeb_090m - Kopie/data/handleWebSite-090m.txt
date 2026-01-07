@@ -287,13 +287,14 @@ void handleWebsite() {
 
    delay(1);
 
+
+
+
    //-------------------------- Teil 2 handleWebsite --------------------------
  
    
    //-------------------------- Teil 2 handleWebsite --------------------------
 
-
-//-------------------------- Teil 2 handleWebsite --------------------------
 
    //---------------------------------------
    // Return the response (1:1 String-Verkettung, in Blöcken)
@@ -531,12 +532,12 @@ void handleWebsite() {
 
    client.print(script);
 
+
+
    //-------------------------- Teil 3 handleWebsite --------------------------
 
-
-
-//-------------------------- Teil 3 handleWebsite --------------------------
-//-------------------------- Teil 3 handleWebsite --------------------------
+   //-------------------------- Teil 3 handleWebsite --------------------------
+ 
    // ----------------------
    // Client 1 - Buttons + Sensors (Block)
    // ----------------------
@@ -769,4 +770,5 @@ void handleWebsite() {
    client.stop();
 
 } // Ende:  handleWebsite
+
 
