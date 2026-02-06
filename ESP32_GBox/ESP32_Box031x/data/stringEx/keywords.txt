@@ -1,0 +1,4 @@
+stringEx   KEYWORD1
+cstrinarg  KEYWORD2
+strstrpos  KEYWORD2
+ 

@@ -1,0 +1,24 @@
+SD config.txt:
+SSID
+WLAN*********
+PASSWORD
+1**************
+GATEWAY
+192.168.2.1
+LOCALIP
+192.168.2.201
+SUBNET
+255.255.255.0
+WIFIPORT
+8008
+WEBPORT
+8081
+URL
+my*****.sytes.net:8080/
+OPTIONAL
+200-80-8080-*****
+201-8080-8084-*****
+202-8008-8081-*****
+
+
+
