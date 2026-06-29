@@ -1,3 +1,0 @@
-// Test: auslesen von sämtlichen 3rd party Sensoren im bestehenen Tuya Heimnetzwerk;
-// Projekt ist bei Tuya registriert
-// Fehler: IDs korrekt, aber timestamp scheitert offenbar
