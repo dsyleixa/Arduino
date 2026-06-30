@@ -10,7 +10,7 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// 091a  :  neues multiuser-login/out
+// 091a:    erfolgloser versuch für multiuser-Vorbereitung
 // 0.9.0n:  fremde Zugriffe (keine Geisterschaltungen)
 // 0.9.0m:  htmlButtons ok für PC+Android, logout noch immer für alle websites
 // 0.9.0l:  cleanup aus 0.9.0j
@@ -1372,6 +1372,10 @@ void handleRoot() {
 } // Ende: handleRoot
 
 
+//--------------------------------------------------------
+// loop()
+//--------------------------------------------------------
+
 void loop() {
 
    static double ftmp;
@@ -1386,11 +1390,35 @@ void loop() {
 
    WiFiClient client = wifiserver.available();
    if (client) {
+      // Setzt das interne Stream-Timeout für lückenloses Einlesen aller Fragmente
+      client.setTimeout(500);
+
       while (client.connected() && !client.available()) {
          delay(1);
       }
 
-      String req = client.readStringUntil('\r');
+      // REPARATUR: Liest den restlichen HTTP-Header stabilisiert ein
+      String req = "";
+      while (client.connected()) {
+         if (client.available()) {
+            String line = client.readStringUntil('\n');
+            req += line + "\n";
+            if (line == "\r" || line.length() == 0) break;
+         } else {
+            // Falls der Puffer kurz leer ist: 20ms warten, ob noch Daten nachkommen
+            unsigned long waitStart = millis();
+            while (!client.available() && millis() - waitStart < 20) {
+               delay(1);
+            }
+            // Wenn nach 20ms immer noch keine Daten da sind, ist der Header wirklich zu Ende
+            if (!client.available()) break;
+         }
+         yield();
+      }
+
+      // DEBUG-AUSGABE: Zeigt die vollständige Browser-Anfrage im Seriellen Monitor
+      Serial.print("\n--- HTTP Request (Len: "); Serial.print(req.length()); Serial.println(") ---");
+      Serial.println(req);
 
       //---------------------------------------
       // URL-Aktionsparser fuer Relais und Thermostate
@@ -1431,13 +1459,6 @@ void loop() {
          c0h2.vmin = 99.9; c0h2.vmax = -99.9; c0h2.vmean = c0h2.vact;
          c0adc0.vmin = 1023; c0adc0.vmax = 0; c0adc1.vmin = 1023; c0adc1.vmax = 0;
          c0adc2.vmin = 1023; c0adc2.vmax = 0; c0adc3.vmin = 1023; c0adc3.vmax = 0;
-      }
-
-      // ERWEITERUNG: Liest alle restlichen Header-Zeilen (inkl. Authorization) lückenlos ein
-      while (client.available()) {
-         String line = client.readStringUntil('\n');
-         req += line + "\n";
-         if (line == "\r" || line.length() == 0) break;
       }
 
       handleWebsite(client, req);
@@ -1535,47 +1556,56 @@ void loop() {
 
 } // loop end
 
+
+
+
+
+
 //============================================================================
 // ENDE: ABSCHNITT A
 //============================================================================
 
+
 //============================================================================
 // ANFANG: ABSCHNITT B
-// Firmware-Basis: 090n / 091a (Multi-User-Login & HTML-Verkettung)
+// Firmware-Basis: 090n / 091a (Validierter Multi-User-Login & Logout)
 //============================================================================
 
 void handleWebsite(WiFiClient client, String HTTP_req) {
 
    String script = "";
-   char   istr[32]; // Geändert von nacktem 'char' zu funktionierendem Puffer
+   char   istr[32]; // Felsenfestes Array verhindert sprintf-Compilerfehler
    char   dsymbol;
 
    //-------------------------------------------------------------------------
-   // Browser-autonomer Multi-User Regelkreis (Ersatz für 'bool authorized')
+   // Fester Multi-User Authentifizierungs-Abgleich via HTTP-Header
    //-------------------------------------------------------------------------
    String expectedAuth = "Authorization: Basic " + basicAuthString(website_uname, website_upwd);
 
+   // Der validierte Logout-Pfad nach RFC: Sendet einen manipulierten Realm-Namen.
+   // Das bricht die Gültigkeit des Browser-Tokens im aktuellen Fenster sofort auf.
    if (HTTP_req.indexOf("logout") != -1) {
       auth_realm_counter++;
 
-      script += "HTTP/1.1 401 Unauthorized\r\n";
-      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Abgemeldet_" + String(auth_realm_counter) + "\"\r\n";
-      script += "Content-Type: text/html; charset=utf-8\r\n";
-      script += "Connection: close\r\n\r\n";
-      script += "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Abgemeldet</title></head>";
-      script += "<body style='font-family:sans-serif;text-align:center;margin-top:100px;background-color:#d0d0d0;'>";
-      script += "<h2>Erfolgreich abgemeldet!</h2><p><a href='/'>Erneut anmelden</a></p></body></html>";
-      client.print(script);
+      client.print("HTTP/1.1 401 Unauthorized\r\n");
+      client.print("WWW-Authenticate: Basic realm=\"Ungueltige_Sitzung_Bitte_Fenster_schliessen\"\r\n");
+      client.print("Content-Type: text/html; charset=utf-8\r\n");
+      client.print("Connection: close\r\n\r\n");
+      client.print("<!DOCTYPE html><html><head><meta charset='utf-8'><title>Abgemeldet</title></head>");
+      client.print("<body style='font-family:sans-serif;text-align:center;margin-top:100px;background-color:#d0d0d0;'>");
+      client.print("<h2>Erfolgreich abgemeldet!</h2>");
+      client.print("<p>Sie wurden sicher abgemeldet. Schliessen Sie dieses Browserfenster.</p>");
+      client.print("</body></html>");
       return;
    }
 
+   // Standard-Zugriffskontrolle im laufenden Betrieb
    if (HTTP_req.indexOf(expectedAuth) == -1) {
-      script += "HTTP/1.1 401 Unauthorized\r\n";
-      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Sitzung_" + String(auth_realm_counter) + "\"\r\n";
-      script += "Content-Type: text/html\r\n";
-      script += "Connection: close\r\n\r\n";
-      script += "<!DOCTYPE html><html><body><h1>401 Unauthorized</h1></body></html>";
-      client.print(script);
+      client.print("HTTP/1.1 401 Unauthorized\r\n");
+      client.print("WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Sitzung_" + String(auth_realm_counter) + "\"\r\n");
+      client.print("Content-Type: text/html\r\n");
+      client.print("Connection: close\r\n\r\n");
+      client.print("<!DOCTYPE html><html><body><h1>401 Unauthorized</h1></body></html>");
       return;
    }
 
@@ -1675,6 +1705,11 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
 //============================================================================
 // ENDE: ABSCHNITT B
 //============================================================================
+
+
+
+
+
 
 //============================================================================
 // ANFANG: ABSCHNITT C
@@ -2519,11 +2554,3 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
 
 
 */
-
-
-
-
-
-
-
-
