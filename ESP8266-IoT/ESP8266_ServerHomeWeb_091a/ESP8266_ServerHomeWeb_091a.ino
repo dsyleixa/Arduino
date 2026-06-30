@@ -1,4 +1,7 @@
-//----------------------------------------------------------------------------
+//============================================================================
+// Firmware-Version: 091a (Refactored from 090n)
+//============================================================================
+
 //  ESP8266 NodeMCU
 //  wifiserver,  webserver + udpclient
 //  ESP8266 WiFiServer für Client-comm (remote client sensor + motor comm)
@@ -7,7 +10,7 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// 091a:    neues multi-user-login
+// 091a  :  neues multiuser-login/out
 // 0.9.0n:  fremde Zugriffe (keine Geisterschaltungen)
 // 0.9.0m:  htmlButtons ok für PC+Android, logout noch immer für alle websites
 // 0.9.0l:  cleanup aus 0.9.0j
