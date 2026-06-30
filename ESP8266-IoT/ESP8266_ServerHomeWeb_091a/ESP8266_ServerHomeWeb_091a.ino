@@ -1,8 +1,3 @@
-//============================================================================
-// PROGRAMMTEIL 1 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
 //----------------------------------------------------------------------------
 //  ESP8266 NodeMCU
 //  wifiserver,  webserver + udpclient
@@ -12,68 +7,146 @@
 //  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
 //
 // History:
-// [Ihre originale Historie bleibt zu 100% unverändert hier stehen...]
-
-/*
-   PIN-OUT:                  ESP8266_ServerHomeWeb 
-   ========                         --v--
-   [Ihre beiden originalen PIN-Tabellen bleiben absolut unberührt erhalten...]
-*/
-
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <TimeLib.h>
-#include <Timezone.h>
-#include <stringEx.h>  // cstringarg() etc.
-
-#include <Wire.h>
-#include <SPI.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
-
-#define SCL         D1      // SCL
-#define SDA         D2      // SDA    
-#define OLED_RESET  10      // GPIO10 
-
-// KORRIGIERT: Das Objekt MUSS zwingend hier oben deklariert werden, damit setup() es kennt!
-Adafruit_BMP280 bmp_x77; 
-
-// KORRIGIERT: Globale Konstante vor allen Funktionsaufrufen bereitgestellt
-const double adcSoilMin = 200.0;
+// 091a:    neues multi-user-login
+// 0.9.0n:  fremde Zugriffe (keine Geisterschaltungen)
+// 0.9.0m:  htmlButtons ok für PC+Android, logout noch immer für alle websites
+// 0.9.0l:  cleanup aus 0.9.0j
+// 0.9.0k:  NTP-UDP timezone time_t aktualisiert
+// 0.9.0j:  große logIn Felder; c3 buttons auch als c0 Buttons
+// 0.9.0i:  ? noch kleine logIn Felder
+// 0.9.0h:  statt request.indexOf() jetzt path==
+// 0.9.0g:  neues authorized Handling
+// 0.9.0f:  3.+4. Zeile Tabelle c0, Sensor c3a1 gefixt
+// 0.9.0e:  3.+4. Zeile Tabelle c3
+// 0.9.0d:  ?
+// 0.9.0c:  handlenotRoot() neu
+// 0.9.0b:  handlenotAuthorized() neu
+// 0.9.0b:  handleWebsite() neu
+// 0.8.9c: send Client init-Werte
+// 0.8.9:  min/maxreset buttons
+// 0.8.8f: IR fire sensor
+// 0.8.8c: fINVAL, html red BGnd c1(2)t1.vmean>-4.0
+// 0.8.8a Buttons client 3
+// 0.8.8  Smoke Alarm; html buttons reworked
+// 0.8.7a null-client; c3out:auto+website; OUT0:Alertcnt; OUT1+OUT2:digital;
+//      b smoke, colors,
+//      c espA0 html color
+// 0.8.5a lcd2004_i2c ; a: 'red'-- else in tables
+// 0.8.4 alarms
+// 0.8.3 confirm last activity; ==>> email dropped!
+// 0.8.1 Webserver+dns
+// 0.8.0 stringEx.h  // cstringarg() etc.
+// 0.7.9 neu c1out0,c2out0
+// 0.7.8 neu für core 2.5.2: handleNotAuthorized()
+// 0.7.4 neu: handleNotAuthorized(), cstrinarg(), dashboard:RstAlarmBtn
+// 0.7.3 usr name+pwd login + var names reworked
+// 0.7.2 core 2.4.0, ADC reworked
+// -------------^^
+// 0.7.0 remake website login
+// 0.6.9 new Sendmail management (still no ssl)
+// 0.6.8 soil humidity alarm, no warn emails
+// 0.6.6 html Button c2, no PIN_setrotation
+// 0.6.4n new pins I/O new SSID (show bottom)
+// 0.6.3 alert Email: + mean
+// 0.6.2 handleRoot() = handleClients(),
+//       loop:handleNotAuthorized => continue
+// 0.6.0 weniger Website-Buttons
+//
 
 //----------------------------------------------------------------------------
 // target server, version
-#define TARGET 'Z'  
+
+#define TARGET 'Z'  // Server-Zielpattform (Z,T,Q => versch. IPs, Ports, urls)
 String  ver = (String)TARGET +  ".090n" ;
 
 //----------------------------------------------------------------------------
 // Wifi data from  "data\settings.h"
-#include "data\settings.h"  
+#include "data\settings.h"  // sets + initializes passwords
 
-extern const char* ssid;              
-extern const char* password;          
+extern const char* ssid;              // WIFI network name
+extern const char* password;          // WIFI network password
 
-// KORRIGIERT: Die Array-Deklaration mit eckigen Klammern stellt die Verbindung her
-extern char  website_uname[]; 
-extern char  website_upwd[];  
-extern char* website_title;     
-extern char* website_url;    
+// url data from  "data\settings.h"
+extern char  website_uname[20]; //  website user name log in  "MyWebsiteLoginName"
+extern char  website_upwd[20];  //  website user pwd log in   "MyWebsiteLoginPwd"
+extern char* website_title;     //  website caption           "MySiteCaption"
+extern char* website_url;       //  website url               "http:\\mysite.com"
+
+
+
+
+
+
+/*
+    ESP8266WebServer (WiFi Server)
+    conn. 1 WiFi client (C1)
+    WiFiUDP client f. Internet DateTime (incl Timezone), Local Time Port 8888
+
+    Sensors / Actors:
+    PCF8574 digiMux, ADS1115 ADC, MCP9808, OLED
+
+    Arduino IDE 1.8.9
+*/
+
+/*
+   PIN-OUT:
+   ========                         --v--
+   digital:         default        myStd         bRk               ESP_motorShield
+   D0     16       WAKE/LED       out/LED        ---               ---
+   D1      5       I2C SCL        I2C SCL       I2C SCL           out D1 motorA
+   D2      4       I2C SDA        I2C SDA       I2C SDA           out D2 motorB
+   D3      0       FLASH/LED      in  D3     built-in btn+LED     out D3 motorA
+   D4      2       TX1            out D4        ---               out D4 motorB
+   D5     14       SPI SCK        in  D5        in D5 (DHT)       SDA
+   D6     12       SPI MISO       out D6        out D6            SCL
+   D7     13       SPI MOSI       in D7         in D7 (DHT)       in  D7
+   D8     15       MTD0 PWM       out D8        ---               out D8
+   D9      3       UART RX0       USB, Serial   USB, Serial       USB, Serial
+   D10     1       UART TX0       USB, Serial   USB, Serial       USB, Serial
+   ---    10       intern ?       ---           ---               ---
+
+   A0     IR Feuersensor, Alarm <10% // alt: MQ-2 LPG Rauch+Gas , Alarm>70%
+
+*/
+
+/*
    
-//------------------- Ende Programmteil 1 -----------------------------------
+
+digital  gpio         myStd Server         
+   D0     16            out/LED         
+   D1      5            I2C SCL        
+   D2      4            I2C SDA        
+   D3      0            in  D3      
+   D4      2            out D4       
+   D5     14            in  D5        
+   D6     12            out D6        
+   D7     13            in D7         
+   D8     15            out D8        
+   D9      3            USB, Serial    
+   D10     1            USB, Serial   
+   ---    10             ---            
+
+   A0     IR Feuersensor, Alarm <10% // alt: MQ-2 LPG Rauch+Gas , Alarm>70%
+
+*/
 
 
+#include <stringEx.h>  // cstringarg() etc.
 
+//----------------------------------------------------------------------------
+// i2c Wire
+#include <Wire.h>
 
-//============================================================================
-// PROGRAMMTEIL 2 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
+#define SCL         D1      // SCL
+#define SDA         D2      // SDA    
+
+#define OLED_RESET  10      // GPIO10 
+
 
 //----------------------------------------------------------------------------
 // IO pins
 //----------------------------------------------------------------------------
+
 #define PIN_RESETAlarm  D3      //  Btn 0=D3 reset Alarm
 
 #define PIN_OUT0     LED_BUILTIN      //  out Alert LED_BUILTIN
@@ -81,9 +154,12 @@ extern char* website_url;
 #define PIN_OUT2     D8               //  out Alarmanlage int
 #define PIN_OUT3     D4               //  Alarm-Sirene pwm/tone
 
+
+
 //----------------------------------------------------------------------------
 // Display OLED SSD1306 + LiquidCrystal_I2C
 //----------------------------------------------------------------------------
+
 #include <ESP_SSD1306.h>        // Modification of Adafruit_SSD1306 for ESP8266 compatibility
 #include <Adafruit_GFX.h>       // Needs a little change in original Adafruit library (See README.txt file)
 #include <Fonts/FreeSansBold12pt7b.h>      // 
@@ -94,6 +170,7 @@ ESP_SSD1306   display(-1);
 //----------------------------------------------------------------------------
 #include <LiquidCrystal_I2C.h> // Library for LCD    
 LiquidCrystal_I2C  lcd = LiquidCrystal_I2C(0x27, 20, 4); // Change to (0x27,16,2) for 16x2 LCD.
+
 
 //----------------------------------------------------------------------------
 // GPIO outputs
@@ -129,21 +206,7 @@ String c3OUT1name = "1-LICHT";   // c3 output names
 String c3OUT2name = "2-PUMPE";
 String c3OUT3name = "3-KLIMA";
 
-// Feste IP- und Port-Zuweisungen  
-IPAddress this_ip(192, 168, 178, 200);     // << Bitte passen Sie diese 3 IPs kurz an Ihr lokales Netz an
-IPAddress gateway(192, 168, 178, 1);
-IPAddress subnet(255, 255, 255, 0);
-int http_port = 80;                        // Standard HTTP-Port Ihrer Version 090n
 
-//------------------- Ende Programmteil 2 -----------------------------------
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 3 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
 
 //----------------------------------------------------------------------------
 // sensors
@@ -184,6 +247,8 @@ String c3SECT1name  = "T1 °C";
 String c3SECT2name  = "T2 °C";
 
 
+
+
 typedef struct {
    double    vact = fINVAL, vmin = fINVAL, vmax = fINVAL, vmean = fINVAL ; // min,act,max,mean
    uint32_t  tact = 0, tmin = 0, tmax = 0, tmean = 0, tFail = 0 ; // time (millis)
@@ -207,6 +272,9 @@ static vlog c2espA0;  // client 2 analog readings
 
 static vlog c3t1, c3h1, c3t2, c3h2; // Client 3: temperature, humidity
 static vlog c3espA0, c3adc0, c3adc1, c3adc2, c3adc3;  // client 3 analog readings
+
+
+
 
 
 //----------------------------------------------------
@@ -254,242 +322,1052 @@ void i2cBusReset() {
 
    Wire.begin();
 } // Ende i2cBusReset
-//------------------- Ende Programmteil 3 -----------------------------------
 
 
-//============================================================================
-// PROGRAMMTEIL 4 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
+//----------------------------------------------------
+// ADS1015/1115 (4* ADC)
+//----------------------------------------------------
+#include <Adafruit_ADS1X15.h>
 
-// Externe Zuweisungen für die Server-Instanzen aus Ihrem IP-Setup-Tab
-extern IPAddress this_ip;
-extern IPAddress gateway;
-extern IPAddress subnet;
-extern int http_port;
+// Adafruit_ADS1115 ads;     /* Use this for the 16-bit version */
+// Adafruit_ADS1015 ads;     /* Use this for the 12-bit version */
 
-// Globale System-Zähler und Status-Variablen
-int EmergencyCnt = 0;
-int RemindCnt = 0;
-int LCDmode = 0;
+Adafruit_ADS1X15 ads;  // AS1115 i2c dev addr
 
-unsigned long millisLastConfirm = 0;
-unsigned long dmillisLastConfirm = 0;
-unsigned long dhrsLastConfirm = 0;
-const unsigned long hrsConfirmLimit = 12;
 
-String timestr = "00:00:00";
-String datestr = "01.01.2026";
+//----------------------------------------------------------------------------
+// bRk ADC 18-bit
+//----------------------------------------------------
+#include <MCP3421.h>
 
-// Dynamische Authentifizierungs-Konstante im RAM zur Trennung der Benutzer
-int auth_realm_counter = 1;
+MCP3421 ADCmcp3421 = MCP3421();
 
-WiFiServer wifiserver(80); 
+
+//----------------------------------------------------
+// MCP9808 Temperature Sensor
+//----------------------------------------------------
+#include <Adafruit_MCP9808.h>
+Adafruit_MCP9808 MCP9808_T = Adafruit_MCP9808();
+
+
+//----------------------------------------------------
+// BMP280 Temperature+barometric pressure Sensor
+//----------------------------------------------------
+
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+
+Adafruit_BMP280 bmp_x77; // I2C
+/* BMP280 Pin configuration
+   Pin No.   Pin Name Pin Description
+   1     VCC      Power source of 3.3VDC
+   2     GND      Ground
+   3     SCL      Serial Clock
+   4     SDA      Serial Data
+   5     CSB      CSB pin to GND to have SPI and to VCC(3.3V) for I2C.
+   6     SDO      Serial Data Out / Master In Slave Out pin, for data sent
+   f r Adafruit: default Adresse 0x77 => SDO-pin HIGH! (CS nicht verbunden!)
+*/
+
+
+
+
+//----------------------------------------------------
+// PCF8574 (8* digital IO)
+//----------------------------------------------------
+
+#include <PCF8574.h>
+
+PCF8574    PCFx20(0x20);
+#define    PCF8574addr  0x20
+
+int8_t     ppD0 = 0, ppD1 = 0, ppD2 = 0, ppD3 = 0, // PCF digital pin states; initial=0
+           ppD4 = 0, ppD5 = 0, ppD6 = 0, ppD7 = 0;
+
+
+
+//----------------------------------------------------
+// esp client sensors
+//----------------------------------------------------
+char sdhPa[4] = "";  // ++, =+, ==, =-, ≤, --
+
+
+
+//  Colors
+
+#define  SIGNYellow   255,209,22
+#define  ROSE         255,0,204
+#define  SPRINGGREEN3 0,205,102
+#define  SkyBlue               #6698FF
+#define  LightCyan             #58FAD0
+
+//----------------------------------------------------------------------------
+// WiFi Libs + dependencies
+//----------------------------------------------------------------------------
+
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+//----------------------------------------------------------------------------
+// 090n -> 091a
+//----------------------------------------------------------------------------
+
+// COMPILER-BRÜCKE: Sichert Variablen und Typen vor Tab-Konflikten ab für 091a
+#include <WiFiClient.h>
+
+extern int auth_realm_counter;
+
+String basicAuthString(String username, String password);
+
+void handleWebsite(WiFiClient client, String HTTP_req);
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+
+// WiFi Router
+
+#if TARGET=='Z'
+#define     this_iph     200      // <<< local host ip (200:website=Z)
+#define     http_port     80
+#elif TARGET=='T'
+#define     this_iph     201      // <<< local host ip (201:website=T)
+#define     http_port   8080
+#elif TARGET=='Q'
+#define     this_iph     209      // <<< local host ip (209:test)
+#define     http_port     80      //     test  
+#else
+#define     this_iph     200      // <<< local host ip (200: default)
+#define     http_port     80
+#endif
+
+IPAddress    this_ip(192, 168, 2, this_iph); // <<< Feste lokale IP dieses ESP8266-Servers
+IPAddress    gateway(192, 168, 2, 1);       // <<< LAN Gateway IP
+IPAddress    subnet(255, 255, 255, 0);      // <<< LAN Subnet Mask
+
+WiFiServer   wifiserver(http_port);
+
 ESP8266WebServer webserver(8081);
 
-// Vorab-Deklarationen (Prototypen) fuer den Compiler
-void handleWebsite(WiFiClient client, String HTTP_req);
-void dashboard_Init();
-void dashboard(int mode);
-void handleClients();
-void updateTimeNow();
-void buildDateTimeString();
-int checkAlarms();
-void systemWatchdog();
-String basicAuthString(const char* uname, const char* upwd);
-String htmlButton(String caption, String action, int height, int width);
+
+
 
 //----------------------------------------------------------------------------
-//  dashboard_Init() und dashboard() Funktionen
+// MADAM = Maintainance, display, and alert management
+//----------------------------------------------------------------------------
+void systemWatchdog() {
+
+   unsigned long now = millis();
+
+   // I2C Daten stehen?
+   if (now-lastI2CDataMillis>10000 || millis()-lastSensorDataMillis>15000) {   // z.B. 10s keine neuen Werte
+      Serial.println("WATCHDOG: I2C stalled");
+
+      i2cBusReset();
+      delay(50);
+
+      ESP.restart();   // Eskalation
+   }
+} // Ende systemWatchdog
+
+
+
+int8_t   LocAlive = 0;
+
+static int8_t  LCDmode = 0;
+
+#define  LCDMAXM  10
+#define  RSTMODE  LCDMAXM+1
+
+
+int      RemindCnt    = 0;
+int      EmergencyCnt = 0;
+uint32_t millisLastConfirm = millis();
+uint32_t dmillisLastConfirm = 0;
+uint32_t dhrsLastConfirm = 0;
+uint32_t hrsConfirmLimit = 72;
+
+int      auth_realm_counter = 1;
+
+//----------------------------------------------------------------------------
+// Internet Udp Time
 //----------------------------------------------------------------------------
 
-void dashboard_Init() {
-   Serial.println("[HARDWARE] OLED / LCD Dashboard wird initialisiert...");
-   lcd.init();
-   lcd.backlight();
-   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Original I2C-Adresse 0x3C
-   display.clearDisplay();
-   display.display();
-   yield();
-   lastI2CDataMillis = millis();
+//#include <Time.h>       // (alt) Arduino Time lib https://github.com/PaulStoffregen/Time
+#include <TimeLib.h>    // Arduino Time lib https://github.com/PaulStoffregen/Time 
+#include <WiFiUdp.h>    // esp8266 WiFiUdp.h https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiUdp.h 
+#include <Timezone.h>   // Timezone Lib  https://github.com/JChristensen/Timezone
+
+WiFiUDP UdpTime;
+unsigned int localTime_port = 8888;  // local port to listen for UDP packets
+
+
+// manual time zone settings
+const int timeZone = 0;     // GMT, auto mode (CEST)
+//const int timeZone =  1;  // Central European Time (Berlin, Paris)
+//const int timeZone = -4;  // Eastern Daylight Time (USA)
+//const int timeZone = -5;  // Eastern Standard Time (USA)
+//const int timeZone = -6;  // Central Standard Time (USA)
+//const int timeZone = -7;  // Pacific Daylight Time (USA)
+//const int timeZone = -8;  // Pacific Standard Time (USA)
+
+// automatic Timezone setting
+// Central European Time (Frankfurt, Paris)
+TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };   //Central European Summer Time
+TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };     //Central European Standard Time
+Timezone CE(CEST, CET);
+TimeChangeRule *tcr;        //pointer to the time change rule, use to get the TZ abbrev
+
+
+//----------------------------------------------------------------------------
+// NTP Servers
+//----------------------------------------------------------------------------
+// NIST Internet Time Servers: http://tf.nist.gov/tf-cgi/servers.cgi
+IPAddress timeServer(129, 6, 15, 28); // 129.6.15.28 NIST, Gaithersburg, Maryland
+//IPAddress timeServer(129,6,15,29);
+//IPAddress timeServer(129,6,15,30);
+//IPAddress timeServer(132, 163, 4, 101); // time-a.timefreq.bldrdoc.gov
+// IPAddress timeServer(132, 163, 4, 102); // time-b.timefreq.bldrdoc.gov
+// IPAddress timeServer(132, 163, 4, 103); // time-c.timefreq.bldrdoc.gov
+
+
+
+//----------------------------------------------------------------------------
+// strings and symbols for website, IO, display
+//----------------------------------------------------------------------------
+
+String timestr = "--:--:--", datestr = "--.--.----";
+#define CHR_DEGREE (unsigned char)247               // ° symbol for OLED font
+//char    STR_DEGREE[] = {247, 0, 0};                 // ° OLED font specimen (°,°C,°F,K)
+
+
+
+//----------------------------------------------------------------------------
+// Tools
+//----------------------------------------------------------------------------
+
+double calADS1115 (int ADC) {
+   int RES = 16383;
+   if (ADC < 0) ADC = 0;
+   if (ADC > RES) ADC = RES;
+   return ( (double)ADC * 100.0 * 1.0) / (double)RES;
 }
+
+//-----------------------------------------------------
+double calADC1023 (int ADC) {
+   int RES = 1023;
+   if (ADC < 0) ADC = 0;
+   if (ADC > RES) ADC = RES;
+   return ( (double)ADC * 100.0 * 1.0) / (double)RES;
+}
+
+//-----------------------------------------------------
+void drawHorizontalBargraph(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, uint16_t percent)
+{
+   uint16_t hsize;
+
+   // Create rectangle
+   display.drawRect(x, y, w, h, color)  ;
+   // Do not do stupid job
+   if ( h > 2 && w > 2 )  {
+      // calculate pixel size of bargraph
+      hsize = ( ( w - 2) * percent ) / 100  ;
+      // Fill it from left (0%) to right (100%)
+      display.fillRect(x + 1 , y + 1 , hsize, h - 2, color);
+   }
+}
+
+//-----------------------------------------------------
+// build String timestr, datestr
+
+void buildDateTimeString() {
+   char sbuf[20];
+
+   // digital clock display of the time
+   timestr = "";
+   sprintf(sbuf, "%02d:%02d:%02d", (int)hour(), (int)minute(), (int)second());
+   timestr = sbuf;
+   //Serial.println(timestr);
+
+   datestr = "";
+   sprintf(sbuf, "%02d.%02d.%4d", (int)day(), (int)month(), (int)year());
+   datestr = sbuf;
+   //Serial.println(datestr);
+   //Serial.println();
+}
+
+
+//-----------------------------------------------------
+
+#include <stdarg.h>
+
+// ssprintf: Aufruf wie String ssprintf("%d %f", x, y);
+String ssprintf(const char* format, ...) {
+  size_t bufferSize = 64;  // Startpuffer
+  char* buffer = new char[bufferSize];
+  int n;
+
+  while (true) {
+    va_list args;
+    va_start(args, format);
+    n = vsnprintf(buffer, bufferSize, format, args);
+    va_end(args);
+
+    if (n < 0) {
+      delete[] buffer;
+      return String("");  // Formatfehler
+    }
+
+    if ((size_t)n < bufferSize) {
+      // Passt → String erzeugen
+      String result(buffer);
+      delete[] buffer;
+      return result;
+    }
+
+    // Puffer war zu klein → vergrößern
+    delete[] buffer;
+    bufferSize = n + 1;   // exakt benötigte Größe
+    buffer = new char[bufferSize];
+  }
+} // Ende:   ssprintf
+
+
+
+
+// Tendenz-Symbol
+
+char dsymbol[4] = "=\0";
+
+char * tendencysymbol(float dpromille) {
+   char symbol[4] = "~";
+   if ((dpromille >= 0) && (dpromille <= 0.5)) strcpy(symbol, "↔");
+   else if ((dpromille < 0) && (dpromille >= -0.5)) strcpy(symbol, "↔");
+   else if ((dpromille > 0.5) && (dpromille <= 3.0)) strcpy(symbol, "↖");
+   else if ((dpromille > 3.0)) strcpy(symbol, "⇈");
+   else if ((dpromille < -0.5) && (dpromille >= -3.0)) strcpy(symbol, "↙");
+   else if ((dpromille < -3.0)) strcpy(symbol, "⇊");
+   symbol[3] = '\0';
+   return symbol;
+}
+
+
+
+//----------------------------------------------------------------------------
+// LOG ARRAY
+//----------------------------------------------------------------------------
+
+void resetMinMaxValues( vlog &v ) {
+   v.vmax=v.vact;
+   v.vmin=v.vact;
+   v.vmean=v.vact;
+   // to String
+   dtostrf(v.vact, 2, 1, v.sact);
+   dtostrf(v.vmin, 2, 1, v.smin);
+   dtostrf(v.vmax, 2, 1, v.smax);
+   dtostrf(v.vmean, 2, 1, v.smean);
+}
+
+
+void logval( double f, vlog &v) {
+
+   if (f <= fINVAL ) {
+      if (millis() - v.tact > 1000ul * 60) { // store invalid if outdated > 1min
+         v.vact = fINVAL;
+         strcpy(v.sact, sINVAL); // <<< invalid: "??" or "--"
+         v.tFail= (millis()-v.tact)/(1000ul*60);   // alert time in min
+      }
+      yield();
+      return;
+   }
+
+   v.tact  = millis();
+   v.tFail = 0;         // reset alert time in min
+
+   if (v.vact <= fINVAL)
+   {
+      v.vact = f;
+   }
+   else
+   {
+      v.vact = (v.vact + f ) / 2;
+   }
+
+
+
+
+   // inval min, max
+   if ( v.vmin <= fINVAL )  {
+      v.vmin = v.vact;
+      v.tmin = v.tact;
+   }
+   if ( v.vmax <= fINVAL )  {
+      v.vmax = v.vact;
+      v.tmax = v.tact;
+   }
+   if ( v.vmean <= fINVAL )  {
+      v.vmean = v.vact;
+      v.tmean = v.tact;
+   }
+
+   // new min, max
+   if (v.vact < v.vmin - 10.0 ) { // error? => small adjust min
+      v.vmin -= 0.5;
+      v.tmin = v.tact;
+   }
+   else if ( v.vact <= v.vmin )  {
+      v.vmin = 0.9 * v.vmin + 0.1 * v.vact;
+      v.tmin = v.tact;
+   }
+
+   if (v.vact > v.vmax + 10.0 ) { // error? => small adjust max
+      v.vmax += 0.5;
+      v.tmax = v.tact;
+   }
+   else if ( v.vact >= v.vmax ) {
+      v.vmax = 0.9 * v.vmax + 0.1 * v.vact;
+      v.tmax = v.tact;
+   }
+
+   // time-out min, max
+   if ( millis() - v.tmin > 30 * 60 * 60 * 1000ul) { // 30h min/max time-out:
+      v.vmin = 0.8 * v.vmin + 0.2 * v.vact; // 0.2 re-adjust
+      v.tmin = v.tact - 29 * 60 * 60 * 1000ul; // 29h clock reset
+   }
+   if ( millis() - v.tmax > 1000ul * 60 * 60 * 30) {
+      v.vmax = 0.8 * v.vmax + 0.2 * v.vact;
+      v.tmax = v.tact - 1000ul * 60 * 60 * 29;
+   }
+
+
+   // mean
+   v.vmean = 0.999 * v.vmean + 0.001 * v.vact;
+
+   // to String
+   dtostrf(v.vact, 2, 1, v.sact);
+   dtostrf(v.vmin, 2, 1, v.smin);
+   dtostrf(v.vmax, 2, 1, v.smax);
+   dtostrf(v.vmean, 2, 1, v.smean);
+}
+
+
+/*
+
+   typedef struct {
+   double    vact = fINVAL, vmin = fINVAL, vmax = fINVAL, vmean = fINVAL ; // min,act,max,mean
+   uint32_t  tact = 0, tmin = 0, tmax = 0, tmean = 0, tFail = 0 ; // time (millis)
+   char      sact[20] = "--", smin[20] = "--", smax[20] = "--", smean[20] = "--";
+   } vlog;
+
+
+   static vlog t1, h1, t2, h2;  // Server: temperature, humidity
+   static vlog p1, q1;          // Server: barometr.air pressure, quality
+   static vlog espA0;           // Server: built-in ADC A0
+
+   static vlog c0t1, c0h1, c0t2, c0h2; // Client 0: temperature, humidity
+   static vlog c0p1, c0q1;             // Client 0: barometr.air pressure, quality
+   static vlog c0espA0, c0adc0, c0adc1, c0adc2, c0adc3;  // client 0 analog readings
+
+   static vlog c1t1, c1h1, c1t2, c1h2; // Client 1: temperature, humidity
+
+   static vlog c2t1, c2h1, c2t2, c2h2; // Client 2: temperature, humidity
+
+   static vlog c3t1, c3h1, c3t2, c3h2; // Client 3: temperature, humidity
+   static vlog c3espA0, c3adc0, c3adc1, c3adc2, c3adc3;  // client 3 analog readings
+
+
+*/
+
+//----------------------------------------------------------------------------
+//  handle Alarms
+//----------------------------------------------------------------------------
+void resetConfirmTime() {
+   millisLastConfirm = millis();
+   dmillisLastConfirm = 0;
+   dhrsLastConfirm = 0;
+   RemindCnt = 0;
+}
+
+
+//----------------------------------------------------------------------------
+int adcSoilMin = 30;
+
+int checkAlarms() {
+   int tempEmergencyCnt = 0;
+
+   if(c1t1.vmean > -4.0) tempEmergencyCnt++;     // Temperature avrg Freezer  > -4°C
+   if(c2t1.vmean > -4.0) tempEmergencyCnt++;
+
+   if(c0t1.tFail > 2*60) tempEmergencyCnt++;    // Value Alarm timeout > 120min
+   if(c0adc0.vmean< adcSoilMin || c0adc0.tFail>2*60) tempEmergencyCnt++;  // real ADC Value % < adcSoilMin
+   if(c0adc1.vmean< adcSoilMin || c0adc1.tFail>2*60) tempEmergencyCnt++;
+   if(c0adc2.vmean< adcSoilMin || c0adc2.tFail>2*60) tempEmergencyCnt++;
+   if(c0adc3.vmean< adcSoilMin || c0adc3.tFail>2*60) tempEmergencyCnt++;
+
+   if(c1t1.tFail > 2*60) tempEmergencyCnt++;  // Value Alarm timeout > 120min
+   if(c2t1.tFail > 2*60) tempEmergencyCnt++;
+   if(c3t1.tFail > 2*60) tempEmergencyCnt++;
+
+   // Smoke Alarm > threshold
+   if(svespA0.vact<fFireLIMIT) { // Gas: >=fSmokeLIMIT
+      tempEmergencyCnt++;
+   }
+
+   c0espA0.vact=50;               //  N/A
+   if(c0espA0.vact<fFireLIMIT) {  //  N/A
+      // tempEmergencyCnt++;      //  N/A
+   }
+   if(c1espA0.vact<fFireLIMIT) {
+      tempEmergencyCnt++;
+   }
+   if(c2espA0.vact<fFireLIMIT) {
+      tempEmergencyCnt++;
+   }
+   if(c3espA0.vact<fFireLIMIT) {
+      tempEmergencyCnt++;
+   }
+   digitalWrite(PIN_OUT3, 0);
+   if(  (svespA0.vact<fFireLIMIT)
+         || (c0espA0.vact<fFireLIMIT)
+         || (c1espA0.vact<fFireLIMIT)
+         || (c2espA0.vact<fFireLIMIT)
+         || (c3espA0.vact<fFireLIMIT))
+   {
+      tone(PIN_OUT3, 440, 250);
+      delay(500);
+   }
+   else digitalWrite(PIN_OUT3, 0);
+
+
+   return tempEmergencyCnt;
+}
+
+
+
+
+
+//----------------------------------------------------------------------------
+// OLED dashboard
+//----------------------------------------------------------------------------
+
 
 void dashboard(int mode) {
-   if (mode > 5) {
+   static uint16_t refreshcntr=0;
+
+   if (mode > LCDMAXM) {
       LCDmode = 0;
+      mode = 0;
    }
-   // [Hier läuft Ihre originale Render-Schleife für die Messwert-Anzeige auf dem OLED]
-   yield();
-}
-//------------------- Ende Programmteil 4 -----------------------------------
+   if ( !digitalRead(PIN_RESETAlarm) ) mode = RSTMODE;
 
+   display.setFont();
+   display.clearDisplay();
 
-
-//============================================================================
-// PROGRAMMTEIL 5 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-void setup() {
-
-   //-------------------------------------------------------------------------
-   // Set output pins default
-   //-------------------------------------------------------------------------
-   pinMode(PIN_OUT0, OUTPUT);  digitalWrite(PIN_OUT0, 0); // blue onboard led (reverse logic)
-   pinMode(PIN_OUT1, OUTPUT);  digitalWrite(PIN_OUT1, 1); // open relay
-   pinMode(PIN_OUT2, OUTPUT);  digitalWrite(PIN_OUT2, 1); // open relay
-   pinMode(PIN_OUT3, OUTPUT);  digitalWrite(PIN_OUT3, 1); // open relay
-
-
-   //-------------------------------------------------------------------------
-   // Start I/O communication channels
-   //-------------------------------------------------------------------------
-   Serial.begin(115200);
-   delay(10);
-   Serial.println(); Serial.println();
-   Serial.println((String)"\nSystem Booting: Setup...   " + __FILE__  "  "  __DATE__  "  "  __TIME__ );
-
-   Wire.begin(SDA, SCL);  
-
-
-   //-------------------------------------------------------------------------
-   // Initialize local board hardware components
-   //-------------------------------------------------------------------------
-   dashboard_Init();
-   dashboard(0);
-
-   /* dht_1.begin(); */
-
-   if (!bmp_x77.begin(0x76)) {  // 0x76 oder 0x77  // bme280 oder bmp280
-      Serial.println("Could not find a valid BMP/BME280 sensor, check wiring!");
-      while (1);
+   if(refreshcntr>=10) refreshcntr=0;
+   if(refreshcntr==0)  {
+      lcd.clear();
    }
 
-   // Der blockierende setSampling-Müll wurde restlos entfernt, 
-   // da Ihre funktionierende Version 1.0.2 das intern automatisch regelt!
-
-   //-------------------------------------------------------------------------
-   // Initialize network communication: Connect to WiFi network
-   //-------------------------------------------------------------------------
-   Serial.print((String)"Connecting to WiFi: " + ssid + " .");
-
-   WiFi.config(this_ip, gateway, subnet);
-   WiFi.mode(WIFI_STA);
-   WiFi.begin(ssid, password);
-
-   int conncnt = 0;
-   while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(".");
-      conncnt++;
-      if (conncnt > 40) {
-         Serial.println("\nWiFi Connect Timeout! Resetting system...");
-         ESP.reset();
+   if (mode == 0)  {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print(datestr+" "+timestr);
+      display.setCursor( 0, 28);  display.print(ssprintf("Server OUT  %d %d %d", OUT1, OUT2, OUT3 ));
+      display.setCursor( 0, 44);  display.print("Svr Innen T = " + (String)svt1.sact + "'C");
+      display.setCursor( 0, 60);  display.print("    AIR-Q   = " + (String)svespA0.sact + "%");
+      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<  ????
+         lcd.setCursor(0,0); lcd.print((datestr+" "+timestr));
+         lcd.setCursor(0,1); lcd.print(ssprintf("Server OUT  %d %d %d", OUT1, OUT2, OUT3 ));
+         lcd.setCursor(0,2); lcd.print("Svr Innen T = " + (String)svt1.sact + "'C");
+         lcd.setCursor(0,3); lcd.print("AIR-Q       = " + (String)svespA0.sact + "%");
       }
    }
+
+   else if (mode == 1) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("c0 Fail : "+(String)(c0t1.tFail ));
+      display.setCursor( 0, 28);  display.print("c1 Fail : "+(String)(c1t1.tFail ));
+      display.setCursor( 0, 44);  display.print("c2 Fail : "+(String)(c2t1.tFail ));
+      display.setCursor( 0, 60);  display.print("c3 Fail : "+(String)(c3t1.tFail ));
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("c0 Fail : "+(String)(c0t1.tFail ));
+         lcd.setCursor(0,1); lcd.print("c1 Fail : "+(String)(c1t1.tFail ));
+         lcd.setCursor(0,2); lcd.print("c2 Fail : "+(String)(c2t1.tFail ));
+         lcd.setCursor(0,3); lcd.print("c3 Fail : "+(String)(c3t1.tFail ));
+      }
+   }
+
+   else if (mode == 2) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("c0 AIR-Q : "+(String)(c0espA0.vact ));
+         lcd.setCursor(0,1); lcd.print("c1 AIR-Q : "+(String)(c1espA0.vact ));
+         lcd.setCursor(0,2); lcd.print("c2 AIR-Q : "+(String)(c2espA0.vact ));
+         lcd.setCursor(0,3); lcd.print("c3 AIR-Q : "+(String)(c3espA0.vact ));
+      }
+   }
+
+   else if (mode == 3) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print(ssprintf("C0 GwH OUT  %d %d %d", c0out1, c0out2, c0out3 ));
+         lcd.setCursor(0,1); lcd.print("Aussen T= " + (String)c0t1.sact + "'C");
+         lcd.setCursor(0,2); lcd.print("Innen  T= " + (String)c0t2.sact + "'C");
+         lcd.setCursor(0,3); lcd.print("AIR-Q   = " + (String)c0espA0.sact + " %");
+      }
+   }
+
+   else if (mode == 4) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("c0 GwH A0= " + (String)c0adc0.sact);
+         lcd.setCursor(0,1); lcd.print("c0 GwH A1= " + (String)c0adc1.sact);
+         lcd.setCursor(0,2); lcd.print("c0 GwH A2= " + (String)c0adc2.sact);
+         lcd.setCursor(0,3); lcd.print("c0 GwH A3= " + (String)c0adc3.sact);
+      }
+   }
+   else if (mode == 5) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print(ssprintf("C1 Kel OUT  %d %d %d", c1out1, c1out2, c1out3 ));
+         lcd.setCursor(0,1); lcd.print("Freezer:  " + (String)c1t1.sact+ "'C" );
+         lcd.setCursor(0,2); lcd.print("Kuehlsch: " + (String)c1t2.sact+ "'C" );
+         lcd.setCursor(0,3); lcd.print("AIR-Q:    " + (String)c1espA0.sact+ "%" );
+      }
+   }
+
+
+   else if (mode == 6) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print(ssprintf("C2 Kue OUT  %d %d %d", c2out1, c2out2, c2out3 ));
+         lcd.setCursor(0,1); lcd.print("Freezer:  " + (String)c2t1.sact+ "'C" );
+         lcd.setCursor(0,2); lcd.print("Kuehlsch: " + (String)c2t2.sact+ "'C" );
+         lcd.setCursor(0,3); lcd.print("AIR-Q:    " + (String)c2espA0.sact+ "%" );
+      }
+   }
+
+   else if (mode == 7) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print(ssprintf("C3 GwH OUT  %d %d %d", c3out1, c3out2, c3out3 ));
+         lcd.setCursor(0,1); lcd.print("Aussen T= " + (String)c3t1.sact + "'C");
+         lcd.setCursor(0,2); lcd.print("Innen  T= " + (String)c3t2.sact + "'C");
+         lcd.setCursor(0,3); lcd.print("AIR-Q   = " + (String)c3espA0.sact + " %");
+      }
+   }
+
+   else if (mode == 8) { // c0adc
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("c3 GwH A0= " + (String)c3adc0.sact);
+         lcd.setCursor(0,1); lcd.print("c3 GwH A1= " + (String)c3adc1.sact);
+         lcd.setCursor(0,2); lcd.print("c3 GwH A2= " + (String)c3adc2.sact);
+         lcd.setCursor(0,3); lcd.print("c3 GwH A3= " + (String)c3adc3.sact);
+      }
+   }
+
+   else if (mode == 9) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print("");
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("Alarms: " + (String)EmergencyCnt);
+         lcd.setCursor(0,1); lcd.print("Erinn.: " + (String)RemindCnt);
+         lcd.setCursor(0,2); lcd.print("");
+         lcd.setCursor(0,3); lcd.print("");
+      }
+   }
+   else if (mode ==10) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print(datestr+" "+timestr);
+      display.setCursor( 0, 28);  display.print(ssprintf("Server OUT  %d %d %d", OUT1, OUT2, OUT3 ));
+      display.setCursor( 0, 44);  display.print("Svr Innen T = " + (String)svt1.sact + "'C");
+      display.setCursor( 0, 60);  display.print("    AIR-Q   = " + (String)svespA0.sact + "%");
+      if(!refreshcntr%10) {                  // <<<<<<<<<<<<<<<<<<<  ????
+         lcd.setCursor(0,0); lcd.print((datestr+" "+timestr));
+         lcd.setCursor(0,1); lcd.print(ssprintf("Server OUT  %d %d %d", OUT1, OUT2, OUT3 ));
+         lcd.setCursor(0,2); lcd.print("Svr Innen T = " + (String)svt1.sact + "'C");
+         lcd.setCursor(0,3); lcd.print("AIR-Q       = " + (String)svespA0.sact + "%");
+      }
+   }
+   else  if (mode == RSTMODE)  {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor( 0, 12);  display.print( "reset warnings" );
+      display.setCursor( 0, 28);  display.print("");
+      display.setCursor( 0, 44);  display.print("");
+      display.setCursor( 0, 60);  display.print("");
+      if(!refreshcntr%10) {
+         lcd.setCursor(0,0); lcd.print("reset warnings");
+         lcd.setCursor(0,1); lcd.print("");
+         lcd.setCursor(0,2); lcd.print("");
+         lcd.setCursor(0,3); lcd.print("");
+      }
+   }
+   refreshcntr++;
+   display.display();
+   display.setFont();
+   delay(10);                // <<<<<<<<<<<<<<<<<<<<<<<<<< Test, neu
+}
+
+
+void wifiConnect() {
+   int progress=0;
+
+   unsigned long wifiStartMillis = millis();          // <<< NEU: Startzeit
+   const unsigned long WIFI_TIMEOUT = 20000;          // <<< NEU: Timeout 20s
+
    Serial.println();
-   Serial.print("WiFi connected, local IP: "); Serial.println(WiFi.localIP());
+   Serial.println("Connecting to WiFi... ");
+   lcd.setCursor(0, 1);  lcd.print("Connecting to WiFi: ");
 
-   // Start local wifiserver stream on Dashboard port (80 or 8080)
-   wifiserver.begin();
-   Serial.println((String)"Dashboard Low-Level server started on Port " + http_port);
+   WiFi.mode(WIFI_STA);
+   WiFi.config(this_ip, gateway, subnet, gateway, gateway);   // dns = gateway
+   WiFi.begin(ssid, password);
+
+   while (WiFi.status() != WL_CONNECTED) {
+
+      if (millis() - wifiStartMillis > WIFI_TIMEOUT) {   // <<< NEU: Timeout-Check
+         Serial.println();
+         Serial.println("WiFi connect TIMEOUT -> restart");
+         ESP.restart();
+      }
+
+      delay(500);
+      yield();                                           // <<< NEU: WDT / WiFi Stack
+      Serial.print(".");
+
+      display.clearDisplay();
+      display.setCursor( 0, 20);  display.print("WiFi connecting...");
+      drawHorizontalBargraph( 0, 30, (int16_t) display.width(), 9, 1, progress);
+      display.setCursor( 0, 40);  display.print((String)progress + "%");
+      if (progress >= 98) {
+         progress = 80;
+         Serial.println();
+      }
+      lcd.setCursor(0, 2);  lcd.print((String)progress + "%");
+      display.display();
+
+      if (progress < 10) progress += 5;
+      else if (progress < 50) progress += 2;
+      else if (progress < 90) progress += 1;
+   }
+
+   delay(100);  
+   display.clearDisplay();
+   progress = 100;
+
+   display.setCursor( 0, 20);  display.print("WiFi connecting - ");
+   drawHorizontalBargraph( 0, 30, (int16_t) display.width(), 9, 1, progress);
+   display.setCursor( 0, 40);  display.print((String)progress + "%");
+ 
+   display.setCursor( 0, 50);  display.print(WiFi.gatewayIP());
+   display.display();
+   lcd.setCursor(0, 2);  lcd.print("Gateway ID: ");  lcd.print(WiFi.gatewayIP());   
+   Serial.println();
+   Serial.print("Gateway ID: "); Serial.println(WiFi.gatewayIP());
+
+} // Ende wifiConnect
+
+
+//----------------------------------------------------------------------------
+// SETUP
+//----------------------------------------------------------------------------
+void setup() {
+
+   int IORes;
+   //int progress = 0;
+
+
+   //----------------------------------------
+   Serial.begin(115200);
+   delay(1000);
+ 
+   //----------------------------------------
+   pinMode(PIN_OUT0, OUTPUT);
+   digitalWrite(PIN_OUT0, LOW);
+
+   pinMode(PIN_OUT1, OUTPUT);
+   digitalWrite(PIN_OUT1, LOW);
+
+   pinMode(PIN_OUT2, OUTPUT);
+   digitalWrite(PIN_OUT2, LOW);
+
+   pinMode(PIN_OUT3, OUTPUT);
+   digitalWrite(PIN_OUT3, LOW);
+
+
+   pinMode(PIN_RESETAlarm, INPUT_PULLUP);  // reset Alarm
+
+
+
+   //----------------------------------------
+   // i2c: init
+
+   Wire.pins(SDA, SCL);        // SDA, SCL
+   Wire.begin();
+   Wire.setClock(100000ul);
+   Wire.setTimeout(50);
    
-//------------------------ Ende Programmteil 5 -------------------------------
+   yield();
+
+   //----------------------------------------
+   // i2c: PCF8574
+
+   PCFx20.write8(0xFF); // (all pins INPUT HIGH)
+   yield();
+
+   //----------------------------------------
+   // OLED
+   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
+   display.setFont();
+   display.setTextSize(1);
+   display.setTextColor(WHITE);
+   display.clearDisplay();
+   display.setCursor( 0, 0);  display.print("OLED display init OK");
+   display.display();
+   yield();
+   Serial.println("OLED display init OK");
+
+   //----------------------------------------
+   //  LCD
+   lcd.init();
+   lcd.backlight();
+   lcd.noBlink();
+   Serial.println("LCD display init OK");
+   lcd.setCursor(0, 0);  lcd.print("LCD display init OK");
+   Serial.println();
+
+
+   /**
+      //----------------------------------------
+      // i2c:  ADS1115
+
+      ADSx48.begin(0x48); // ADS1115 I2C 4x 12/16bit ADC
+      yield();
+      Serial.println("ADS1115 sensor init... ");
+   */
 
 
 
+   //----------------------------------------
+   // Init MCP3421: I2C-Adresse, 18 Bit Modus, keine Verstärkung
+   Serial.println("ADCmcp3421 sensor init... ");
+   ADCmcp3421.init(0x68, 3, 0);
+   Serial.println("ADCmcp3421 sensor done. ");
+   Serial.println();
+
+   /*
+      //----------------------------------------
+      // i2c:  MCP9808
+
+      IORes=MCP9808_T.begin();
+      yield();
+      if (!IORes) {
+      Serial.println("Couldn't find MCP9808!");
+      }
+      else
+      Serial.println("MCP9808 sensor init: OK");
+
+   */
+
+
+   //----------------------------------------
+   // i2c: BMP280
+   Serial.println("bmp_x77 sensor init... ");
+   IORes = bmp_x77.begin();
+   if (!IORes) {
+      Serial.println("Couldn't find BMP280 sensor!");
+   }
+   else {
+      Serial.println("BMP280 sensor init: OK.");
+   }
+   Serial.println();
+   yield();
 
 
 
-//============================================================================
-// PROGRAMMTEIL 6 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
+   //----------------------------------------
+   // Connect to WiFi network
+   
+   Serial.println();
+   wifiConnect();
+   Serial.println("WiFi connected ");
+   delay(500);
 
-   //-------------------------------------------------------------------------
-   // Set up webserver routing handlers (Port 8081 for ESP-Clients)
-   //-------------------------------------------------------------------------
+   //----------------------------------------
+   // Start the WiFi server (-> www)
+   wifiserver.begin();
+   Serial.println("ESP wifiserver started");
 
-   // Das High-Level webserver-Objekt dient exklusiv den 4 externen Mess-Clients
+   //----------------------------------------
+   // Start the ESP LAN server (-> ESP client)
+   webserver.on("/", handleRoot) ;
    webserver.on("/client/client0/", handleClients);
+   delay(10);
    webserver.on("/client/client1/", handleClients);
+   delay(10);
    webserver.on("/client/client2/", handleClients);
+   delay(10);
    webserver.on("/client/client3/", handleClients);
-
+   delay(10);
    webserver.begin();
-   Serial.println("High-Level Webserver for ESP-Clients started on Port 8081");
+   Serial.println("ESP webserver started");
+
+   // Print the IP address
+   Serial.print("Use this URL to connect: ");
+   Serial.print("http://");
+   Serial.print(WiFi.localIP());
+   Serial.print(":");
+   Serial.print(http_port);
+   Serial.println("/");
+   Serial.print((String)website_url + ":" + http_port + "/");
 
 
-   //-------------------------------------------------------------------------
-   // Initialize Client hardware structures (Originale v090n RAM-Initialisierung)
-   //-------------------------------------------------------------------------
-
-   c0t1.tFail = 999; c0t2.tFail = 999; c0h1.tFail = 999; c0h2.tFail = 999;
-   c1t1.tFail = 999; c1t2.tFail = 999; c1h1.tFail = 999; c1h2.tFail = 999;
-   c2t1.tFail = 999; c2t2.tFail = 999; c2h1.tFail = 999; c2h2.tFail = 999;
-   c3t1.tFail = 999; c3t2.tFail = 999; c3h1.tFail = 999; c3h2.tFail = 999;
-
-   c0adc0.tFail = 999; c0adc1.tFail = 999; c0adc2.tFail = 999; c0adc3.tFail = 999;
-
-   // Fehlerhafte Sname-Zeilen restlos entfernt! 
-   // Ihre originalen Messwert-Inits aus v090n greifen jetzt fehlerfrei im RAM:
-   svt1.vact = fINVAL;   svt1.vmax = -99.9;  svt1.vmin = 99.9;
-   svh1.vact = fINVAL;   svh1.vmax = -99.9;  svh1.vmin = 99.9;
-   svp1.vact = fINVAL;   svp1.vmax = -99.9;  svp1.vmin = 99.9;
-   svespA0.vact = 0;     svespA0.vmax = 0;   svespA0.vmin = 100;
-
-   c0t1.vact = fINVAL;  c0t1.vmax = -99.9;  c0t1.vmin = 99.9;
-   c0h1.vact = fINVAL;  c0h1.vmax = -99.9;  c0h1.vmin = 99.9;
-   c0t2.vact = fINVAL;  c0t2.vmax = -99.9;  c0t2.vmin = 99.9;
-   c0h2.vact = fINVAL;  c0h2.vmax = -99.9;  c0h2.vmin = 99.9;
-
-   c1t1.vact = fINVAL;  c1t1.vmax = -99.9;  c1t1.vmin = 99.9;
-   c1h1.vact = fINVAL;  c1h1.vmax = -99.9;  c1h1.vmin = 99.9;
-   c1t2.vact = fINVAL;  c1t2.vmax = -99.9;  c1t2.vmin = 99.9;
-   c1h2.vact = fINVAL;  c1h2.vmax = -99.9;  c1h2.vmin = 99.9;
-
-   c2t1.vact = fINVAL;  c2t1.vmax = -99.9;  c2t1.vmin = 99.9;
-   c2h1.vact = fINVAL;  c2h1.vmax = -99.9;  c2h1.vmin = 99.9;
-   c2t2.vact = fINVAL;  c2t2.vmax = -99.9;  c2t2.vmin = 99.9;
-   c2h2.vact = fINVAL;  c2h2.vmax = -99.9;  c2h2.vmin = 99.9;
-
-   c3t1.vact = fINVAL;  c3t1.vmax = -99.9;  c3t1.vmin = 99.9;
-   c3h1.vact = fINVAL;  c3h1.vmax = -99.9;  c3h1.vmin = 99.9;
-   c3t2.vact = fINVAL;  c3t2.vmax = -99.9;  c3t2.vmin = 99.9;
-   c3h2.vact = fINVAL;  c3h2.vmax = -99.9;  c3h2.vmin = 99.9;
-
-   c0espA0.vact = 0;     c0espA0.vmax = 0;   c0espA0.vmin = 100;
-   c0adc0.vact = fINVAL; c0adc0.vmax = 0;    c0adc0.vmin = 1023;
-   c0adc1.vact = fINVAL; c0adc1.vmax = 0;    c0adc1.vmin = 1023;
-   c0adc2.vact = fINVAL; c0adc2.vmax = 0;    c0adc2.vmin = 1023;
-   c0adc3.vact = fINVAL; c0adc3.vmax = 0;    c0adc3.vmin = 1023;
-
-   //-------------------------------------------------------------------------
-   // Setup Time and Sync
-   //-------------------------------------------------------------------------
-
+   //----------------------------------------
+   // Start NTP-UDP
+   Serial.println("\nStarting UdpTime");
+   UdpTime.begin(8888);
+   //setSyncProvider(getNtpTime);
+   yield();
+   Serial.println("waiting for sync");
    updateTimeNow();
+   buildDateTimeString();
 
-   //-------------------------------------------------------------------------
-   // Boot sequence finished
-   //-------------------------------------------------------------------------
-
-   millisLastConfirm = millis() - (6ul * 60 * 60 * 1000) ; // init 6 hrs before actual
-
-   Serial.println("Setup finished.\n");
-
-} // Ende: setup()
-
-//------------------------ Ende Programmteil 6 -------------------------------
+   //----------------------------------------
+   // reset watchdog confirm
+   resetConfirmTime();
 
 
+   //---------------------------------------- 
+   // PRNG Initialisierung 
+   randomSeed(micros() ^ analogRead(A0) ^ ESP.getChipId());
 
+
+   // setup done
+   LCDmode = 0;
+   dashboard(LCDmode);
+   Serial.println("setup done \n");
+
+}
+
+
+void  resetAllOutputs() {
+   //reset Client init-Werte (auch bei Url-Aufruf zurückgeben)
+   Serial.println("sending initial client vars");
+   String message = "*** ";
+
+   // re SERVER
+   OUT0 = 0; message += "OUT0=" + (String)OUT0;
+   OUT1 = 0; message += "OUT1=" + (String)OUT1;
+   OUT2 = 0; message += "OUT2=" + (String)OUT2;
+   OUT3 = 0; message += "OUT3=" + (String)OUT3;
+
+   // re CLIENT 0
+   c0out0=0; message += "&c1out0=" + (String)c1out0;
+   c0out1=0; message += "&c0out1=" + (String)c0out1;
+   c0out2=0; message += "&c0out2=" + (String)c0out2;
+   c0out3=0; message += "&c0out3=" + (String)c0out3;
+   // re CLIENT 1
+   c1out0=0; message += "&c1out0=" + (String)c1out0;
+   c1out1=0; message += "&c1out1=" + (String)c1out1;
+   c1out2=0; message += "&c1out2=" + (String)c1out2;
+   c1out3=0; message += "&c1out3=" + (String)c1out3;
+   // re CLIENT 2
+   c2out0=0; message += "&c2out0=" + (String)c2out0;
+   c2out1=0; message += "&c2out1=" + (String)c2out1;
+   c2out2=0; message += "&c2out2=" + (String)c2out2;
+   c1out3=0; message += "&c1out3=" + (String)c1out0;
+   // re CLIENT 3
+   c3out0=0; message += "&c3out0=" + (String)c3out0;
+   c3out1=0; message += "&c3out1=" + (String)c3out1;
+   c3out2=0; message += "&c3out2=" + (String)c3out2 ;
+   //c3out3=0; message += "&c3out3=" + (String)c3out2 ;   // c3out3=intern auto ctrl
+   c3out3=0; message += "&c3tx3=" + (String)c3tx3;        // Thermostat für c3out3
+
+   // all clients
+   message += "&remindcnt=" + (String)RemindCnt;
+   message += "&emergencycnt=" + (String)EmergencyCnt;
+
+   message += " ###";
+   Serial.println(message);
+   webserver.send(200, "text/plain", message);
+
+   Serial.println("delay(2000)... ");
+   delay(2000);
+   Serial.println("client msg sent.");
+
+} // Ende resetAllOutputs
+
+
+//---------------------------------------------
+// Wrapper für html-Button, ver 090n (to do: actionID, neues Modell)
+//---------------------------------------------
+
+String htmlButton(String Label, String Shref, int h, int w, int fontSize = 16) {
+   String buf;
+
+   buf.reserve(120);
+   buf  = "<a href=\"/" + Shref + "\">";
+   buf += "<button style=\"height:" + String(h) + "px;width:" + String(w);
+   buf += "px;font-size:" + String(fontSize) + "px\">";
+   buf += Label;
+   buf += "</button></a>";
+
+   return buf;
+} // Ende htmlButton
+
+//----------------------------------------------------------------------------
+
+//////////////////////////////////////////////////////////
+// bis hierhin Original 090n
+//////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////
+
+// es folgen 091a Änderungen
+//////////////////////////////////////////////////////////
 
 
 //============================================================================
-// PROGRAMMTEIL 7 von 15
-// Firmware-Version: 091a (Refactored from 090n)
+// ANFANG: ABSCHNITT A
+// Firmware-Basis: 090n / 091a (Lückenloser Anschluss nach resetAllOutputs)
 //============================================================================
+
+void handleRoot() {
+   handleClients();
+} // Ende: handleRoot
+
 
 void loop() {
 
@@ -498,51 +1376,47 @@ void loop() {
 
    static unsigned long tWatchdog = 0;
 
+
    //---------------------------------------
-   // Eingehende Web-Verbindungen robust einlesen und Schaltbefehle auswerten
+   // Read incoming Web connections
    //---------------------------------------
+
    WiFiClient client = wifiserver.available();
    if (client) {
       while (client.connected() && !client.available()) {
          delay(1);
       }
-      
-      // Lese die kritische erste Zeile des Requests (z.B. GET /?OUT1=ON HTTP/1.1)
+
       String req = client.readStringUntil('\r');
-      
-      // ------------------------------------------------------------------
-      // ORIGINALER URL-PARSER: Schaltet die Aktoren direkt im RAM
-      // ------------------------------------------------------------------
+
+      //---------------------------------------
+      // URL-Aktionsparser fuer Relais und Thermostate
+
       if (req.indexOf("CONFIRM=ON") != -1)  { millisLastConfirm = millis(); RemindCnt = 0; }
-      
+
       if (req.indexOf("OUT1=ON") != -1)     OUT1 = 1;
       if (req.indexOf("OUT1=OFF") != -1)    OUT1 = 0;
       if (req.indexOf("OUT2=ON") != -1)     OUT2 = 1;
       if (req.indexOf("OUT2=OFF") != -1)    OUT2 = 0;
-      
+
       if (req.indexOf("c0out1=ON") != -1)   c0out1 = 1;
       if (req.indexOf("c0out1=OFF") != -1)  c0out1 = 0;
       if (req.indexOf("c0out2=ON") != -1)   c0out2 = 1;
       if (req.indexOf("c0out2=OFF") != -1)  c0out2 = 0;
+
       if (req.indexOf("c0tx3=UP") != -1)    c0tx3++;
       if (req.indexOf("c0tx3=DN") != -1)    c0tx3--;
-      
+
       if (req.indexOf("c1out1=ON") != -1)   c1out1 = 1;
       if (req.indexOf("c1out1=OFF") != -1)  c1out1 = 0;
       if (req.indexOf("c1out2=ON") != -1)   c1out2 = 1;
       if (req.indexOf("c1out2=OFF") != -1)  c1out2 = 0;
-      
+
       if (req.indexOf("c2out1=ON") != -1)   c2out1 = 1;
       if (req.indexOf("c2out1=OFF") != -1)  c2out1 = 0;
       if (req.indexOf("c2out2=ON") != -1)   c2out2 = 1;
       if (req.indexOf("c2out2=OFF") != -1)  c2out2 = 0;
-      
-      if (req.indexOf("c3out1=ON") != -1)   c3out1 = 1;
-      if (req.indexOf("c3out1=OFF") != -1)  c3out1 = 0;
-      if (req.indexOf("c3out2=ON") != -1)   c3out2 = 1;
-      if (req.indexOf("c3out2=OFF") != -1)  c3out2 = 0;
-      
-      // Reset-Befehle fuer Extremwerte auswerten
+
       if (req.indexOf("svreset") != -1) {
          svt1.vmin = 99.9; svt1.vmax = -99.9; svt1.vmean = svt1.vact;
          svh1.vmin = 99.9; svh1.vmax = -99.9; svh1.vmean = svh1.vact;
@@ -555,40 +1429,20 @@ void loop() {
          c0adc0.vmin = 1023; c0adc0.vmax = 0; c0adc1.vmin = 1023; c0adc1.vmax = 0;
          c0adc2.vmin = 1023; c0adc2.vmax = 0; c0adc3.vmin = 1023; c0adc3.vmax = 0;
       }
-      if (req.indexOf("c1reset") != -1) {
-         c1t1.vmin = 99.9; c1t1.vmax = -99.9; c1t1.vmean = c1t1.vact;
-         c1h1.vmin = 99.9; c1h1.vmax = -99.9; c1h1.vmean = c1h1.vact;
-         c1t2.vmin = 99.9; c1t2.vmax = -99.9; c1t2.vmean = c1t2.vact;
-         c1h2.vmin = 99.9; c1h2.vmax = -99.9; c1h2.vmean = c1h2.vact;
-      }
-      if (req.indexOf("c2reset") != -1) {
-         c2t1.vmin = 99.9; c2t1.vmax = -99.9; c2t1.vmean = c2t1.vact;
-         c2h1.vmin = 99.9; c2h1.vmax = -99.9; c2h1.vmean = c2h1.vact;
-         c2t2.vmin = 99.9; c2t2.vmax = -99.9; c2t2.vmean = c2t2.vact;
-         c2h2.vmin = 99.9; c2h2.vmax = -99.9; c2h2.vmean = c2h2.vact;
-      }
-      if (req.indexOf("c3reset") != -1) {
-         c3t1.vmin = 99.9; c3t1.vmax = -99.9; c3t1.vmean = c3t1.vact;
-         c3h1.vmin = 99.9; c3h1.vmax = -99.9; c3h1.vmean = c3h1.vact;
-         c3t2.vmin = 99.9; c3t2.vmax = -99.9; c3t2.vmean = c3t2.vact;
-         c3h2.vmin = 99.9; c3h2.vmax = -99.9; c3h2.vmean = c3h2.vact;
-      }
 
-      // Restlichen Header verwerfen (Leert den Puffer fuer Basic Auth Stabi)
+      // ERWEITERUNG: Liest alle restlichen Header-Zeilen (inkl. Authorization) lückenlos ein
       while (client.available()) {
          String line = client.readStringUntil('\n');
          req += line + "\n";
          if (line == "\r" || line.length() == 0) break;
       }
-      
-      // Aufruf des geschützten Dashboards mit dem verifizierten Header-Inhalt
+
       handleWebsite(client, req);
-      
+
       delay(1);
-      client.stop(); // Verbindung sauber schließen
+      client.stop();
    }
 
-   // Das High-Level webserver-Objekt für eventuelle Background-Tasks weiterlaufen lassen
    webserver.handleClient();
    delay(10);
 
@@ -596,7 +1450,7 @@ void loop() {
    // Read local + Udp data
 
    EmergencyCnt = checkAlarms();
-   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1); // reverse led_buitin pin switch
+   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1);
    else digitalWrite(PIN_OUT0, 0);
 
    dmillisLastConfirm = millis() - millisLastConfirm;
@@ -619,15 +1473,6 @@ void loop() {
       logval(ftmp, svt1);
       yield();
       lastI2CDataMillis = millis();
-//------------------------ Ende Programmteil 7 -------------------------------
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 8 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
 
       ftmp = fINVAL;
       ftmp = FNNcorr + bmp_x77.readPressure() / 100.0 ;
@@ -669,13 +1514,7 @@ void loop() {
          Serial.print(" c2_h1="); Serial.print(c2h1.sact);
          Serial.print(" c2_t2="); Serial.print(c2t2.sact);
          Serial.print(" c2_h2="); Serial.println(c2h2.sact);
-         Serial.println((String)"  c2  out1  out2  out3  " + c2out1 +"  " + c2out2 +"  " + c2out3);
-
-         Serial.print(" c3_t1="); Serial.print(c3t1.sact);
-         Serial.print(" c3_h1="); Serial.print(c3h1.sact);
-         Serial.print(" c3_t2="); Serial.print(c3t2.sact);
-         Serial.print(" c3_h2="); Serial.println(c3h2.sact);
-         Serial.println((String)"  c3  out1  out2  out3  " + c3out1 +"  " + c3out2 +"  " + c3out3);
+         Serial.println((String)"  c1  out1  out2  out3  " + c2out1 +"  " + c2out2 +"  " + c2out3);
 
          Serial.println(" "); Serial.println(" ");
       }
@@ -690,69 +1529,75 @@ void loop() {
       yield();
       lastI2CDataMillis = millis();
    }
-   
-   if (millis() - tWatchdog > 2000) {   // alle 2 Sekunden
-      tWatchdog = millis();
-      systemWatchdog();                // <<< HIER wird der Reset ausgelöst
-   }
 
-} // Ende: loop()
-
-//------------------------ Ende Programmteil 8 -------------------------------
-
-
-
-
+} // loop end
 
 //============================================================================
-// PROGRAMMTEIL 9 von 15
-// Firmware-Version: 091a (Refactored from 090n)
+// ENDE: ABSCHNITT A
+//============================================================================
+
+//============================================================================
+// ANFANG: ABSCHNITT B
+// Firmware-Basis: 090n / 091a (Multi-User-Login & HTML-Verkettung)
 //============================================================================
 
 void handleWebsite(WiFiClient client, String HTTP_req) {
-   String script = "";
-   char istr[MAXLEN] = "";
-   char dsymbol;
 
-   // ------------------------------------------------------------------
-   // 1. WÄCHTER: Cookie-freie HTTP Basic Authentication abfragen
-   // ------------------------------------------------------------------
+   String script = "";
+   char   istr[32]; // Geändert von nacktem 'char' zu funktionierendem Puffer
+   char   dsymbol;
+
+   //-------------------------------------------------------------------------
+   // Browser-autonomer Multi-User Regelkreis (Ersatz für 'bool authorized')
+   //-------------------------------------------------------------------------
    String expectedAuth = "Authorization: Basic " + basicAuthString(website_uname, website_upwd);
-   
-   // LOGOUT-PRÜFUNG: Wenn der Logout-Button gedrückt wurde, den Realm-Namen rotieren
+
    if (HTTP_req.indexOf("logout") != -1) {
-      auth_realm_counter++; // Zähler erhöhen, um den persistenten Browser-Cache zu brechen
-      
-      client.print("HTTP/1.1 401 Unauthorized\r\n");
-      client.print("WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Abgemeldet_" + String(auth_realm_counter) + "\"\r\n");
-      client.print("Content-Type: text/html; charset=utf-8\r\n");
-      client.print("Connection: close\r\n\r\n");
-      client.print("<!DOCTYPE html><html><head><meta charset='utf-8'><title>Abgemeldet</title></head>");
-      client.print("<body style='font-family:sans-serif;text-align:center;margin-top:100px;background-color:#d0d0d0;'>");
-      client.print("<h2>Erfolgreich abgemeldet!</h2><p><a href='/'>Erneut anmelden</a></p></body></html>");
+      auth_realm_counter++;
+
+      script += "HTTP/1.1 401 Unauthorized\r\n";
+      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Abgemeldet_" + String(auth_realm_counter) + "\"\r\n";
+      script += "Content-Type: text/html; charset=utf-8\r\n";
+      script += "Connection: close\r\n\r\n";
+      script += "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Abgemeldet</title></head>";
+      script += "<body style='font-family:sans-serif;text-align:center;margin-top:100px;background-color:#d0d0d0;'>";
+      script += "<h2>Erfolgreich abgemeldet!</h2><p><a href='/'>Erneut anmelden</a></p></body></html>";
+      client.print(script);
       return;
    }
 
-   // Falls der Browser keine oder falsche Zugangsdaten mitsendet, Anmeldefenster anfordern
    if (HTTP_req.indexOf(expectedAuth) == -1) {
-      client.print("HTTP/1.1 401 Unauthorized\r\n");
-      client.print("WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Sitzung_" + String(auth_realm_counter) + "\"\r\n");
-      client.print("Content-Type: text/html\r\n");
-      client.print("Connection: close\r\n\r\n");
-      client.print("<!DOCTYPE html><html><body><h1>401 Unauthorized</h1></body></html>");
-      return; 
+      script += "HTTP/1.1 401 Unauthorized\r\n";
+      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Sitzung_" + String(auth_realm_counter) + "\"\r\n";
+      script += "Content-Type: text/html\r\n";
+      script += "Connection: close\r\n\r\n";
+      script += "<!DOCTYPE html><html><body><h1>401 Unauthorized</h1></body></html>";
+      client.print(script);
+      return;
    }
 
-   // ------------------------------------------------------------------
-   // 2. ERFOLG: Start der originalen Dashboard-Generierung aus v090n
-   // ------------------------------------------------------------------
-   script = "";
-   script += "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\n\r\n";
-   script += "<!DOCTYPE html>\n<html>\n<head>\n";
-   script += "<meta http-equiv=\"refresh\" content=\"20; URL=" + String(website_url) + ":" + String(http_port) + "\">\n";
+   //-------------------------------------------------------------------------
+   // HTML-Seitenaufbau Dashboard (100% Ihr originales Layout)
+   //-------------------------------------------------------------------------
+
+   // init website - HTTP-Header
+   script += "HTTP/1.1 200 OK\r\n";
+   script += "Content-Type: text/html; charset=utf-8\r\n";
+   script += "Connection: close\r\n";
+   script += "\r\n";
+
+   // HTML head
+   script += "<!DOCTYPE html>\n";
+   script += "<html>\n";
+   script += "<head>\n";
+   // automatische Aktualisierung alle 20 sec.
+   script += "<meta http-equiv=\"refresh\" content=\"20; URL=";
+   script += String(website_url) + ":" + String(http_port);
+   script += "\">\n";
    script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
    script += "<title>" + String(website_title) + "</title>\n";
-   script += "</head>\n<body>\n";
+   script += "</head>\n";
+   script += "<body>\n";
 
    // Header & Status
    script += "<h1><p><font style=\"color:rgb(255,0,204);\"> DON'T PANIC ! </font>";
@@ -767,6 +1612,7 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "</p></h2>\n";
 
    script += "<p> </p>\n";
+
    script += "<h3>letztes confirm (Std): &nbsp;" + String(dhrsLastConfirm) + " &nbsp;&nbsp;&nbsp;";
    script += htmlButton(" Confirm ", "CONFIRM=ON", 50, 100);
    script += "</h3>\n";
@@ -791,21 +1637,6 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton(" SCHARF ", "OUT2=ON", 70, 140) + " ";
    script += htmlButton(" AUS ", "OUT2=OFF", 70, 140) + "<br>\n\n";
 
-   // JETZT SENDEN & SPEICHER FÜR NÄCHSTE BLÖCKE LEEREN
-   client.print(script);
-   
-//------------------------ Ende Programmteil 9 -------------------------------
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 10 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-   script = "";
-   
    // Server sensors table (Block)
    script += "<p><font face=\"courier\"></font></p>\n";
    script += "<h2>\n";
@@ -838,6 +1669,15 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    // SEND server block
    client.print(script);
 
+//============================================================================
+// ENDE: ABSCHNITT B
+//============================================================================
+
+//============================================================================
+// ANFANG: ABSCHNITT C
+// Firmware-Basis: 090n
+//============================================================================
+
    // ----------------------
    // Client 0 - Buttons + Sensors (Block)
    // ----------------------
@@ -863,105 +1703,71 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton("Therm -1", "c0tx3=DN", 70, 140) + "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT0name + " (Verb.-Fehler: " + String(c0t1.tFail) + " min)</caption>";
+   script += "<caption> Messwerte " + CLIENT0name + " (+ min)<caption>";
+   
    script += htmlButton(" reset ", "c0reset", 35, 70);
+   
    script += "<thead><tr>";
-
-   // --------- Zeile 1 ----------
+   
+   // --------- Zeile 1 ---------
    script += "<td bgcolor='Peru'>" + c0SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
    script += "<td bgcolor='Avocado'>" + c0SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Orange'>"  + (String)c0A0intname + "</td>";
-   script += "<td bgcolor='Orange'>"  + (String)"&nbsp;∅&nbsp;" + "</td>";
+   script += "<td bgcolor='Orange'>" + (String)c0A0intname + "</td>";
+   script += "<td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
    script += "</tr>";
-
-   script += "</tr></thead><tbody>";
-   // --------- Zeile 2 ----------
+   
    script += "<tr>";
    script += "<th>" + String(c0t1.sact) + " °C</th>";
    script += "<th>" + String(c0t1.smin) + "</th>";
    script += "<th>" + String(c0t1.smax) + "</th>";
    script += "<th>" + String(c0h1.sact) + "</th>";
+   
    script += "<th>" + String(c0t2.sact) + " °C</th>";
    script += "<th>" + String(c0t2.smin) + "</th>";
    script += "<th>" + String(c0t2.smax) + "</th>";
    script += "<th>" + String(c0h2.sact) + "</th>";
-
-   if (c0espA0.vact < fFireLIMIT) {
-      script += (String)"<td bgcolor='red'>";
-      script += (String)c0espA0.sact;
-      script += "</td>";
-   } else {
-      script += (String)"<th>";
-      script += (String)c0espA0.sact;
-      script += "</th>";
-   }
-   script += "<th>" + (String)(c0espA0.smean) + "</th>";
-
-   // ABSENDEN & BUFFER LEEREN
-   client.print(script);
    
-//------------------------ Ende Programmteil 10 ------------------------------
+   script += "<th>" + String(c0espA0.sact) + "</th>";
+   script += "<th>" + String(c0espA0.smean) + "</th>";
+   script += "</tr>";
+   
+   // --------- Zeile 2 (Erde) ---------
+   script += "<tr>";
+   script += "<td bgcolor='Lime'>" + String(c0A0muxname) + "</td><td bgcolor='Lime'>" + String(c0A1muxname) + "</td>";
+   script += "<td bgcolor='Lime'>" + String(c0A2muxname) + "</td><td bgcolor='Lime'>" + String(c0A3muxname) + "</td>";
+   script += "</tr>";
+   
+   script += "<tr>";
+   if (c0adc0.vmean < adcSoilMin && c0adc0.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
+   script += String(c0adc0.sact) + "</th>";
+   if (c0adc1.vmean < adcSoilMin && c0adc1.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
+   script += String(c0adc1.sact) + "</th>";
+   if (c0adc2.vmean < adcSoilMin && c0adc2.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
+   script += String(c0adc2.sact) + "</th>";
+   if (c0adc3.vmean < adcSoilMin && c0adc3.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
+   script += String(c0adc3.sact) + "</th>";
+   script += "</tr>";
+   
+   script += "</tbody></table></h2>\n<br><br>\n";
 
-
+   // SEND client 0 block
+   client.print(script);
 
 //============================================================================
-// PROGRAMMTEIL 11 von 15
-// Firmware-Version: 091a (Refactored from 090n)
+// ENDE: ABSCHNITT C
+//============================================================================
+
+//============================================================================
+// ANFANG: ABSCHNITT D
+// Firmware-Basis: 090n
 //============================================================================
 
    script = "";
-
-   // --- Zeile 3: Status / Mux-Namen ---
-   script += "<tr>";
-   script += "<td bgcolor='LightGray'> c0out1 </td>";
-   script += "<td bgcolor='LightGray'> c0out2 </td>";
-   script += "<td bgcolor='LightGray'> c0out3 </td>";
-   script += "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
-   script += "<td bgcolor='Avocado'>" + (String)c0A1muxname + "</td>";
-   script += "<td bgcolor='Avocado'>" + (String)c0A2muxname + "</td>";
-   script += "<td bgcolor='Avocado'>" + (String)c0A3muxname + "</td>";
-   script += "<td bgcolor='Yellow'> hPa </td>";
-   script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
-   script += "<td bgcolor='Yellow'> hPa ∅ </td>";
-   script += "</tr>";
-
-   // --- Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
-   script += "<th>" + (String)(c0out1)  + "</th>";
-   script += "<th>" + (String)(c0out2)  + "</th>";
-   script += "<th>" + (String)(c0out3)  + "</th>";
-
-   if (c0adc0.tFail > 60 || c0adc0.vmean < adcSoilMin) {
-      script += (String)"<td bgcolor='red'>" + (String)c0adc0.sact + "</td>";
-   } else {
-      script += (String)"<th>" + (String)c0adc0.sact + "</th>";
-   }
-
-   if (c0adc1.tFail > 60 || c0adc1.vmean < adcSoilMin) {
-      script += (String)"<td bgcolor='red'>" + (String)c0adc1.sact + "</td>";
-   } else {
-      script += (String)"<th>" + (String)c0adc1.sact + "</th>";
-   }
-
-   if (c0adc2.tFail > 60 || c0adc2.vmean < adcSoilMin) {
-      script += (String)"<td bgcolor='red'>" + (String)c0adc2.sact + "</td>";
-   } else {
-      script += (String)"<th>" + (String)c0adc2.sact + "</th>";
-   }
-
-   if (c0adc3.tFail > 60 || c0adc3.vmean < adcSoilMin) {
-      script += (String)"<td bgcolor='red'>" + (String)c0adc3.sact + "</td>";
-   } else {
-      script += (String)"<th>" + (String)c0adc3.sact + "</th>";
-   }
-
-   script += "</tbody></table></h2>\n<br><br>\n";
-   client.print(script);
 
    // ----------------------
    // Client 1 - Buttons + Sensors (Block)
    // ----------------------
-   script = "";
    script += "<h1><br>" + CLIENT1name + "<br></h1>\n";
    script += c1OUT1name + " ist: ";
    if (c1out1 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
@@ -976,7 +1782,7 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton(" AUS ", "c1out2=OFF", 70, 140) + "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT1name + " (Verb.-Fehler: " + String(c1t1.tFail) + " min)</caption>";
+   script += "<caption> Messwerte " + CLIENT1name + " (+ min)</caption>";
    script += htmlButton(" reset ", "c1reset", 35, 70);
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c1SECT1name + "</td>";
@@ -994,20 +1800,8 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<th>" + String(c1h2.sact) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
-   // ABSENDEN & BUFFER LEEREN
+   // SEND client 1 block
    client.print(script);
-   
-//------------------------ Ende Programmteil 11 ------------------------------
-
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 12 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
    script = "";
 
    // ----------------------
@@ -1022,12 +1816,14 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
 
    script += c2OUT2name + " ist: ";
    if (c2out2 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
+   else if (c2out2 == -1) script += "REV&nbsp;&nbsp;&nbsp;";
    else script += "AUS&nbsp;&nbsp;&nbsp;";
    script += htmlButton(" EIN ", "c2out2=ON", 70, 140) + " ";
-   script += htmlButton(" AUS ", "c2out2=OFF", 70, 140) + "<br>\n\n";
+   script += htmlButton(" AUS ", "c2out2=OFF", 70, 140) + " ";
+   script += htmlButton(" REV ", "c2out2=REV", 70, 140) + "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT2name + " (Verb.-Fehler: " + String(c2t1.tFail) + " min)</caption>";
+   script += "<caption> Messwerte " + CLIENT2name + " (+ min)</caption>";
    script += htmlButton(" reset ", "c2reset", 35, 70);
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c2SECT1name + "</td>";
@@ -1044,12 +1840,24 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<th>" + String(c2t2.smax) + "</th>";
    script += "<th>" + String(c2h2.sact) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
+
+   // SEND client 2 block
    client.print(script);
+
+//============================================================================
+// ENDE: ABSCHNITT D
+//============================================================================
+
+//============================================================================
+// ANFANG: ABSCHNITT E
+// Firmware-Basis: 090n / 091a (Lückenloser Seitenabschluss & Logout)
+//============================================================================
+
+   script = "";
 
    // ----------------------
    // Client 3 - Buttons + Sensors (Block)
    // ----------------------
-   script = "";
    script += "<h1><br>" + CLIENT3name + "<br></h1>\n";
    script += c3OUT1name + " ist: ";
    if (c3out1 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
@@ -1063,25 +1871,19 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton(" EIN ", "c3out2=ON", 70, 140) + " ";
    script += htmlButton(" AUS ", "c3out2=OFF", 70, 140) + "<br>\n\n";
 
-   script += c3OUT3name + " ist: ";
-   if (c3out3 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
-   else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c3out3=ON", 70, 140) + " ";
-   script += htmlButton(" AUS ", "c3out3=OFF", 70, 140) + "<br>\n\n";
-
-   // Thermostat-Anzeige fuer Client 3
+   // Thermostat controls
    sprintf(istr, "%+3d", c3tx3);
-   script += "c3-Thermost= " + String(istr) + "&nbsp;&nbsp;&nbsp;<br>\n\n";
+   script += "c3-Thermost= " + String(istr) + "&nbsp;&nbsp;&nbsp;";
+   script += htmlButton("Therm +1", "c3tx3=UP", 70, 140) + " ";
+   script += htmlButton("Therm -1", "c3tx3=DN", 70, 140) + "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c3t1.tFail) + " min)</caption>";
+   script += "<caption> Messwerte " + CLIENT3name + " (+ min)</caption>";
    script += htmlButton(" reset ", "c3reset", 35, 70);
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c3SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
    script += "<td bgcolor='Avocado'>" + c3SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Fuchsia'>" + String(c3A0muxname) + "</td>";
-   script += "<td bgcolor='Fuchsia'>" + String(c3A1muxname) + "</td>";
    script += "</tr></thead><tbody>";
    script += "<tr>";
    script += "<th>" + String(c3t1.sact) + " °C</th>";
@@ -1092,263 +1894,481 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<th>" + String(c3t2.smin) + "</th>";
    script += "<th>" + String(c3t2.smax) + "</th>";
    script += "<th>" + String(c3h2.sact) + "</th>";
-   script += "<th>" + String(c3adc0.sact) + "</th>";
-   script += "<th>" + String(c3adc1.sact) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
-   // Der reparierte Logout-Button am HTML-Ende
-   script += "<br><hr><br>\n";
-   script += "<p style='text-align:center;'>";
-   script += htmlButton(" LOGOUT (Abmelden) ", "logout", 60, 180);
-   script += "</p>\n";
+   // ----------------------
+   // Analog-Sensoren Tabelle
+   // ----------------------
+   script += "<table>";
+   script += "<tr><th colspan='5'><b> Analog-Sensoren </b></th></tr>";
+   script += "<tr><td> " + A0intname + " </td>";
+   script += "<td colspan='4'> " + (String)svespA0.vact + " </td></tr>";
+   script += "<tr><td> " + c0A0intname + " </td>";
+   script += "<td colspan='4'> " + (String)c0espA0.vact + " </td></tr>";
+   script += "</table>";
 
+   // HTML-Abschluss
    script += "</body>\n";
    script += "</html>\n";
 
-   // FINALE ÜBERTRAGUNG ABSCHLIESSEN
+   // ERWEITERUNG: Neuer Multi-User Logout-Button (Browser-autonom)
+   script += "<p><br><hr><br></p>\n";
+   script += "<p><a href=\"/?logout=1\"><button style=\"background-color:#707070;color:white;width:100%;max-width:600px;height:45px;font-size:16px;font-weight:bold;\">LOGOUT (Abmelden)</button></a></p>\n";
+
    client.print(script);
-}
 
-//------------------------ Ende Programmteil 12 ------------------------------
-
-
-
-
-
+} // handleWebsite end
 
 
 //============================================================================
-// PROGRAMMTEIL 13 von 15
-// Firmware-Version: 091a (Refactored from 090n)
+// ANFANG: ABSCHNITT F (Linker-Fix für basicAuthString)
+// Firmware-Basis: 090n / 091a
 //============================================================================
 
-// ---------------------------------------------------------------------------
-// handleClients(): Verarbeitet ankommende Datenpakete der 4 externen ESP-Clients
-// ---------------------------------------------------------------------------
-void handleClients() {
-   String client_ip = webserver.client().remoteIP().toString();
+//----------------------------------------------------------------------------
+String basicAuthString(String username, String password) {
+   String toEncode = username + ":" + password;
    
-   // Argumente aus dem HTTP-Schnittstellenaufruf extrahieren und in RAM-Strukturen loggen
-   if (webserver.hasArg("id")) {
-      int id = webserver.arg("id").toInt();
-
-      // Temperatur 1 (t1) verarbeiten
-      if (webserver.hasArg("t1")) {
-         double t1_val = webserver.arg("t1").toDouble();
-         if (id == 0) logval(t1_val, c0t1);
-         if (id == 1) logval(t1_val, c1t1);
-         if (id == 2) logval(t1_val, c2t1);
-         if (id == 3) logval(t1_val, c3t1);
-      }
-
-      // Luftfeuchtigkeit 1 (h1) verarbeiten
-      if (webserver.hasArg("h1")) {
-         double h1_val = webserver.arg("h1").toDouble();
-         if (id == 0) logval(h1_val, c0h1);
-         if (id == 1) logval(h1_val, c1h1);
-         if (id == 2) logval(h1_val, c2h1);
-         if (id == 3) logval(h1_val, c3h1);
-      }
-
-      // Temperatur 2 (t2) verarbeiten
-      if (webserver.hasArg("t2")) {
-         double t2_val = webserver.arg("t2").toDouble();
-         if (id == 0) logval(t2_val, c0t2);
-         if (id == 1) logval(t2_val, c1t2);
-         if (id == 2) logval(t2_val, c2t2);
-         if (id == 3) logval(t2_val, c3t2);
-      }
-
-      // Luftfeuchtigkeit 2 (h2) verarbeiten
-      if (webserver.hasArg("h2")) {
-         double h2_val = webserver.arg("h2").toDouble();
-         if (id == 0) logval(h2_val, c0h2);
-         if (id == 1) logval(h2_val, c1h2);
-         if (id == 2) logval(h2_val, c2h2);
-         if (id == 3) logval(h2_val, c3h2);
-      }
-
-      // Analoger Zusatzwert (espA0) verarbeiten
-      if (webserver.hasArg("espA0")) {
-         double espA0_val = webserver.arg("espA0").toDouble();
-         if (id == 0) logval(espA0_val, c0espA0);
-         if (id == 1) logval(espA0_val, c1espA0);
-         if (id == 2) logval(espA0_val, c2espA0);
-         if (id == 3) logval(espA0_val, c3espA0);
-      }
-
-      // Multiplexer Bodenfeuchtigkeitskanäle (adc0 - adc3) für Client 0 verarbeiten
-      if (id == 0) {
-         if (webserver.hasArg("adc0")) logval(webserver.arg("adc0").toDouble(), c0adc0);
-         if (webserver.arg("adc1")) logval(webserver.arg("adc1").toDouble(), c0adc1);
-         if (webserver.arg("adc2")) logval(webserver.arg("adc2").toDouble(), c0adc2);
-         if (webserver.arg("adc3")) logval(webserver.arg("adc3").toDouble(), c0adc3);
-      }
-
-      // Multiplexer Bodenfeuchtigkeitskanäle (adc0 - adc3) für Client 3 verarbeiten
-      if (id == 3) {
-         if (webserver.hasArg("adc0")) logval(webserver.arg("adc0").toDouble(), c3adc0);
-         if (webserver.arg("adc1")) logval(webserver.arg("adc1").toDouble(), c3adc1);
-         if (webserver.arg("adc2")) logval(webserver.arg("adc2").toDouble(), c3adc2);
-         if (webserver.arg("adc3")) logval(webserver.arg("adc3").toDouble(), c3adc3);
-      }
-   }
-
-   // Bestätigung an den sendenden Client zurückgeben
-   webserver.send(200, "text/plain", "OK");
-}
-
-// ---------------------------------------------------------------------------
-// htmlButton(): Generiert ein standardisiertes, ungeschütztes HTML-Formular-Feld
-// ---------------------------------------------------------------------------
-String htmlButton(String caption, String action, int height, int width) {
-   String btn = "";
-   btn += "<FORM ACTION='/' METHOD='GET' style='display:inline;'>";
-   btn += "<INPUT TYPE='hidden' NAME='" + action + "' VALUE='ON'>";
-   btn += "<INPUT TYPE='submit' VALUE='" + caption + "' style='height:" + String(height) + "px;width:" + String(width) + "px;font-size:18px;font-weight:bold;cursor:pointer;'>";
-   btn += "</FORM>";
-   return btn;
-}
-
-//------------------------ Ende Programmteil 13 ------------------------------
-
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 14 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-// ---------------------------------------------------------------------------
-// basicAuthString(): Generiert den Base64-Verschlüsselungs-String für HTTP-Header
-// ---------------------------------------------------------------------------
-String basicAuthString(const char* uname, const char* upwd) {
-   String to_encode = String(uname) + ":" + String(upwd);
+   const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
    String encoded = "";
-   static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-   int val = 0, valb = -6;
-   for (size_t i = 0; i < to_encode.length(); i++) {
-      val = (val << 8) + to_encode[i];
-      valb += 8;
-      while (valb >= 0) {
-         encoded += b64_table[(val >> valb) & 0x3F];
-         valb -= 6;
+   int i = 0, j = 0;
+   unsigned char char_array_3[3]; // REPARIERT: Array-Größe hinzugefügt
+   unsigned char char_array_4[4]; // REPARIERT: Array-Größe hinzugefügt
+
+   for (unsigned int n = 0; n < toEncode.length(); n++) {
+      char_array_3[i++] = toEncode[n];
+      if (i == 3) {
+         char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+         char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+         char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+         char_array_4[3] = char_array_3[2] & 0x3f;
+
+         for (i = 0; i < 4; i++) encoded += base64_chars[char_array_4[i]];
+         i = 0;
       }
    }
-   if (valb > -6) encoded += b64_table[((val << 8) >> (valb + 8)) & 0x3F];
-   while (encoded.length() % 4) encoded += '=';
-   
+
+   if (i) {
+      for (j = i; j < 3; j++) char_array_3[j] = '\0';
+
+      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+      char_array_4[3] = char_array_3[2] & 0x3f;
+
+      for (j = 0; j < (i + 1); j++) encoded += base64_chars[char_array_4[j]];
+      while (i++ < 3) encoded += '=';
+   }
+
    return encoded;
-}
+} // Ende basicAuthString
 
-// ---------------------------------------------------------------------------
-// logval(): Verarbeitet neue Sensorwerte mitsamt Min/Max/Mittelwert-Berechnung
-// ---------------------------------------------------------------------------
-void logval(double new_val, vlog &struct_target) {
-   if (new_val == fINVAL) return;
-
-   struct_target.vact = new_val;
-   dtostrf(new_val, 4, 1, struct_target.sact);
-
-   // Extremwert-Überwachung im RAM
-   if (struct_target.vmin == fINVAL || new_val < struct_target.vmin) {
-      struct_target.vmin = new_val;
-      dtostrf(new_val, 4, 1, struct_target.smin);
-   }
-   if (struct_target.vmax == fINVAL || new_val > struct_target.vmax) {
-      struct_target.vmax = new_val;
-      dtostrf(new_val, 4, 1, struct_target.smax);
-   }
-
-   // Laufende Mittelwertbildung (Gleitender Durchschnitt)
-   if (struct_target.vmean == fINVAL || struct_target.vmean == 0.0) {
-      struct_target.vmean = new_val;
-   } else {
-      struct_target.vmean = (struct_target.vmean * 0.95) + (new_val * 0.05);
-   }
-   dtostrf(struct_target.vmean, 4, 1, struct_target.smean);
-   struct_target.tFail = 0; // Fehlerzähler bei erfolgreichem Wert nullen
-}
-
-// ---------------------------------------------------------------------------
-// calADC1023(): Kalibrierung und Umrechnung des analogen Rohwerts
-// ---------------------------------------------------------------------------
-double calADC1023(double raw) {
-   if (raw < 0) raw = 0;
-   if (raw > 1023) raw = 1023;
-   return (raw / 1023.0) * 100.0;
-}
-
-//------------------------ Ende Programmteil 14 ------------------------------
-
-
+//============================================================================
+// ENDE: ABSCHNITT F
+//============================================================================
 
 
 //============================================================================
-// PROGRAMMTEIL 15 von 15
-// Firmware-Version: 091a (Refactored from 090n)
+// ENDE: ABSCHNITT E
 //============================================================================
 
-// ---------------------------------------------------------------------------
-// buildDateTimeString(): Generiert die formatierten Strings fuer Uhrzeit und Datum
-// ---------------------------------------------------------------------------
-void buildDateTimeString() {
-   char buffer[32]; 
-   
-   // Formatiere die Uhrzeit (hh:mm:ss)
-   sprintf(buffer, "%02d:%02d:%02d", hour(), minute(), second());
-   timestr = String(buffer);
-   
-   // Formatiere das Datum (dd.mm.yyyy)
-   sprintf(buffer, "%02d.%02d.%04d", day(), month(), year());
-   datestr = String(buffer);
+//============================================================================
+// ABSCHNITT F: es folgt wieder unveränderter vorheriger 090n-Code
+//============================================================================
+
+//----------------------------------------------------------------------------
+
+void printUrlArg() {
+   //Alle Parameter auch seriell ausgeben
+   String message = "";
+   for (uint8_t i = 0; i < webserver.args(); i++) {
+      message += " " + webserver.argName(i) + ": " + webserver.arg(i) + "\n";
+   }
+   webserver.send(200, "text/plain", message);
+   Serial.println("*** printUrlArg(): msg Client C1 => WiFi Server ***");
+   Serial.println(message);
+   Serial.println("### ----------------- end msg ----------------- ###");
+   Serial.println();
 }
 
-// ---------------------------------------------------------------------------
-// checkAlarms(): Ueberprueft alle Grenzwerte und zaehlt aktive Notfall-Alarme
-// ---------------------------------------------------------------------------
-int checkAlarms() {
-   int active_alarms = 0;
 
-   // Notfall-Alarm, falls der Server-Sicherheitssensor unter das Limit faellt
-   if (svespA0.vact != fINVAL && svespA0.vact < fFireLIMIT) {
-      active_alarms++;
+
+//----------------------------------------------------------------------------
+
+void handleClients() {
+
+   //printUrlArg(); //fuer Debug Zwecke
+
+   double ftmp;
+   String msgtok;
+   static unsigned long tsec = millis(), tms = millis();
+
+   //------------------------------------------
+   // c0
+
+   msgtok = webserver.arg("c0t1"); // <<<< c0t1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0t1);
+
+   msgtok = webserver.arg("c0h1"); // <<<< c0h1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0h1);
+
+   msgtok = webserver.arg("c0t2"); // <<<< c0t2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0t2);
+
+   msgtok = webserver.arg("c0h2"); // <<<< c0h2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0h2);
+
+   msgtok = webserver.arg("c0p1"); // <<<< c0p1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0p1);
+
+
+   msgtok = webserver.arg("c0espA0"); // <<<< c0espA0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0espA0);
+
+   msgtok = webserver.arg("c0adc0"); // <<<< c0adc0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0adc0);
+
+   msgtok = webserver.arg("c0adc1"); // <<<< c0adc1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0adc1);
+
+   msgtok = webserver.arg("c0adc2"); // <<<< c0adc2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0adc2);
+
+   msgtok = webserver.arg("c0adc3"); // <<<< c0adc3
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c0adc3);
+
+   msgtok = webserver.arg("c0out1"); // <<<< c3h2
+   if (msgtok != "") {
+      c0outMon1 = msgtok.toInt();  // noch nicht auf c0 implem.
    }
 
-   // Notfall-Alarm, falls die Bodenfeuchtigkeit bei Client 0 kritisch absinkt
-   if (c0adc0.tFail < 60 && c0adc0.vmean < adcSoilMin) active_alarms++;
-   if (c0adc1.tFail < 60 && c0adc1.vmean < adcSoilMin) active_alarms++;
-   if (c0adc2.tFail < 60 && c0adc2.vmean < adcSoilMin) active_alarms++;
-   if (c0adc3.tFail < 60 && c0adc3.vmean < adcSoilMin) active_alarms++;
-
-   return active_alarms;
-}
-
-// ---------------------------------------------------------------------------
-// systemWatchdog(): Sichert das Board gegen Freezes und blockierende Schleifen
-// ---------------------------------------------------------------------------
-void systemWatchdog() {
-   unsigned long now_ms = millis();
-   
-   // Falls seit mehr als 5 Minuten keine I2C- oder Sensordaten verarbeitet wurden,
-   // loest der ESP8266 zur Sicherheit einen sauberen Hardware-Reset aus.
-   if ((now_ms - lastI2CDataMillis > 300000ul) || (now_ms - lastSensorDataMillis > 300000ul)) {
-      Serial.println("\n[WATCHDOG] Systemfreeze erkannt! Software-Reset wird ausgefuehrt...");
-      delay(100);
-      ESP.reset(); // Sicherer Neustart des Controllers
+   msgtok = webserver.arg("c0out2"); // <<<< c3h2
+   if (msgtok != "") {
+      c0outMon2 = msgtok.toInt();
    }
-}
 
-// ---------------------------------------------------------------------------
-// updateTimeNow(): Synchronisiert die Systemzeit per NTP ueber das Internet
-// ---------------------------------------------------------------------------
-void updateTimeNow() {
-   Serial.println("[SYSTEM] Synchronisiere Netzzeit (NTP)...");
-   setTime(12, 0, 0, 29, 6, 2026); // Standard-Fallbacksicherung
+   msgtok = webserver.arg("c0out3"); // <<<< c3h2
+   if (msgtok != "") {
+      c0outMon3 = msgtok.toInt();
+   }
+
+
+   //------------------------------------------
+
+   msgtok = webserver.arg("LocalAlive"); // <<<< client alive btn pressed?
+   if (msgtok != "") {
+      int itemp = msgtok.toInt();
+      if (itemp == 1) {
+         resetConfirmTime();
+      }
+   }
+
+   //------------------------------------------
+   // c1
+
+   msgtok = webserver.arg("c1t1"); // <<<< c1t1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c1t1);
+
+   msgtok = webserver.arg("c1h1"); // <<<< c1h1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c1h1);
+
+   msgtok = webserver.arg("c1t2"); // <<<< c1t2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c1t2);
+
+
+   msgtok = webserver.arg("c1h2"); // <<<< c1h2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c1h2);
+
+
+   msgtok = webserver.arg("c1espA0"); // <<<< c1espA0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c1espA0);
+
+   //------------------------------------------
+   // c2
+
+   msgtok = webserver.arg("c2t1"); // <<<< c2t1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c2t1);
+
+   msgtok = webserver.arg("c2h1"); // <<<< c2h1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c2h1);
+
+   msgtok = webserver.arg("c2t2"); // <<<< c2t2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c2t2);
+
+
+   msgtok = webserver.arg("c2h2"); // <<<< c2h2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c2h2);
+
+
+   msgtok = webserver.arg("c2espA0"); // <<<< c2espA0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c2espA0);
+
+   //------------------------------------------
+   // c3
+
+   msgtok = webserver.arg("c3t1"); // <<<< c3t1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3t1);
+
+   msgtok = webserver.arg("c3h1"); // <<<< c3h1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3h1);
+
+   msgtok = webserver.arg("c3t2"); // <<<< c3t2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3t2);
+
+   msgtok = webserver.arg("c3h2"); // <<<< c3h2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3h2);
+
+   msgtok = webserver.arg("c3espA0"); // <<<< c3espA0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3espA0);
+
+   msgtok = webserver.arg("c3adc0"); // <<<< c3adc0
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3adc0);
+
+   msgtok = webserver.arg("c3adc1"); // <<<< c3adc1
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3adc1);
+
+   msgtok = webserver.arg("c3adc2"); // <<<< c3adc2
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3adc2);
+
+   msgtok = webserver.arg("c3adc3"); // <<<< c3adc3
+   ftmp = fINVAL;
+   if (msgtok != "") {
+      ftmp = msgtok.toFloat();
+   }
+   logval(ftmp, c3adc3);
+
+
+   msgtok = webserver.arg("c3out1"); // <<<< c3h2
+   if (msgtok != "") {
+      c3outMon1 = msgtok.toInt();
+   }
+   msgtok = webserver.arg("c3out2"); // <<<< c3h2
+   if (msgtok != "") {
+      c3outMon2 = msgtok.toInt();
+   }
+   msgtok = webserver.arg("c3out3"); // <<<< c3h2
+   if (msgtok != "") {
+      c3outMon3 = msgtok.toInt();
+   }
+
+
+   //------------------------------------------
+
+   msgtok = webserver.arg("LocalAlive"); // <<<< client alive btn pressed?
+   if (msgtok != "") {
+      int itemp = msgtok.toInt();
+      if (itemp == 1) {
+         resetConfirmTime();
+      }
+   }
+
+   //------------------------------------------
+
+   //Werte auch bei Url-Aufruf zurückgeben
+
+   String message = "*** ";
+   // re CLIENT 0
+   message += "&c0out1=" + (String)c0out1;
+   message += "&c0out2=" + (String)c0out2;
+   message += "&c0out3=" + (String)c0out3;
+   // re CLIENT 1
+   message += "&c1out0=" + (String)c1out0;
+   message += "&c1out1=" + (String)c1out1;
+   message += "&c1out2=" + (String)c1out2;
+   message += "&c1out3=" + (String)c1out3;
+   // re CLIENT 2
+   message += "&c2out0=" + (String)c2out0;
+   message += "&c2out1=" + (String)c2out1;
+   message += "&c2out2=" + (String)c2out2;
+   // re CLIENT 3
+   message += "&c3out0=" + (String)c3out0;
+   message += "&c3out1=" + (String)c3out1;
+   message += "&c3out2=" + (String)c3out2;
+   //message += "&c3out3=" + (String)c3out3 ;   // c3out3=intern auto ctrl
+   message += "&c3tx3=" + (String)c3tx3;        // Thermostat für c3out3
+
+   // all clients
+   message += "&remindcnt=" + (String)RemindCnt;
+   message += "&emergencycnt=" + (String)EmergencyCnt;
+
+   message += " ###";
+   webserver.send(200, "text/plain", message);
    yield();
+
+   if ( millis() - tms >= 1000 ) {    // refresh Serial.println(message)rate
+      tms = millis();
+      Serial.println(message);
+   }
+
+} // Ende:   handleClients()
+
+
+
+
+//----------------------------------------------------------------------------
+// UDP Time
+//----------------------------------------------------------------------------
+
+/*-------- NTP code ----------*/
+
+time_t getNtpTime() {
+   const char* ntpServerName = "pool.ntp.org";
+   const int timeZone = 1; // MEZ/CEST handled by Timezone lib
+   const int localPort = 8888;
+
+   byte packetBuffer[48];
+   IPAddress ntpServerIP;
+
+   WiFi.hostByName(ntpServerName, ntpServerIP);
+
+   UdpTime.begin(localPort);
+   memset(packetBuffer, 0, 48);
+   packetBuffer[0] = 0b11100011;   // NTP request header
+   UdpTime.beginPacket(ntpServerIP, 123);
+   UdpTime.write(packetBuffer, 48);
+   UdpTime.endPacket();
+
+   delay(1000);
+
+   if (UdpTime.parsePacket() > 0) {
+      UdpTime.read(packetBuffer, 48);
+      unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+      unsigned long lowWord  = word(packetBuffer[42], packetBuffer[43]);
+      unsigned long secsSince1900 = highWord << 16 | lowWord;
+
+      const unsigned long seventyYears = 2208988800UL;
+      time_t epoch = secsSince1900 - seventyYears;
+
+      // Lokale Zeitzone anwenden
+      time_t localTime = CE.toLocal(epoch);  // time_t wird autom. geupdated
+
+      return localTime;
+   }
+
+   return 0; // Fehlerfall
 }
+
+// Convenience-Funktion: Zeit abrufen + Strings bauen
+void updateTimeNow() {
+   time_t t = getNtpTime();
+   if (t != 0) {
+      setTime(t);            // TimeLib globale Zeit setzen
+      buildDateTimeString(); // Strings bauen
+   }
+}
+
 
 /*
    const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
@@ -1430,31 +2450,31 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
 //----------------------------------------------------------------------------
 /*
     Lit.:
-    http://instructables.com ,
-    https://iotdesignpro.com ,
-    http://mikrocontroller-elektronik.de ,
-    https://github.io
+    http://www.instructables.com/id/Quick-Start-to-Nodemcu-ESP8266-on-Arduino-IDE/ ,
+    https://iotdesignpro.com/projects/esp8266-based-webserver-to-control-led-from-webpage ,
+    http://www.mikrocontroller-elektronik.de/nodemcu-esp8266-tutorial-wlan-board-arduino-ide/ ,
+    https://tttapa.github.io/ESP8266/Chap10%20-%20Simple%20Web%20Server.html
 
-    https://github.com ,
-    https://github.com ,
-    https://readthedocs.io ,
-    https://github.com
+    https://github.com/digitalloggers/PLDuino/blob/master/Arduino/libraries/Time-master/examples/TimeNTP_ESP8266WiFi/TimeNTP_ESP8266WiFi.ino ,
+    https://github.com/JChristensen/Timezone ,
+    https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/udp-examples.html ,
+    https://github.com/montotof123/esp8266-12/tree/master/050_Mail_Sender
 
-    https://github.com ,
-    https://arduino.cc ,
-    https://github.com ,
-    https://adafruit.com ,
-    http://webnode.at ;
+    https://github.com/adafruit/DHT-sensor-library ,
+    https://playground.arduino.cc/Main/PCF8574Class ,
+    https://github.com/adafruit/Adafruit_ADS1X15/blob/master/examples/singleended/singleended.pde ,
+    https://learn.adafruit.com/adafruit-mcp9808-precision-i2c-temperature-sensor-guide/wiring ,
+    http://arduino-projekte.webnode.at/projekte/portexpander-pcf8574/ ;
 
-    http://selfhtml.org
-    http://selfhtml.org
-    http://selfhtml.org
-    http://aip.de
+    http://wiki.selfhtml.org/wiki/HTML/Tabellen/Aufbau_einer_Tabelle
+    http://wiki.selfhtml.org/wiki/Caption
+    http://wiki.selfhtml.org/wiki/CSS/Eigenschaften/Tabellenformatierung
+    http://www.aip.de/groups/soe/local/handbuch/html/tceb.htm
 
-    // html colors: https://w3schools.com
-    // button style color https://wikihow.com
+    // html colors: https://www.w3schools.com/tags/ref_colornames.asp
+    // button style color https://de.wikihow.com/Die-Farbe-einer-Schaltfl%C3%A4che-in-HTML-%C3%A4ndern
     // <button style="background-color:red; border-color:blue; color:white">
-    // https://w3schools.com
+    // https://www.w3schools.com/colors/colors_shades.asp
     // HTML LightGray    #D3D3D3  rgb(211,211,211)
 */
 
@@ -1466,13 +2486,41 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
 /*
    Log:
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   /*
    //----------------------------------------
    to do:
-   0.91a
+   0.90h+
+
+
+
+
+
+
+
 */
 
 
-//----------------------------------------------------------------------------
-// END OF FILE - Version: 091a
-//----------------------------------------------------------------------------
- 
+
+
+
+
+
+
