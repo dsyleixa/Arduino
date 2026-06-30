@@ -74,7 +74,7 @@ extern char* website_url;       //  website url               "http:\\mysite.com
 
 
 
-
+//----------------------------------------------------------------------------
 
 /*
     ESP8266WebServer (WiFi Server)
@@ -391,39 +391,18 @@ int8_t     ppD0 = 0, ppD1 = 0, ppD2 = 0, ppD3 = 0, // PCF digital pin states; in
 char sdhPa[4] = "";  // ++, =+, ==, =-, ≤, --
 
 
+//----------------------------------------------------------------------------
+// WiFi Libs
+//----------------------------------------------------------------------------
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
 
-//  Colors
+#define  SkyBlue               #6698FF
+#define  LightCyan             #58FAD0
 
 #define  SIGNYellow   255,209,22
 #define  ROSE         255,0,204
 #define  SPRINGGREEN3 0,205,102
-#define  SkyBlue               #6698FF
-#define  LightCyan             #58FAD0
-
-//----------------------------------------------------------------------------
-// WiFi Libs + dependencies
-//----------------------------------------------------------------------------
-
-
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-
-//----------------------------------------------------------------------------
-// 090n -> 091a
-//----------------------------------------------------------------------------
-
-// COMPILER-BRÜCKE: Sichert Variablen und Typen vor Tab-Konflikten ab für 091a
-#include <WiFiClient.h>
-
-extern int auth_realm_counter;
-
-String basicAuthString(String username, String password);
-
-void handleWebsite(WiFiClient client, String HTTP_req);
-
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
 
 // WiFi Router
 
@@ -486,8 +465,6 @@ uint32_t millisLastConfirm = millis();
 uint32_t dmillisLastConfirm = 0;
 uint32_t dhrsLastConfirm = 0;
 uint32_t hrsConfirmLimit = 72;
-
-int      auth_realm_counter = 1;
 
 //----------------------------------------------------------------------------
 // Internet Udp Time
@@ -1326,47 +1303,13 @@ void  resetAllOutputs() {
    delay(2000);
    Serial.println("client msg sent.");
 
-} // Ende resetAllOutputs
+}
 
-
-//---------------------------------------------
-// Wrapper für html-Button, ver 090n (to do: actionID, neues Modell)
-//---------------------------------------------
-
-String htmlButton(String Label, String Shref, int h, int w, int fontSize = 16) {
-   String buf;
-
-   buf.reserve(120);
-   buf  = "<a href=\"/" + Shref + "\">";
-   buf += "<button style=\"height:" + String(h) + "px;width:" + String(w);
-   buf += "px;font-size:" + String(fontSize) + "px\">";
-   buf += Label;
-   buf += "</button></a>";
-
-   return buf;
-} // Ende htmlButton
+bool   authorized = false;   
 
 //----------------------------------------------------------------------------
-
-//////////////////////////////////////////////////////////
-// bis hierhin Original 090n
-//////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////
-
-// es folgen 091a Änderungen
-//////////////////////////////////////////////////////////
-
-
-//============================================================================
-// ANFANG: ABSCHNITT A
-// Firmware-Basis: 090n / 091a (Lückenloser Anschluss nach resetAllOutputs)
-//============================================================================
-
-void handleRoot() {
-   handleClients();
-} // Ende: handleRoot
-
+// LOOP
+//----------------------------------------------------------------------------
 
 void loop() {
 
@@ -1375,71 +1318,17 @@ void loop() {
 
    static unsigned long tWatchdog = 0;
 
-
    //---------------------------------------
-   // Read incoming Web connections
-   //---------------------------------------
+   // Check log-in
 
-   WiFiClient client = wifiserver.available();
-   if (client) {
-      while (client.connected() && !client.available()) {
-         delay(1);
-      }
+   if (!authorized) {   
+      handleNotAuthorized();
+      delay(100);
+   }
 
-      String req = client.readStringUntil('\r');
-
-      //---------------------------------------
-      // URL-Aktionsparser fuer Relais und Thermostate
-
-      if (req.indexOf("CONFIRM=ON") != -1)  { millisLastConfirm = millis(); RemindCnt = 0; }
-
-      if (req.indexOf("OUT1=ON") != -1)     OUT1 = 1;
-      if (req.indexOf("OUT1=OFF") != -1)    OUT1 = 0;
-      if (req.indexOf("OUT2=ON") != -1)     OUT2 = 1;
-      if (req.indexOf("OUT2=OFF") != -1)    OUT2 = 0;
-
-      if (req.indexOf("c0out1=ON") != -1)   c0out1 = 1;
-      if (req.indexOf("c0out1=OFF") != -1)  c0out1 = 0;
-      if (req.indexOf("c0out2=ON") != -1)   c0out2 = 1;
-      if (req.indexOf("c0out2=OFF") != -1)  c0out2 = 0;
-
-      if (req.indexOf("c0tx3=UP") != -1)    c0tx3++;
-      if (req.indexOf("c0tx3=DN") != -1)    c0tx3--;
-
-      if (req.indexOf("c1out1=ON") != -1)   c1out1 = 1;
-      if (req.indexOf("c1out1=OFF") != -1)  c1out1 = 0;
-      if (req.indexOf("c1out2=ON") != -1)   c1out2 = 1;
-      if (req.indexOf("c1out2=OFF") != -1)  c1out2 = 0;
-
-      if (req.indexOf("c2out1=ON") != -1)   c2out1 = 1;
-      if (req.indexOf("c2out1=OFF") != -1)  c2out1 = 0;
-      if (req.indexOf("c2out2=ON") != -1)   c2out2 = 1;
-      if (req.indexOf("c2out2=OFF") != -1)  c2out2 = 0;
-
-      if (req.indexOf("svreset") != -1) {
-         svt1.vmin = 99.9; svt1.vmax = -99.9; svt1.vmean = svt1.vact;
-         svh1.vmin = 99.9; svh1.vmax = -99.9; svh1.vmean = svh1.vact;
-      }
-      if (req.indexOf("c0reset") != -1) {
-         c0t1.vmin = 99.9; c0t1.vmax = -99.9; c0t1.vmean = c0t1.vact;
-         c0h1.vmin = 99.9; c0h1.vmax = -99.9; c0h1.vmean = c0h1.vact;
-         c0t2.vmin = 99.9; c0t2.vmax = -99.9; c0t2.vmean = c0t2.vact;
-         c0h2.vmin = 99.9; c0h2.vmax = -99.9; c0h2.vmean = c0h2.vact;
-         c0adc0.vmin = 1023; c0adc0.vmax = 0; c0adc1.vmin = 1023; c0adc1.vmax = 0;
-         c0adc2.vmin = 1023; c0adc2.vmax = 0; c0adc3.vmin = 1023; c0adc3.vmax = 0;
-      }
-
-      // ERWEITERUNG: Liest alle restlichen Header-Zeilen (inkl. Authorization) lückenlos ein
-      while (client.available()) {
-         String line = client.readStringUntil('\n');
-         req += line + "\n";
-         if (line == "\r" || line.length() == 0) break;
-      }
-
-      handleWebsite(client, req);
-
-      delay(1);
-      client.stop();
+   if (authorized) {
+      handleWebsite();
+      delay(10);
    }
 
    webserver.handleClient();
@@ -1449,7 +1338,7 @@ void loop() {
    // Read local + Udp data
 
    EmergencyCnt = checkAlarms();
-   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1);
+   if(EmergencyCnt==0) digitalWrite(PIN_OUT0, 1); // reverse led_buitin pin switch
    else digitalWrite(PIN_OUT0, 0);
 
    dmillisLastConfirm = millis() - millisLastConfirm;
@@ -1466,12 +1355,40 @@ void loop() {
       buildDateTimeString();
       //Serial.println(timestr+"   "+datestr);
 
+      //---------------------------------------
+      // read DHT Sensor
+      /*
+         ftmp = DHT_1.readTemperature();          // 1. Temperatur auslesen (Celsius)
+         yield();
+         if (isnan(ftmp)) ftmp=fINVAL;
+         logval(ftmp, svt1);
+         delay(10);
+         yield();
+         lastSensorDataMillis = millis();
+
+         ftmp = DHT_1.readHumidity();             // 1. Feuchtigkeit auslesen (Prozent)
+         yield();
+         if (isnan(ftmp)) ftmp=fINVAL;
+         logval(ftmp, svh1);
+         delay(10);
+         yield();
+         lastSensorDataMillis = millis();
+      */
+
       ftmp = fINVAL;
       ftmp = bmp_x77.readTemperature();
       if (isnan(ftmp)) ftmp = fINVAL;
       logval(ftmp, svt1);
       yield();
       lastI2CDataMillis = millis();
+      /*
+         ftmp=fINVAL;
+         ftmp = bme_x77.readHumidity();       // 2. Feuchtigkeit auslesen (Prozent)
+         if (isnan(ftmp)) ftmp=fINVAL;
+         logval(ftmp, svh2);
+         yield();
+         lastSensorDataMillis = millis();
+      */
 
       ftmp = fINVAL;
       ftmp = FNNcorr + bmp_x77.readPressure() / 100.0 ;
@@ -1513,7 +1430,13 @@ void loop() {
          Serial.print(" c2_h1="); Serial.print(c2h1.sact);
          Serial.print(" c2_t2="); Serial.print(c2t2.sact);
          Serial.print(" c2_h2="); Serial.println(c2h2.sact);
-         Serial.println((String)"  c1  out1  out2  out3  " + c2out1 +"  " + c2out2 +"  " + c2out3);
+         Serial.println((String)"  c2  out1  out2  out3  " + c2out1 +"  " + c2out2 +"  " + c2out3);
+
+         Serial.print(" c3_t1="); Serial.print(c3t1.sact);
+         Serial.print(" c3_h1="); Serial.print(c3h1.sact);
+         Serial.print(" c3_t2="); Serial.print(c3t2.sact);
+         Serial.print(" c3_h2="); Serial.println(c3h2.sact);
+         Serial.println((String)"  c3  out1  out2  out3  " + c3out1 +"  " + c3out2 +"  " + c3out3);
 
          Serial.println(" "); Serial.println(" ");
       }
@@ -1528,56 +1451,457 @@ void loop() {
       yield();
       lastI2CDataMillis = millis();
    }
+   
+   if (millis() - tWatchdog > 2000) {   // alle 2 Sekunden
+      tWatchdog = millis();
+      systemWatchdog();                // <<< HIER wird der Reset ausgelöst
+   }
 
-} // loop end
+} // Ende: loop()
 
-//============================================================================
-// ENDE: ABSCHNITT A
-//============================================================================
 
-//============================================================================
-// ANFANG: ABSCHNITT B
-// Firmware-Basis: 090n / 091a (Multi-User-Login & HTML-Verkettung)
-//============================================================================
 
-void handleWebsite(WiFiClient client, String HTTP_req) {
+
+
+//----------------------------------------------------------------------------
+//  handle all Websites
+//----------------------------------------------------------------------------
+
+
+//-----------------------------------------------
+// neu   handleNotAuthorized() (GET, größer)
+//-----------------------------------------------
+
+void handleNotAuthorized() {
+   String readString = "";
+   char strinput[MAXLEN] = "";
+   char strupwd[TOKLEN] = "";
+   char struname[TOKLEN] = "";
+   Serial.println("\n NotAuthorized, logIn:...");
+
+   WiFiClient client = wifiserver.available();
+   if (!client) return;
+
+   while (client.connected()) {
+      if (authorized) return;
+
+      if (client.available()) {
+         char c = client.read();
+         readString = "";
+
+         // Lese die GET-Zeile komplett
+         while ((readString.length() < TOKLEN) && (c != '\n')) {
+            readString += c;
+            c = client.read();
+         }
+
+         // Konvertiere zu char-Array für cstringarg
+         readString.toCharArray(strinput, MAXLEN);
+
+         // Extrahiere Username / Passwort
+         cstringarg(strinput, "uname", struname);
+         cstringarg(strinput, "upwd", strupwd);
+
+         // Debug
+         Serial.print("strupwd     >>>"); Serial.print(strupwd); Serial.println("<<<");
+         Serial.print("website_upwd>>>"); Serial.print(website_upwd); Serial.println("<<<");
+         Serial.print("readString>>>"); Serial.println(readString);
+
+         // Vergleich Name + Passwort
+         if ((strlen(strupwd) == strlen(website_upwd)) && (strcmp(website_upwd, strupwd) == 0)
+               && (strlen(struname) == strlen(website_uname)) && (strcmp(website_uname, struname) == 0)) {
+
+            authorized = true;
+            readString = "";
+            return;
+         }
+
+         // HTTP request beendet? → Login-Formular senden
+         if (c == '\n') {
+            client.flush();
+
+            String script = "";
+            script += "<!DOCTYPE html>\n";
+            script += "<html>\n";
+            script += "<head>\n";
+            script += "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
+            script += String("<title>") + website_title + "</title>\n";
+            script += "</head>\n";
+            script += "<body>\n";
+            script += "<h2><p style=\"color:rgb(255,0,191);\"> log in to proceed: </p></h2>\n";
+
+            script += "<FORM ACTION='/' method=GET>\n";
+            script += "<h2>user name: ";
+            script += "<INPUT TYPE=text NAME='uname' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+            script += "<h2>password : ";
+            script += "<INPUT TYPE=PASSWORD NAME='upwd' VALUE='' MAXLENGTH='50' style='height:40px;width:250px;font-size:20px'></h2>\n";
+            script += "<h2><INPUT TYPE=SUBMIT VALUE='Login' style='height:50px;width:150px;font-size:20px'></h2>\n";
+            script += "</FORM>\n";
+
+            script += "<BR>\n";
+            script += "</body>\n";
+            script += "</html>\n";
+
+            // HTTP-Header
+            String header = "";
+            header += "HTTP/1.1 200 OK\r\n";
+            header += "Content-Type: text/html; charset=utf-8\r\n";
+            header += "Content-Length: " + String(script.length()) + "\r\n";
+            header += "Connection: close\r\n";
+            header += "\r\n";
+
+            client.print(header + script);
+            delay(100);
+            client.stop();
+         }
+      }
+      yield();
+   }
+} // Ende handleNotAuthorized
+
+
+ 
+
+//---------------------------------------------
+// Wrapper für html-Button, ver 090n (to do: actionID, neues Modell)
+//---------------------------------------------
+
+String htmlButton(String Label, String Shref, int h, int w, int fontSize = 16) {
+   String buf;
+
+   buf.reserve(120);
+   buf  = "<a href=\"/" + Shref + "\">";
+   buf += "<button style=\"height:" + String(h) + "px;width:" + String(w);
+   buf += "px;font-size:" + String(fontSize) + "px\">";
+   buf += Label;
+   buf += "</button></a>";
+
+   return buf;
+}
+
+//----------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------------------
+// handle root +clients
+//----------------------------------------------------------------------------
+
+void handleRoot() {
+   if (!authorized) {
+      handleNotAuthorized();
+      return;
+   }
+   handleClients();
+} // Ende: handleClients
+
+
+
+
+
+//-------------------------- Teil 1 handleWebsite --------------------------
+//-------------------------------------------
+// handleWebsite()  090m 
+//-------------------------------------------
+
+void handleWebsite() {
+
+   char istr[5];
+   WiFiClient client = wifiserver.available();
+
+   //---------------------------------------
+   // Check if a client has connected
+   if (!client) {
+      return;
+   }
+
+   // --- Warte auf Daten (safety) ---
+   unsigned long start = millis();
+   while (!client.available()) {
+      if (millis() - start > 1000) {
+         // nichts empfangen -> Verbindung freigeben
+         client.stop();
+         return;
+      }
+      yield();
+   }
+
+   // Read the first line of the request (bis '\r')
+   String request = client.readStringUntil('\r');
+   request.trim();
+   Serial.println(request);
+
+   // consume the trailing '\n' after '\r' if any
+   if (client.peek() == '\n') client.read();
+
+   // --- Parse the request line safely: METHOD PATH VERSION ---
+   // Example: "GET /OUT1=ON HTTP/1.1"
+   String method = "";
+   String path = "";
+   String version = "";
+   int sp1 = request.indexOf(' ');
+   if (sp1 != -1) {
+      int sp2 = request.indexOf(' ', sp1 + 1);
+      if (sp2 != -1) {
+         method = request.substring(0, sp1);
+         path = request.substring(sp1 + 1, sp2);
+         version = request.substring(sp2 + 1);
+      } else {
+         // malformed request line -> bail out
+         client.stop();
+         return;
+      }
+   } else {
+      // malformed -> bail out
+      client.stop();
+      return;
+   }
+
+   // ------------------ Validierungs-Fix (Option A: minimal) -----------------------
+   // Nur saubere Pfade zulassen; sonst ignorieren und die Website zurückgeben.
+   bool validPath = true;
+   if (path.length() == 0) validPath = false;
+
+   // 1) Ungültige Zeichen blockieren
+   for (unsigned int i = 0; i < path.length(); i++) {
+      char c = path.charAt(i);
+      bool ok =
+         (c >= 'A' && c <= 'Z') ||
+         (c >= 'a' && c <= 'z') ||
+         (c >= '0' && c <= '9') ||
+         (c == '/') ||
+         (c == '=');
+      if (!ok) {
+         validPath = false;
+         break;
+      }
+   }
+   // 2) Pfade mit Query- oder Fragmentanteilen blockieren
+   if (path.indexOf('&') >= 0 || path.indexOf('%') >= 0 || path.indexOf('#') >= 0) {
+      validPath = false;
+   }
+   // 3) Pfade mit doppeltem Slash blockieren (kommen durch Browser vor)
+   if (path.indexOf("//") >= 0) {
+      validPath = false;
+   }
+   // 4) Pfade, die unrealistisch lang sind → verwerfen
+   if (path.length() > 64) {   // großzügiger Grenzwert, aber safe
+      validPath = false;
+   }
+
+   // ============================================================
+   // *** neu:  HIER KOMMT DER LOGOUT-BLOCK HIN – GANZ WICHTIG ***
+   // ============================================================
+   //---------------------------------------
+   // LogOut / Confirm  neu !
+   //---------------------------------------
+   if ( (method == "GET") && (path == "/logout") ) {
+      authorized = false;
+
+      // 1) HTTP-Header (komplett, korrekt, sauber)
+      String script = "";
+      script += "HTTP/1.1 303 See Other\r\n";        // << WICHTIG: 303 ist stabiler als 302!
+      script += "Location: /\r\n";
+      script += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+      script += "Pragma: no-cache\r\n";
+      script += "Expires: 0\r\n";
+      script += "Content-Length: 0\r\n";             // << WICHTIG für Firefox
+      script += "Connection: close\r\n\r\n";
+
+      // 2) komplett senden
+      client.print(script);
+      client.flush();
+
+      // 3) Warten, bis der Buffer definitiv leer ist
+      delay(50);                                     // << Firefox braucht diese Verzögerung
+
+      // 4) Verbindung sauber beenden
+      client.stop();
+      delay(20);
+
+      return;
+   }
+
+   // --- Restliche Header vollständig konsumieren (vermeidet Fragment-Probleme) ---
+   // Lese Headerzeilen bis zur leeren Zeile
+   while (client.connected()) {
+      String headerLine = client.readStringUntil('\n');
+      if (headerLine == "\r" || headerLine.length() == 0) break;
+      // optional: Serial.println(headerLine);
+      // safety: wenn keine Daten mehr, abbrechen
+      if (!client.available()) break;
+   }
+
+   // -----------------------------
+   // Nur wenn validPath == true, werden Schaltbefehle verarbeitet.
+   // Andernfalls wird nur die Website zurückgegeben (kein Schalten).
+   // -----------------------------
+   if (validPath) {
+
+      //---------------------------------------
+      // Match the request on Server (exact path comparisons)
+      //---------------------------------------
+      if ((method == "GET") && (path == "/OUT1=ON"))  {
+         digitalWrite(PIN_OUT1, 1);
+         yield();
+         //Serial.println("DEBUG: (PIN_OUT1, 1)");
+         OUT1 = +1;
+      }
+      if ((method == "GET") && (path == "/OUT1=OFF")) {
+         digitalWrite(PIN_OUT1, 0);
+         yield();
+         //Serial.println("DEBUG: (PIN_OUT1, 0)");
+         OUT1 = 0;
+      }
+
+      if ((method == "GET") && (path == "/OUT2=ON"))  {
+         digitalWrite(PIN_OUT2, 1);
+         yield();
+         //Serial.println("DEBUG: (PIN_OUT2, 1)");
+         OUT2 = +1;
+      }
+      if ((method == "GET") && (path == "/OUT2=OFF")) {
+         digitalWrite(PIN_OUT2, 0);
+         yield();
+         //Serial.println("DEBUG: (PIN_OUT1, 0)");
+         OUT2 = 0;
+      }
+
+      // Reset
+      if ((method == "GET") && (path == "/svreset"))  {
+         resetMinMaxValues(svt1);
+         resetMinMaxValues(svt2);
+      }
+
+      //---------------
+
+
+      if ((method == "GET") && (path == "/c0out1=ON"))  {
+         c0out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c0out1=OFF")) {
+         c0out1 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c0out2=ON"))  {
+         c0out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c0out2=OFF")) {
+         c0out2 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c0tx3=UP"))  {
+         c0tx3 = c0tx3 + 1;
+      }
+      if ((method == "GET") && (path == "/c0tx3=DN"))  {
+         c0tx3 = c0tx3 - 1;
+      }
+
+      if ((method == "GET") && (path == "/c0reset"))  {
+         resetMinMaxValues(c0t1);
+         resetMinMaxValues(c0t2);
+      }
+
+      //---------------------------------------
+      // Match the request for Client 1
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c1out1=ON"))  {
+         c1out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c1out1=OFF")) {
+         c1out1 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c1out2=ON"))  {
+         c1out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c1out2=OFF")) {
+         c1out2 = 0;
+      }
+      if ((method == "GET") && (path == "/c1out2=REV")) {
+         c1out2 = -1;
+      }
+
+      if ((method == "GET") && (path == "/c1out3=ON"))  {
+         c1out3 = +1;
+      }
+      if ((method == "GET") && (path == "/c1out3=OFF")) {
+         c1out3 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c1reset"))  {
+         resetMinMaxValues(c1t1);
+         resetMinMaxValues(c1t2);
+      }
+
+      //---------------------------------------
+      // Match the request for Client 2
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c2out1=ON"))  {
+         c2out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c2out1=OFF")) {
+         c2out1 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c2out2=ON"))  {
+         c2out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c2out2=OFF")) {
+         c2out2 = 0;
+      }
+      if ((method == "GET") && (path == "/c2out2=REV")) {
+         c2out2 = -1;
+      }
+
+      if ((method == "GET") && (path == "/c2reset"))  {
+         resetMinMaxValues(c2t1);
+         resetMinMaxValues(c2t2);
+      }
+
+      //---------------------------------------
+      // Match the request for Client 3
+      //---------------------------------------
+      if ((method == "GET") && (path == "/c3out1=ON"))  {
+         c3out1 = +1;
+      }
+      if ((method == "GET") && (path == "/c3out1=OFF")) {
+         c3out1 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c3out2=ON"))  {
+         c3out2 = +1;
+      }
+      if ((method == "GET") && (path == "/c3out2=OFF")) {
+         c3out2 = 0;
+      }
+
+      if ((method == "GET") && (path == "/c3tx3=UP"))  {
+         c3tx3 = c3tx3 + 1;
+      }
+      if ((method == "GET") && (path == "/c3tx3=DN"))  {
+         c3tx3 = c3tx3 - 1;
+      }
+
+      if ((method == "GET") && (path == "/c3reset"))  {
+         resetMinMaxValues(c3t1);
+         resetMinMaxValues(c3t2);
+      }
+
+      if ((method == "GET") && (path == "/CONFIRM=ON"))   {
+         resetConfirmTime();
+      }
+
+   } // end if(validPath)
+
+   yield();
+
+
+   //---------------------------------------
+   // Return the response (1:1 String-Verkettung, in Blöcken)
+   //---------------------------------------
+
 
    String script = "";
-   char   istr[32]; // Geändert von nacktem 'char' zu funktionierendem Puffer
-   char   dsymbol;
-
-   //-------------------------------------------------------------------------
-   // Browser-autonomer Multi-User Regelkreis (Ersatz für 'bool authorized')
-   //-------------------------------------------------------------------------
-   String expectedAuth = "Authorization: Basic " + basicAuthString(website_uname, website_upwd);
-
-   if (HTTP_req.indexOf("logout") != -1) {
-      auth_realm_counter++;
-
-      script += "HTTP/1.1 401 Unauthorized\r\n";
-      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Abgemeldet_" + String(auth_realm_counter) + "\"\r\n";
-      script += "Content-Type: text/html; charset=utf-8\r\n";
-      script += "Connection: close\r\n\r\n";
-      script += "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Abgemeldet</title></head>";
-      script += "<body style='font-family:sans-serif;text-align:center;margin-top:100px;background-color:#d0d0d0;'>";
-      script += "<h2>Erfolgreich abgemeldet!</h2><p><a href='/'>Erneut anmelden</a></p></body></html>";
-      client.print(script);
-      return;
-   }
-
-   if (HTTP_req.indexOf(expectedAuth) == -1) {
-      script += "HTTP/1.1 401 Unauthorized\r\n";
-      script += "WWW-Authenticate: Basic realm=\"" + String(website_title) + "_Sitzung_" + String(auth_realm_counter) + "\"\r\n";
-      script += "Content-Type: text/html\r\n";
-      script += "Connection: close\r\n\r\n";
-      script += "<!DOCTYPE html><html><body><h1>401 Unauthorized</h1></body></html>";
-      client.print(script);
-      return;
-   }
-
-   //-------------------------------------------------------------------------
-   // HTML-Seitenaufbau Dashboard (100% Ihr originales Layout)
-   //-------------------------------------------------------------------------
 
    // init website - HTTP-Header
    script += "HTTP/1.1 200 OK\r\n";
@@ -1615,6 +1939,15 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<h3>letztes confirm (Std): &nbsp;" + String(dhrsLastConfirm) + " &nbsp;&nbsp;&nbsp;";
    script += htmlButton(" Confirm ", "CONFIRM=ON", 50, 100);
    script += "</h3>\n";
+
+   
+
+   //-------------------------- Teil 2 handleWebsite --------------------------
+   
+   //-------------------------- Teil 2 handleWebsite --------------------------
+
+
+
 
    script += "<p><font face=\"courier\"><font style=\"color:rgb(0,0,0);\"></font></p>\n";
 
@@ -1668,15 +2001,6 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    // SEND server block
    client.print(script);
 
-//============================================================================
-// ENDE: ABSCHNITT B
-//============================================================================
-
-//============================================================================
-// ANFANG: ABSCHNITT C
-// Firmware-Basis: 090n
-//============================================================================
-
    // ----------------------
    // Client 0 - Buttons + Sensors (Block)
    // ----------------------
@@ -1702,188 +2026,260 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton("Therm -1", "c0tx3=DN", 70, 140) + "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT0name + " (+ min)<caption>";
-   
+   script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c0t1.tFail) + " min)</caption>";
+
    script += htmlButton(" reset ", "c0reset", 35, 70);
-   
+
    script += "<thead><tr>";
-   
-   // --------- Zeile 1 ---------
+
+   // --------- Zeile 1 ----------
    script += "<td bgcolor='Peru'>" + c0SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
    script += "<td bgcolor='Avocado'>" + c0SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Orange'>" + (String)c0A0intname + "</td>";
-   script += "<td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
+   script += "<td bgcolor='Orange'>"  + (String)c0A0intname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)"&nbsp;∅&nbsp;" + "</td>";
+
    script += "</tr>";
-   
+
+   script += "</tr></thead><tbody>";
+   // --------- Zeile 2 ----------
    script += "<tr>";
    script += "<th>" + String(c0t1.sact) + " °C</th>";
    script += "<th>" + String(c0t1.smin) + "</th>";
    script += "<th>" + String(c0t1.smax) + "</th>";
    script += "<th>" + String(c0h1.sact) + "</th>";
-   
    script += "<th>" + String(c0t2.sact) + " °C</th>";
    script += "<th>" + String(c0t2.smin) + "</th>";
    script += "<th>" + String(c0t2.smax) + "</th>";
    script += "<th>" + String(c0h2.sact) + "</th>";
-   
-   script += "<th>" + String(c0espA0.sact) + "</th>";
-   script += "<th>" + String(c0espA0.smean) + "</th>";
-   script += "</tr>";
-   
-   // --------- Zeile 2 (Erde) ---------
+   /*
+      strcpy(dsymbol, tendencysymbol(c0p1.vact - c0p1.vmean));
+      script += "<th>" + (String)(c0p1.sact) + "</th>";
+      script += "<th>" + (String)dsymbol + "</th>";
+      script += "<th>" + (String)(c0p1.smean) + "</th>";
+   */
+   if (c0espA0.vact<fFireLIMIT) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0espA0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0espA0.sact;
+      script += "</th>";
+   }
+   script += "<th>"+(String)(c0espA0.smean) + "</th>";
+
+   // --- Zeile 3: Status / Mux-Namen ---
    script += "<tr>";
-   script += "<td bgcolor='Lime'>" + String(c0A0muxname) + "</td><td bgcolor='Lime'>" + String(c0A1muxname) + "</td>";
-   script += "<td bgcolor='Lime'>" + String(c0A2muxname) + "</td><td bgcolor='Lime'>" + String(c0A3muxname) + "</td>";
+
+   script += "<td bgcolor='LightGray'> c0out1 </td>";
+   script += "<td bgcolor='LightGray'> c0out2 </td>";
+   script += "<td bgcolor='LightGray'> c0out3 </td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A0muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A1muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A2muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c0A3muxname + "</td>";
+
+   script += "<td bgcolor='Yellow'> hPa </td>";
+   script += "<td bgcolor='Yellow'> &nbsp; ± </td>";
+   script += "<td bgcolor='Yellow'> hPa ∅ </td>";
    script += "</tr>";
-   
-   script += "<tr>";
-   if (c0adc0.vmean < adcSoilMin && c0adc0.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
-   script += String(c0adc0.sact) + "</th>";
-   if (c0adc1.vmean < adcSoilMin && c0adc1.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
-   script += String(c0adc1.sact) + "</th>";
-   if (c0adc2.vmean < adcSoilMin && c0adc2.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
-   script += String(c0adc2.sact) + "</th>";
-   if (c0adc3.vmean < adcSoilMin && c0adc3.tFail < 60) script += "<td bgcolor='red'>"; else script += "<th>";
-   script += String(c0adc3.sact) + "</th>";
+
+   // --- Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
+
+   script += "<th>" + (String)(c0out1)  + "</th>";
+   script += "<th>" + (String)(c0out2)  + "</th>";
+   script += "<th>" + (String)(c0out3)  + "</th>";
+
+   if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc0.sact;
+      script += "</th>";
+   }
+
+   if (c0adc1.tFail>60 || c0adc1.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc1.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc1.sact;
+      script += "</th>";
+   }
+
+   if (c0adc2.tFail>60 || c0adc2.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc2.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc2.sact;
+      script += "</th>";
+   }
+
+   if (c0adc0.tFail>60 || c0adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c0adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c0adc0.sact;
+      script += "</th>";
+   }
+
+   script += "<th>" + (String)(c0p1.sact) + "</th>";
+   script += "<th>" + (String)dsymbol + "</th>";
+   script += "<th>" + (String)(c0p1.smean) + "</th>";
+
    script += "</tr>";
-   
+
    script += "</tbody></table></h2>\n<br><br>\n";
 
-   // SEND client 0 block
    client.print(script);
 
-//============================================================================
-// ENDE: ABSCHNITT C
-//============================================================================
+//-------------------------- Teil 3 handleWebsite --------------------------
 
-//============================================================================
-// ANFANG: ABSCHNITT D
-// Firmware-Basis: 090n
-//============================================================================
-
-   script = "";
-
+//-------------------------- Teil 3 handleWebsite --------------------------
+ 
    // ----------------------
    // Client 1 - Buttons + Sensors (Block)
    // ----------------------
-   script += "<h1><br>" + CLIENT1name + "<br></h1>\n";
-   script += c1OUT1name + " ist: ";
-   if (c1out1 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
-   else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c1out1=ON", 70, 140) + "&nbsp;";
-   script += htmlButton(" AUS ", "c1out1=OFF", 70, 140) + "<br>\n\n";
 
+   script = "";
+
+   script += "<h1><br>" + CLIENT1name + "<br></h1>\n";
    script += c1OUT2name + " ist: ";
    if (c1out2 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
-   else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c1out2=ON", 70, 140) + " ";
-   script += htmlButton(" AUS ", "c1out2=OFF", 70, 140) + "<br>\n\n";
+   else if (c1out2 == -1) script += "Rev&nbsp;&nbsp;&nbsp;";
+   else if (c1out2 == 0) script += "AUS&nbsp;&nbsp;&nbsp;";
+   script += htmlButton(" ÖFFNEN ", "c1out2=ON", 70, 140)+ "&nbsp;";
+   script += htmlButton(" STOP ", "c1out2=OFF", 70, 140)+ "&nbsp;";
+   script += htmlButton(" SCHLIESSEN ", "c1out2=REV", 70, 140);
+   script += "<br>\n\n";
 
+   // client 1 sensors (detailliert)
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT1name + " (+ min)</caption>";
+   script += "<caption> Messwerte " + CLIENT1name + " (Verb.-Fehler: " + String(c1t1.tFail) + " min)</caption>";
    script += htmlButton(" reset ", "c1reset", 35, 70);
    script += "<thead><tr>";
-   script += "<td bgcolor='Peru'>" + c1SECT1name + "</td>";
+   script += "<td bgcolor='Teal'>" + c1SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
+   script += "<td bgcolor='White'> rF% </td><td bgcolor='LightCyan'>" + c1SECT2name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Avocado'>" + c1SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>" + String(c1A0intname) + "</td><td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
    script += "</tr></thead><tbody>";
    script += "<tr>";
-   script += "<th>" + String(c1t1.sact) + " °C</th>";
+   if (c1t1.tFail > 60 || c1t1.vmean > -4.0 ) {
+      script += "<td bgcolor='red'>";
+   } else script += "<th>";
+   script += String(c1t1.sact) + " °C</th>";
    script += "<th>" + String(c1t1.smin) + "</th>";
    script += "<th>" + String(c1t1.smax) + "</th>";
+   script += "<th>" + String(c1t1.smean) + "</th>";
    script += "<th>" + String(c1h1.sact) + "</th>";
    script += "<th>" + String(c1t2.sact) + " °C</th>";
    script += "<th>" + String(c1t2.smin) + "</th>";
    script += "<th>" + String(c1t2.smax) + "</th>";
    script += "<th>" + String(c1h2.sact) + "</th>";
+   if (c1espA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+   else script += "<th>";
+   script += String(c1espA0.sact) + "</th>";
+   script += "<th>" + String(c1espA0.smean) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
-   // SEND client 1 block
    client.print(script);
    script = "";
 
    // ----------------------
-   // Client 2 - Buttons + Sensors (Block)
+   // Client 2 - Buttons + sensors (Block)
    // ----------------------
-   script += "<h1><br>" + CLIENT2name + "<br></h1>\n";
-   script += c2OUT1name + " ist: ";
-   if (c2out1 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
-   else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c2out1=ON", 70, 140) + "&nbsp;";
-   script += htmlButton(" AUS ", "c2out1=OFF", 70, 140) + "<br>\n\n";
 
+   script += "<h1><br>" + CLIENT2name + "<br></h1>\n";
    script += c2OUT2name + " ist: ";
    if (c2out2 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
-   else if (c2out2 == -1) script += "REV&nbsp;&nbsp;&nbsp;";
-   else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c2out2=ON", 70, 140) + " ";
-   script += htmlButton(" AUS ", "c2out2=OFF", 70, 140) + " ";
-   script += htmlButton(" REV ", "c2out2=REV", 70, 140) + "<br>\n\n";
+   else if (c2out2 == -1) script += "Rev&nbsp;&nbsp;&nbsp;";
+   else if (c2out2 == 0) script += "AUS&nbsp;&nbsp;&nbsp;";
+   script += htmlButton(" ÖFFNEN ", "c2out2=ON", 70, 140)+ "&nbsp;";
+   script += htmlButton(" STOP ", "c2out2=OFF", 70, 140)+ "&nbsp;";
+   script += htmlButton(" SCHLIESSEN ", "c2out2=REV", 70, 140);
+   script += "<br>\n\n";
 
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT2name + " (+ min)</caption>";
+   script += "<caption> Messwerte " + CLIENT2name + " (Verb.-Fehler: " + String(c2t1.tFail) + " min)</caption>";
    script += htmlButton(" reset ", "c2reset", 35, 70);
    script += "<thead><tr>";
-   script += "<td bgcolor='Peru'>" + c2SECT1name + "</td>";
+   script += "<td bgcolor='Teal'>" + c2SECT1name + "</td>";
+   script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='Yellow'> °C ∅ </td>";
+   script += "<td bgcolor='White'> rF% </td><td bgcolor='LightCyan'>" + c2SECT2name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Avocado'>" + c2SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>" + String(c2A0intname) + "</td><td bgcolor='Orange'>&nbsp;∅&nbsp;</td>";
    script += "</tr></thead><tbody>";
    script += "<tr>";
-   script += "<th>" + String(c2t1.sact) + " °C</th>";
+   if (c2t1.tFail > 60 || c2t1.vmean > -4.0 ) {
+      script += "<td bgcolor='red'>";
+   } else script += "<th>";
+   script += String(c2t1.sact) + " °C</th>";
    script += "<th>" + String(c2t1.smin) + "</th>";
    script += "<th>" + String(c2t1.smax) + "</th>";
+   script += "<th>" + String(c2t1.smean) + "</th>";
    script += "<th>" + String(c2h1.sact) + "</th>";
    script += "<th>" + String(c2t2.sact) + " °C</th>";
    script += "<th>" + String(c2t2.smin) + "</th>";
    script += "<th>" + String(c2t2.smax) + "</th>";
    script += "<th>" + String(c2h2.sact) + "</th>";
+   if (c2espA0.vact < fFireLIMIT) script += "<td bgcolor='red'>";
+   else script += "<th>";
+   script += String(c2espA0.sact) + "</th>";
+   script += "<th>" + String(c2espA0.smean) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
-   // SEND client 2 block
    client.print(script);
-
-//============================================================================
-// ENDE: ABSCHNITT D
-//============================================================================
-
-//============================================================================
-// ANFANG: ABSCHNITT E
-// Firmware-Basis: 090n / 091a (Lückenloser Seitenabschluss & Logout)
-//============================================================================
-
-   script = "";
 
    // ----------------------
    // Client 3 - Buttons + Sensors (Block)
    // ----------------------
+
+   script = "";
+
    script += "<h1><br>" + CLIENT3name + "<br></h1>\n";
    script += c3OUT1name + " ist: ";
    if (c3out1 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
    else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c3out1=ON", 70, 140) + "&nbsp;";
-   script += htmlButton(" AUS ", "c3out1=OFF", 70, 140) + "<br>\n\n";
+   script += htmlButton(" EIN ", "c3out1=ON", 70, 140)+ "&nbsp;";
+   script += htmlButton(" AUS ", "c3out1=OFF", 70, 140);
+   script += "<br>\n\n";
 
    script += c3OUT2name + " ist: ";
    if (c3out2 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
    else script += "AUS&nbsp;&nbsp;&nbsp;";
-   script += htmlButton(" EIN ", "c3out2=ON", 70, 140) + " ";
-   script += htmlButton(" AUS ", "c3out2=OFF", 70, 140) + "<br>\n\n";
+   script += htmlButton(" EIN ", "c3out2=ON", 70, 140)+ "&nbsp;";
+   script += htmlButton(" AUS ", "c3out2=OFF", 70, 140);
+   script += "<br>\n\n";
 
    // Thermostat controls
    sprintf(istr, "%+3d", c3tx3);
    script += "c3-Thermost= " + String(istr) + "&nbsp;&nbsp;&nbsp;";
-   script += htmlButton("Therm +1", "c3tx3=UP", 70, 140) + " ";
-   script += htmlButton("Therm -1", "c3tx3=DN", 70, 140) + "<br>\n\n";
+   script += htmlButton("Therm +1", "c3tx3=UP", 70, 140)+ "&nbsp;";
+   script += htmlButton("Therm -1", "c3tx3=DN", 70, 140);
+   script += "<br>\n\n";
 
+   // ---  C3  Zeile 1
    script += "<h2>\n<table border=4 cellpadding=4>";
-   script += "<caption> Messwerte " + CLIENT3name + " (+ min)</caption>";
+   script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c3t1.tFail) + " min)</caption>";
    script += htmlButton(" reset ", "c3reset", 35, 70);
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c3SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
    script += "<td bgcolor='Avocado'>" + c3SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Orange'>"  + (String)c3A0intname + "</td>";
+   script += "<td bgcolor='Orange'>"  + (String)"&nbsp;∅&nbsp;" + "</td>";
    script += "</tr></thead><tbody>";
+
+   // --- C3 Zeile  2
    script += "<tr>";
    script += "<th>" + String(c3t1.sact) + " °C</th>";
    script += "<th>" + String(c3t1.smin) + "</th>";
@@ -1893,87 +2289,113 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<th>" + String(c3t2.smin) + "</th>";
    script += "<th>" + String(c3t2.smax) + "</th>";
    script += "<th>" + String(c3h2.sact) + "</th>";
-   script += "</tr></tbody></table></h2>\n<br><br>\n";
+   if (c3espA0.vact<fFireLIMIT) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3espA0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3espA0.sact;
+      script += "</th>";
+   }
+   script += "<th>"+(String)(c3espA0.smean) + "</th>";
+   script += "</tr>";
 
-   // ----------------------
-   // Analog-Sensoren Tabelle
-   // ----------------------
-   script += "<table>";
-   script += "<tr><th colspan='5'><b> Analog-Sensoren </b></th></tr>";
-   script += "<tr><td> " + A0intname + " </td>";
-   script += "<td colspan='4'> " + (String)svespA0.vact + " </td></tr>";
-   script += "<tr><td> " + c0A0intname + " </td>";
-   script += "<td colspan='4'> " + (String)c0espA0.vact + " </td></tr>";
-   script += "</table>";
+   // --- C3 Zeile 3: Status / Mux-Namen ---
+   script += "<tr>";
+   script += "<td bgcolor='LightGray'> c3out1 </td>";
+   script += "<td bgcolor='LightGray'> c3out2 </td>";
+   script += "<td bgcolor='LightGray'> c3out3 </td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A0muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A1muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A2muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + (String)c3A3muxname + "</td>";
+   script += "</tr>";
 
-   // HTML-Abschluss
-   script += "</body>\n";
-   script += "</html>\n";
+   // --- C3 Zeile 4: ADC-Werte + ESP-A0 + Mittelwert ---
+   script += "<tr>";
+   script += "<th>" + (String)(c3outMon1)  + "</th>";
+   script += "<th>" + (String)(c3outMon2)  + "</th>";
+   script += "<th>" + (String)(c3outMon3)  + "</th>";
 
-   // ERWEITERUNG: Neuer Multi-User Logout-Button (Browser-autonom)
-   script += "<p><br><hr><br></p>\n";
-   script += "<p><a href=\"/?logout=1\"><button style=\"background-color:#707070;color:white;width:100%;max-width:600px;height:45px;font-size:16px;font-weight:bold;\">LOGOUT (Abmelden)</button></a></p>\n";
+   if (c3adc0.tFail>60 || c3adc0.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc0.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc0.sact;
+      script += "</th>";
+   }
+
+   if (c3adc1.tFail>60 || c3adc1.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc1.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc1.sact;
+      script += "</th>";
+   }
+
+   if (c3adc2.tFail>60 || c3adc2.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc2.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc2.sact;
+      script += "</th>";
+   }
+
+   if (c3adc3.tFail>60 || c3adc3.vmean<adcSoilMin) {
+      script += (String)"<td bgcolor='red'>";
+      script += (String)c3adc3.sact;
+      script += "</td>";
+   } else {
+      script += (String)"<th>";
+      script += (String)c3adc3.sact;
+      script += "</th>";
+   }
+
+   script += "</tr>";
+   script += "</tbody></table></h2>\n<br><br>\n";
 
    client.print(script);
 
-} // handleWebsite end
+   // Logout + footer
+   script = "";
+   script += htmlButton("Log Out", "logout", 70, 140);
+   
+   script += ver + " " + WiFi.localIP().toString() + " " + String(ssid) + " <br>\n";
+   script += "</body>\n</html>\n";
+   script += "<br>\n<br>\n";
+
+   client.print(script);
+   client.flush();
+
+   yield();
+   client.stop();
+
+} // Ende:  handleWebsite
 
 
-//============================================================================
-// ANFANG: ABSCHNITT F (Linker-Fix für basicAuthString)
-// Firmware-Basis: 090n / 091a
-//============================================================================
+
+
+
+
 
 //----------------------------------------------------------------------------
-String basicAuthString(String username, String password) {
-   String toEncode = username + ":" + password;
-   
-   const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-   String encoded = "";
-   int i = 0, j = 0;
-   unsigned char char_array_3[3]; // REPARIERT: Array-Größe hinzugefügt
-   unsigned char char_array_4[4]; // REPARIERT: Array-Größe hinzugefügt
-
-   for (unsigned int n = 0; n < toEncode.length(); n++) {
-      char_array_3[i++] = toEncode[n];
-      if (i == 3) {
-         char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-         char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-         char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-         char_array_4[3] = char_array_3[2] & 0x3f;
-
-         for (i = 0; i < 4; i++) encoded += base64_chars[char_array_4[i]];
-         i = 0;
-      }
-   }
-
-   if (i) {
-      for (j = i; j < 3; j++) char_array_3[j] = '\0';
-
-      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-      char_array_4[3] = char_array_3[2] & 0x3f;
-
-      for (j = 0; j < (i + 1); j++) encoded += base64_chars[char_array_4[j]];
-      while (i++ < 3) encoded += '=';
-   }
-
-   return encoded;
-} // Ende basicAuthString
-
-//============================================================================
-// ENDE: ABSCHNITT F
-//============================================================================
 
 
-//============================================================================
-// ENDE: ABSCHNITT E
-//============================================================================
 
-//============================================================================
-// ABSCHNITT F: es folgt wieder unveränderter vorheriger 090n-Code
-//============================================================================
+
+
+
+
+
+
+
 
 //----------------------------------------------------------------------------
 
@@ -2515,11 +2937,3 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
 
 
 */
-
-
-
-
-
-
-
-
