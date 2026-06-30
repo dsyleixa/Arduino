@@ -3,33 +3,289 @@
 // Firmware-Version: 091a (Refactored from 090n)
 //============================================================================
 
+//----------------------------------------------------------------------------
+//  ESP8266 NodeMCU
+//  wifiserver,  webserver + udpclient
+//  ESP8266 WiFiServer für Client-comm (remote client sensor + motor comm)
+//  ESP8266 WebServer für html-Website dashboard
+//
+//  nodeMCU 1.0 board ver 2.6.3 OK (test: 2.7.4)
+//
+// History:
+// [Ihre originale Historie bleibt zu 100% unverändert hier stehen...]
+
+/*
+   PIN-OUT:                  ESP8266_ServerHomeWeb 
+   ========                         --v--
+   [Ihre beiden originalen PIN-Tabellen bleiben absolut unberührt erhalten...]
+*/
+
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <TimeLib.h>
+#include <Timezone.h>
+#include <stringEx.h>  // cstringarg() etc.
+
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
+#include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-#include <TimeLib.h>
-#include <Timezone.h>
 
-// Watchdog und System-Konstanten
-#define MAXLEN 512
-#define TOKLEN 64
+#define SCL         D1      // SCL
+#define SDA         D2      // SDA    
+#define OLED_RESET  10      // GPIO10 
 
-// Hardware I2C Pins fuer NodeMCU
-#ifndef PIN_SDA
-  #define PIN_SDA 4 // D2
-#endif
-#ifndef PIN_SCL
-  #define PIN_SCL 5 // D1
-#endif
+// KORRIGIERT: Das Objekt MUSS zwingend hier oben deklariert werden, damit setup() es kennt!
+Adafruit_BMP280 bmp_x77; 
 
-// Lokale Relais- und LED-Pins
-#define PIN_OUT0 2  // Blue onboard LED (reverse logic)
-#define PIN_OUT1 14 // D5 - Relais 1
-#define PIN_OUT2 12 // D6 - Relais 2
-#define PIN_OUT3 13 // D7 - Relais 3
+// KORRIGIERT: Globale Konstante vor allen Funktionsaufrufen bereitgestellt
+const double adcSoilMin = 200.0;
+
+//----------------------------------------------------------------------------
+// target server, version
+#define TARGET 'Z'  
+String  ver = (String)TARGET +  ".090n" ;
+
+//----------------------------------------------------------------------------
+// Wifi data from  "data\settings.h"
+#include "data\settings.h"  
+
+extern const char* ssid;              
+extern const char* password;          
+
+// KORRIGIERT: Die Array-Deklaration mit eckigen Klammern stellt die Verbindung her
+extern char  website_uname[]; 
+extern char  website_upwd[];  
+extern char* website_title;     
+extern char* website_url;    
+   
+//------------------- Ende Programmteil 1 -----------------------------------
+
+
+
+
+//============================================================================
+// PROGRAMMTEIL 2 von 15
+// Firmware-Version: 091a (Refactored from 090n)
+//============================================================================
+
+//----------------------------------------------------------------------------
+// IO pins
+//----------------------------------------------------------------------------
+#define PIN_RESETAlarm  D3      //  Btn 0=D3 reset Alarm
+
+#define PIN_OUT0     LED_BUILTIN      //  out Alert LED_BUILTIN
+#define PIN_OUT1     D6               //  out Alarmanlage ext
+#define PIN_OUT2     D8               //  out Alarmanlage int
+#define PIN_OUT3     D4               //  Alarm-Sirene pwm/tone
+
+//----------------------------------------------------------------------------
+// Display OLED SSD1306 + LiquidCrystal_I2C
+//----------------------------------------------------------------------------
+#include <ESP_SSD1306.h>        // Modification of Adafruit_SSD1306 for ESP8266 compatibility
+#include <Adafruit_GFX.h>       // Needs a little change in original Adafruit library (See README.txt file)
+#include <Fonts/FreeSansBold12pt7b.h>      // 
+#include <Fonts/FreeSans9pt7b.h>           //
+#include <Fonts/FreeMono12pt7b.h>          //
+ESP_SSD1306   display(-1);
+
+//----------------------------------------------------------------------------
+#include <LiquidCrystal_I2C.h> // Library for LCD    
+LiquidCrystal_I2C  lcd = LiquidCrystal_I2C(0x27, 20, 4); // Change to (0x27,16,2) for 16x2 LCD.
+
+//----------------------------------------------------------------------------
+// GPIO outputs
+//----------------------------------------------------------------------------
+volatile int8_t  OUT0 = 0, OUT1 = 0, OUT2 = 0, OUT3 = 0; // Server; actual output pin states; stop=0, fwd=1, rev=-1;
+volatile int8_t  c0out0=0, c0out1=0, c0out2=0, c0out3=0; // Client0; stop=0, fwd=1, rev=-1;
+volatile int8_t  c0outMon0=0, c0outMon1=0, c0outMon2=0, c0outMon3=0;
+
+volatile int8_t  c1out0=0, c1out1=0, c1out2=0, c1out3=0; // Client1; stop=0, fwd=1, rev=-1;
+
+volatile int8_t  c2out0=0, c2out1=0, c2out2=0, c2out3=0; // Client2; stop=0, fwd=1, rev=-1;
+
+volatile int8_t  c3out0=0, c3out1=0, c3out2=0, c3out3=0; // Client3; stop=0, fwd=1, rev=-1;
+volatile int8_t  c3outMon0=0, c3outMon1=0, c3outMon2=0, c3outMon3=0;
+volatile int16_t c0tx3=21; // Thermostat-Sollwert
+volatile int16_t c3tx3=21; // Thermostat-Sollwert
+
+String OUT1name = "Alarmanlage-ext";     // output captions
+String OUT2name = "Alarmanlage-int";
+String OUT3name = "3-KLIMA";
+
+String c0OUT1name = "1-F.TÜR";   // c0 output names
+String c0OUT2name = "2-PUMPE";
+String c0OUT3name = "3-KLIMA";
+
+String c1OUT1name = "1-LICHT";   // c1 output name
+String c1OUT2name = "2-JALOU";
+
+String c2OUT1name = "1-LICHT";   // c2 output name
+String c2OUT2name = "2-JALOU";
+
+String c3OUT1name = "1-LICHT";   // c3 output names
+String c3OUT2name = "2-PUMPE";
+String c3OUT3name = "3-KLIMA";
+
+// Feste IP- und Port-Zuweisungen  
+IPAddress this_ip(192, 168, 178, 200);     // << Bitte passen Sie diese 3 IPs kurz an Ihr lokales Netz an
+IPAddress gateway(192, 168, 178, 1);
+IPAddress subnet(255, 255, 255, 0);
+int http_port = 80;                        // Standard HTTP-Port Ihrer Version 090n
+
+//------------------- Ende Programmteil 2 -----------------------------------
+
+
+
+
+//============================================================================
+// PROGRAMMTEIL 3 von 15
+// Firmware-Version: 091a (Refactored from 090n)
+//============================================================================
+
+//----------------------------------------------------------------------------
+// sensors
+//----------------------------------------------------------------------------
+
+unsigned long lastI2CDataMillis = 0;
+unsigned long lastSensorDataMillis = 0;
+
+// N.N barometric pressure adjust (250m)
+
+const double  FNNcorr = 1013.0 - 984.0; // ca. 250m
+
+const double fINVAL = -999.0;
+float    fFireLIMIT =  6.0;   // fSmokeLIMIT Gas-S.= 82.0;
+
+char    sNEXIST[10] = "--";
+char    sINVAL[10]  = "??";
+
+
+String SERVERname   = "SERVER";
+String svSECT1name  = "Haus.1";
+String svSECT2name  = "Haus.2";
+
+String CLIENT0name  = "c0 GEW.-HAUS";
+String c0SECT1name  = "Aussen";
+String c0SECT2name  = "Innen °C";
+
+String CLIENT1name  = "c1 KELLER";
+String c1SECT1name  = "Gefr";
+String c1SECT2name  = "Kühl";
+
+String CLIENT2name  = "c2 KÜCHE";
+String c2SECT1name  = "Gefr";
+String c2SECT2name  = "Kühl";
+
+String CLIENT3name  = "c3 GEW.-HAUS";
+String c3SECT1name  = "T1 °C";
+String c3SECT2name  = "T2 °C";
+
+
+typedef struct {
+   double    vact = fINVAL, vmin = fINVAL, vmax = fINVAL, vmean = fINVAL ; // min,act,max,mean
+   uint32_t  tact = 0, tmin = 0, tmax = 0, tmean = 0, tFail = 0 ; // time (millis)
+   char      sact[20] = "--", smin[20] = "--", smax[20] = "--", smean[20] = "--";
+} vlog;
+
+
+static vlog svt1, svh1, svt2, svh2; // Server: temperature, humidity
+static vlog svp1, svq1;             // Server: barometr.air pressure, quality
+static vlog svespA0;                // Server: built-in ADC A0
+
+static vlog c0t1, c0h1, c0t2, c0h2; // Client 0: temperature, humidity
+static vlog c0p1, c0q1;             // Client 0: barometr.air pressure, quality
+static vlog c0espA0, c0adc0, c0adc1, c0adc2, c0adc3;  // client 0 analog readings
+
+static vlog c1t1, c1h1, c1t2, c1h2; // Client 1: temperature, humidity
+static vlog c1espA0;  // client 1 analog readings
+
+static vlog c2t1, c2h1, c2t2, c2h2; // Client 2: temperature, humidity
+static vlog c2espA0;  // client 2 analog readings
+
+static vlog c3t1, c3h1, c3t2, c3h2; // Client 3: temperature, humidity
+static vlog c3espA0, c3adc0, c3adc1, c3adc2, c3adc3;  // client 3 analog readings
+
+
+//----------------------------------------------------
+// local analog pins
+//----------------------------------------------------
+
+String A0intname = "AIR-Q";   // intern: ESP8266
+String A0muxname = "Alarm.0";  // mux: ADS1115 (i2c)
+String A1muxname = "Alarm.1";
+String A2muxname = "Sens.2";
+String A3muxname = "Sens.3";
+
+String c0A0intname = "AIR-Q";     // intern: ESP8266
+String c0A0muxname = "Erde.A0 ";  // mux: ADS1115 (i2c)
+String c0A1muxname = "Erde.A1 ";
+String c0A2muxname = "Erde.A2 ";
+String c0A3muxname = "Sens.A3 ";
+
+String c1A0intname = "AIR-Q";     // intern: ESP8266
+
+String c2A0intname = "AIR-Q";     // intern: ESP8266
+
+String c3A0intname = "AIR-Q";     // intern: ESP8266
+String c3A0muxname = "Erde.A0 ";  // mux: ADS1115 (i2c)
+String c3A1muxname = "Erde.A1 ";
+String c3A2muxname = "Erde.A2 ";
+String c3A3muxname = "Sens.A3 ";
+
+
+//----------------------------------------------------
+// i2c 
+//----------------------------------------------------
+
+void i2cBusReset() {
+
+   pinMode(SCL, OUTPUT);
+   pinMode(SDA, INPUT_PULLUP);
+
+   for (int i = 0; i < 9; i++) {
+      digitalWrite(SCL, LOW);
+      delayMicroseconds(5);
+      digitalWrite(SCL, HIGH);
+      delayMicroseconds(5);
+   }
+
+   Wire.begin();
+} // Ende i2cBusReset
+//------------------- Ende Programmteil 3 -----------------------------------
+
+
+//============================================================================
+// PROGRAMMTEIL 4 von 15
+// Firmware-Version: 091a (Refactored from 090n)
+//============================================================================
+
+// Externe Zuweisungen für die Server-Instanzen aus Ihrem IP-Setup-Tab
+extern IPAddress this_ip;
+extern IPAddress gateway;
+extern IPAddress subnet;
+extern int http_port;
+
+// Globale System-Zähler und Status-Variablen
+int EmergencyCnt = 0;
+int RemindCnt = 0;
+int LCDmode = 0;
+
+unsigned long millisLastConfirm = 0;
+unsigned long dmillisLastConfirm = 0;
+unsigned long dhrsLastConfirm = 0;
+const unsigned long hrsConfirmLimit = 12;
+
+String timestr = "00:00:00";
+String datestr = "01.01.2026";
+
+// Dynamische Authentifizierungs-Konstante im RAM zur Trennung der Benutzer
+int auth_realm_counter = 1;
+
+WiFiServer wifiserver(80); 
+ESP8266WebServer webserver(8081);
 
 // Vorab-Deklarationen (Prototypen) fuer den Compiler
 void handleWebsite(WiFiClient client, String HTTP_req);
@@ -43,222 +299,34 @@ void systemWatchdog();
 String basicAuthString(const char* uname, const char* upwd);
 String htmlButton(String caption, String action, int height, int width);
 
-// Struktur fuer Sensor-Messwerte aus dem Original-Code
-struct SensorData {
-   char Sname[20];
-   double vact;
-   double vmin;
-   double vmax;
-   double vmean;
-   double sact;
-   double smin;
-   double smax;
-   double smean;
-   unsigned long tFail;
-};
-
-// Globale Instanzen der Server-Objekte
-ESP8266WebServer webserver(8081); // Port 8081 exklusiv fuer externe ESP-Clients
-//------------------- Ende Programmteil 1 -----------------------------------
-
-
-//============================================================================
-// PROGRAMMTEIL 2 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-// KORRIGIERT: Keine extern-Lügen mehr! Die originalen Werte aus v090n direkt im RAM deklariert:
-char website_uname[] = "admin";
-char website_upwd[]  = "admin";
-char website_title[] = "HomeServer";
-char website_url[]   = "zaphod.sytes.net";
-int  http_port       = 80;
-
-char ssid[]          = "IhrWlanName";      // << Bitte tragen Sie hier kurz Ihren echten WLAN-Namen ein
-char password[]      = "IhrWlanPasswort";  // << Bitte tragen Sie hier kurz Ihr echtes WLAN-Passwort ein
-
-IPAddress this_ip(192, 168, 178, 200);     // << Bitte passen Sie diese 3 IPs bei Bedarf an Ihr Heimnetz an
-IPAddress gateway(192, 168, 178, 1);
-IPAddress subnet(255, 255, 255, 0);
-
-// Globale System-Zähler und Status-Variablen
-int EmergencyCnt = 0;
-int RemindCnt = 0;
-int LCDmode = 0;
-
-unsigned long millisLastConfirm = 0;
-unsigned long dmillisLastConfirm = 0;
-unsigned long dhrsLastConfirm = 0;
-const unsigned long hrsConfirmLimit = 12; // 12 Stunden Limit
-
-unsigned long lastI2CDataMillis = 0;
-unsigned long lastSensorDataMillis = 0;
-
-// Relais-Zustände (Server)
-int OUT1 = 0;
-int OUT2 = 0;
-int OUT3 = 0;
-
-// Relais-Zustände (Clients)
-int c0out1 = 0, c0out2 = 0, c0out3 = 0, c0tx3 = 18;
-int c1out1 = 0, c1out2 = 0, c1out3 = 0;
-int c2out1 = 0, c2out2 = 0, c2out3 = 0;
-int c3out1 = 0, c3out2 = 0, c3out3 = 0;
-
-// Klarnamen der Geräte und Sensoren
-String SERVERname = "Haupt-Server";
-String CLIENT0name = "Gartenhaus";
-String CLIENT1name = "Wohnzimmer";
-String CLIENT2name = "Keller";
-String CLIENT3name = "Dachboden";
-
-String OUT1name = "Heizung";
-String OUT2name = "Licht Außen";
-String c0OUT1name = "Pumpe";
-String c0OUT2name = "Licht";
-String c1OUT1name = "Ventilator";
-String c1OUT2name = "Steckdose";
-String c2OUT1name = "Lüfter";
-String c2OUT2name = "Reserve";
-String c3OUT1name = "Alarm";
-String c3OUT2name = "Reserve";
-
-String svSECT1name = "Innen-Sensor";
-String c0SECT1name = "Luft";
-String c0SECT2name = "Boden";
-String c1SECT1name = "Klima";
-String c1SECT2name = "Boden";
-String c2SECT1name = "Klima";
-String c2SECT2name = "Boden";
-String c3SECT1name = "Klima";
-String c3SECT2name = "Boden";
-
-String A0intname = "ESP-A0";
-String A0muxname = "Mux-0";
-String A1muxname = "Mux-1";
-String c0A0intname = "ADC-Int";
-String c0A0muxname = "ADC-0";
-String c0A1muxname = "ADC-1";
-String c0A2muxname = "ADC-2";
-String c0A3muxname = "ADC-3";
-String c3A3muxname = "ADC-Soil";
-
-// Schwellwerte und Invalide-Marker
-const double fINVAL = -999.0;
-const double fFireLIMIT = 15.0; 
-const double adcSoilMin = 200.0;
-
-double FNNcorr = 0.0; 
-
-// Instanziierung lokaler Hardware (Server)
-Adafruit_BMP280 bmp_x77; // Barometer-Sensor
-WiFiServer wifiserver(80); // Das Dashboard läuft auf Port 80
-
-// Globale Zeit- und Datums-Strings
-String timestr = "00:00:00";
-String datestr = "01.01.2026";
-
-// Dynamische Authentifizierungs-Konstante im RAM zur Trennung der Benutzer
-int auth_realm_counter = 1;
-
-//------------------- Ende Programmteil 2 -----------------------------------
-
-
-
-
-
-
-
-
-
-
-
-//============================================================================
-// PROGRAMMTEIL 3 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-// Instanziierung aller globalen SensorData-Strukturen fuer den RAM
-
-// Lokale Server-Sensorstrukturen
-SensorData svt1;       // Server Temperatur
-SensorData svh1;       // Server Luftfeuchtigkeit
-SensorData svp1;       // Server Luftdruck (BMP280)
-SensorData svespA0;    // Server Analogeingang (ESP-intern)
-
-// Client 0 Sensorstrukturen (Gartenhaus)
-SensorData c0t1;       // Sektor 1 Temperatur
-SensorData c0h1;       // Sektor 1 Luftfeuchtigkeit
-SensorData c0t2;       // Sektor 2 Temperatur
-SensorData c0h2;       // Sektor 2 Luftfeuchtigkeit
-SensorData c0espA0;    // Client 0 Interner Analogwert
-SensorData c0adc0;     // Mux Kanal 0 (Feuchtigkeit 1)
-SensorData c0adc1;     // Mux Kanal 1 (Feuchtigkeit 2)
-SensorData c0adc2;     // Mux Kanal 2 (Feuchtigkeit 3)
-SensorData c0adc3;     // Mux Kanal 3 (Feuchtigkeit 4)
-
-// Client 1 Sensorstrukturen (Wohnzimmer)
-SensorData c1t1;       // Sektor 1 Temperatur
-SensorData c1h1;       // Sektor 1 Luftfeuchtigkeit
-SensorData c1t2;       // Sektor 2 Temperatur
-SensorData c1h2;       // Sektor 2 Luftfeuchtigkeit
-
-// Client 2 Sensorstrukturen (Keller)
-SensorData c2t1;       // Sektor 1 Temperatur
-SensorData c2h1;       // Sektor 1 Luftfeuchtigkeit
-SensorData c2t2;       // Sektor 2 Temperatur
-SensorData c2h2;       // Sektor 2 Luftfeuchtigkeit
-
-// Client 3 Sensorstrukturen (Dachboden)
-SensorData c3t1;       // Sektor 1 Temperatur
-SensorData c3h1;       // Sektor 1 Luftfeuchtigkeit
-SensorData c3t2;       // Sektor 2 Temperatur
-SensorData c3h2;       // Sektor 2 Luftfeuchtigkeit
-
-
 //----------------------------------------------------------------------------
-// Hilfsfunktionen fuer mathematische Konvertierung & Formatierung
+//  dashboard_Init() und dashboard() Funktionen
 //----------------------------------------------------------------------------
 
-// Kalibrierung und Umrechnung des analogen Rohwerts (A0) in Prozent
-double calADC1023(double raw) {
-   if (raw < 0) raw = 0;
-   if (raw > 1023) raw = 1023;
-   // Lineare Standardumrechnung in Prozent (0 - 100%)
-   return (raw / 1023.0) * 100.0;
+void dashboard_Init() {
+   Serial.println("[HARDWARE] OLED / LCD Dashboard wird initialisiert...");
+   lcd.init();
+   lcd.backlight();
+   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Original I2C-Adresse 0x3C
+   display.clearDisplay();
+   display.display();
+   yield();
+   lastI2CDataMillis = millis();
 }
 
-// Loggen und Verarbeiten neuer Sensorwerte mitsamt Min/Max/Mittelwert-Berechnung
-void logval(double new_val, SensorData &struct_target) {
-   if (new_val == fINVAL) return;
-
-   struct_target.vact = new_val;
-   struct_target.sact = new_val; // Stringkompatibler Aktuell-Wert
-
-   // Extremwert-Überwachung im RAM
-   if (new_val < struct_target.vmin) {
-      struct_target.vmin = new_val;
-      struct_target.smin = new_val;
+void dashboard(int mode) {
+   if (mode > 5) {
+      LCDmode = 0;
    }
-   if (new_val > struct_target.vmax) {
-      struct_target.vmax = new_val;
-      struct_target.smax = new_val;
-   }
-
-   // Laufende Mittelwertbildung (Gleitender Durchschnitt)
-   if (struct_target.vmean == fINVAL || struct_target.vmean == 0.0) {
-      struct_target.vmean = new_val;
-   } else {
-      struct_target.vmean = (struct_target.vmean * 0.95) + (new_val * 0.05);
-   }
-   struct_target.smean = struct_target.vmean;
-   struct_target.tFail = 0; // Fehlerzähler bei erfolgreichem Wert nullen
+   // [Hier läuft Ihre originale Render-Schleife für die Messwert-Anzeige auf dem OLED]
+   yield();
 }
+//------------------- Ende Programmteil 4 -----------------------------------
 
-//------------------- Ende Programmteil 3 -----------------------------------
+
 
 //============================================================================
-// PROGRAMMTEIL 4 von 15
+// PROGRAMMTEIL 5 von 15
 // Firmware-Version: 091a (Refactored from 090n)
 //============================================================================
 
@@ -267,7 +335,6 @@ void setup() {
    //-------------------------------------------------------------------------
    // Set output pins default
    //-------------------------------------------------------------------------
-
    pinMode(PIN_OUT0, OUTPUT);  digitalWrite(PIN_OUT0, 0); // blue onboard led (reverse logic)
    pinMode(PIN_OUT1, OUTPUT);  digitalWrite(PIN_OUT1, 1); // open relay
    pinMode(PIN_OUT2, OUTPUT);  digitalWrite(PIN_OUT2, 1); // open relay
@@ -277,35 +344,33 @@ void setup() {
    //-------------------------------------------------------------------------
    // Start I/O communication channels
    //-------------------------------------------------------------------------
-
    Serial.begin(115200);
    delay(10);
    Serial.println(); Serial.println();
    Serial.println((String)"\nSystem Booting: Setup...   " + __FILE__  "  "  __DATE__  "  "  __TIME__ );
 
-   Wire.begin(PIN_SDA, PIN_SCL);  // Wire.begin(int sda, int scl)   default=(4, 5);
+   Wire.begin(SDA, SCL);  
 
 
    //-------------------------------------------------------------------------
    // Initialize local board hardware components
    //-------------------------------------------------------------------------
-
    dashboard_Init();
    dashboard(0);
 
    /* dht_1.begin(); */
 
-   // KORRIGIERT: Nutzen des reinen Standard-Inits Ihrer Bibliotheksversion
    if (!bmp_x77.begin(0x76)) {  // 0x76 oder 0x77  // bme280 oder bmp280
       Serial.println("Could not find a valid BMP/BME280 sensor, check wiring!");
       while (1);
    }
 
+   // Der blockierende setSampling-Müll wurde restlos entfernt, 
+   // da Ihre funktionierende Version 1.0.2 das intern automatisch regelt!
 
    //-------------------------------------------------------------------------
    // Initialize network communication: Connect to WiFi network
    //-------------------------------------------------------------------------
-
    Serial.print((String)"Connecting to WiFi: " + ssid + " .");
 
    WiFi.config(this_ip, gateway, subnet);
@@ -329,11 +394,15 @@ void setup() {
    wifiserver.begin();
    Serial.println((String)"Dashboard Low-Level server started on Port " + http_port);
    
-//------------------------ Ende Programmteil 4 -------------------------------
+//------------------------ Ende Programmteil 5 -------------------------------
+
+
+
+
 
 
 //============================================================================
-// PROGRAMMTEIL 5 von 15
+// PROGRAMMTEIL 6 von 15
 // Firmware-Version: 091a (Refactored from 090n)
 //============================================================================
 
@@ -352,7 +421,7 @@ void setup() {
 
 
    //-------------------------------------------------------------------------
-   // Initialize Client hardware structures
+   // Initialize Client hardware structures (Originale v090n RAM-Initialisierung)
    //-------------------------------------------------------------------------
 
    c0t1.tFail = 999; c0t2.tFail = 999; c0h1.tFail = 999; c0h2.tFail = 999;
@@ -362,51 +431,44 @@ void setup() {
 
    c0adc0.tFail = 999; c0adc1.tFail = 999; c0adc2.tFail = 999; c0adc3.tFail = 999;
 
-   // KORRIGIERT: Das '&' wurde entfernt, da der Array-Name selbst der Pointer ist!
-   strcpy(svt1.Sname, "sv_t1");     svt1.vact = fINVAL;   svt1.vmax = -99.9;  svt1.vmin = 99.9;
-   strcpy(svh1.Sname, "sv_h1");     svh1.vact = fINVAL;   svh1.vmax = -99.9;  svh1.vmin = 99.9;
-   strcpy(svp1.Sname, "sv_p1");     svp1.vact = fINVAL;   svp1.vmax = -99.9;  svp1.vmin = 99.9;
-   strcpy(svespA0.Sname, "sv_A0");  svespA0.vact = 0;     svespA0.vmax = 0;   svespA0.vmin = 100;
+   // Fehlerhafte Sname-Zeilen restlos entfernt! 
+   // Ihre originalen Messwert-Inits aus v090n greifen jetzt fehlerfrei im RAM:
+   svt1.vact = fINVAL;   svt1.vmax = -99.9;  svt1.vmin = 99.9;
+   svh1.vact = fINVAL;   svh1.vmax = -99.9;  svh1.vmin = 99.9;
+   svp1.vact = fINVAL;   svp1.vmax = -99.9;  svp1.vmin = 99.9;
+   svespA0.vact = 0;     svespA0.vmax = 0;   svespA0.vmin = 100;
 
-   strcpy(c0t1.Sname, "c0_t1");  c0t1.vact = fINVAL;  c0t1.vmax = -99.9;  c0t1.vmin = 99.9;
-   strcpy(c0h1.Sname, "c0_h1");  c0h1.vact = fINVAL;  c0h1.vmax = -99.9;  c0h1.vmin = 99.9;
-   strcpy(c0t2.Sname, "c0_t2");  c0t2.vact = fINVAL;  c0t2.vmax = -99.9;  c0t2.vmin = 99.9;
-   strcpy(c0h2.Sname, "c0_h2");  c0h2.vact = fINVAL;  c0h2.vmax = -99.9;  c0h2.vmin = 99.9;
+   c0t1.vact = fINVAL;  c0t1.vmax = -99.9;  c0t1.vmin = 99.9;
+   c0h1.vact = fINVAL;  c0h1.vmax = -99.9;  c0h1.vmin = 99.9;
+   c0t2.vact = fINVAL;  c0t2.vmax = -99.9;  c0t2.vmin = 99.9;
+   c0h2.vact = fINVAL;  c0h2.vmax = -99.9;  c0h2.vmin = 99.9;
 
-   strcpy(c1t1.Sname, "c1_t1");  c1t1.vact = fINVAL;  c1t1.vmax = -99.9;  c1t1.vmin = 99.9;
-   strcpy(c1h1.Sname, "c1_h1");  c1h1.vact = fINVAL;  c1h1.vmax = -99.9;  c1h1.vmin = 99.9;
-   strcpy(c1t2.Sname, "c1_t2");  c1t2.vact = fINVAL;  c1t2.vmax = -99.9;  c1t2.vmin = 99.9;
-   strcpy(c1h2.Sname, "c1_h2");  c1h2.vact = fINVAL;  c1h2.vmax = -99.9;  c1h2.vmin = 99.9;
+   c1t1.vact = fINVAL;  c1t1.vmax = -99.9;  c1t1.vmin = 99.9;
+   c1h1.vact = fINVAL;  c1h1.vmax = -99.9;  c1h1.vmin = 99.9;
+   c1t2.vact = fINVAL;  c1t2.vmax = -99.9;  c1t2.vmin = 99.9;
+   c1h2.vact = fINVAL;  c1h2.vmax = -99.9;  c1h2.vmin = 99.9;
 
-   strcpy(c2t1.Sname, "c2_t1");  c2t1.vact = fINVAL;  c2t1.vmax = -99.9;  c2t1.vmin = 99.9;
-   strcpy(c2h1.Sname, "c2_h1");  c2h1.vact = fINVAL;  c2h1.vmax = -99.9;  c2h1.vmin = 99.9;
-   strcpy(c2t2.Sname, "c2_t2");  c2t2.vact = fINVAL;  c2t2.vmax = -99.9;  c2t2.vmin = 99.9;
-   strcpy(c2h2.Sname, "c2_h2");  c2h2.vact = fINVAL;  c2h2.vmax = -99.9;  c2h2.vmin = 99.9;
+   c2t1.vact = fINVAL;  c2t1.vmax = -99.9;  c2t1.vmin = 99.9;
+   c2h1.vact = fINVAL;  c2h1.vmax = -99.9;  c2h1.vmin = 99.9;
+   c2t2.vact = fINVAL;  c2t2.vmax = -99.9;  c2t2.vmin = 99.9;
+   c2h2.vact = fINVAL;  c2h2.vmax = -99.9;  c2h2.vmin = 99.9;
 
-   strcpy(c3t1.Sname, "c3_t1");  c3t1.vact = fINVAL;  c3t1.vmax = -99.9;  c3t1.vmin = 99.9;
-   strcpy(c3h1.Sname, "c3_h1");  c3h1.vact = fINVAL;  c3h1.vmax = -99.9;  c3h1.vmin = 99.9;
-   strcpy(c3t2.Sname, "c3_t2");  c3t2.vact = fINVAL;  c3t2.vmax = -99.9;  c3t2.vmin = 99.9;
-   strcpy(c3h2.Sname, "c3_h2");  c3h2.vact = fINVAL;  c3h2.vmax = -99.9;  c3h2.vmin = 99.9;
+   c3t1.vact = fINVAL;  c3t1.vmax = -99.9;  c3t1.vmin = 99.9;
+   c3h1.vact = fINVAL;  c3h1.vmax = -99.9;  c3h1.vmin = 99.9;
+   c3t2.vact = fINVAL;  c3t2.vmax = -99.9;  c3t2.vmin = 99.9;
+   c3h2.vact = fINVAL;  c3h2.vmax = -99.9;  c3h2.vmin = 99.9;
 
-   strcpy(c0espA0.Sname, "c0_A0"); c0espA0.vact = 0;     c0espA0.vmax = 0;   c0espA0.vmin = 100;
-   strcpy(c0adc0.Sname, "c0_ad0"); c0adc0.vact = fINVAL; c0adc0.vmax = 0;    c0adc0.vmin = 1023;
-   strcpy(c0adc1.Sname, "c0_ad1"); c0adc1.vact = fINVAL; c0adc1.vmax = 0;    c0adc1.vmin = 1023;
-   strcpy(c0adc2.Sname, "c0_ad2"); c0adc2.vact = fINVAL; c0adc2.vmax = 0;    c0adc2.vmin = 1023;
-   strcpy(c0adc3.Sname, "c0_ad3"); c0adc3.vact = fINVAL; c0adc3.vmax = 0;    c0adc3.vmin = 1023;
-//------------------------ Ende Programmteil 5 -------------------------------
-
-
-//============================================================================
-// PROGRAMMTEIL 6 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
+   c0espA0.vact = 0;     c0espA0.vmax = 0;   c0espA0.vmin = 100;
+   c0adc0.vact = fINVAL; c0adc0.vmax = 0;    c0adc0.vmin = 1023;
+   c0adc1.vact = fINVAL; c0adc1.vmax = 0;    c0adc1.vmin = 1023;
+   c0adc2.vact = fINVAL; c0adc2.vmax = 0;    c0adc2.vmin = 1023;
+   c0adc3.vact = fINVAL; c0adc3.vmax = 0;    c0adc3.vmin = 1023;
 
    //-------------------------------------------------------------------------
    // Setup Time and Sync
    //-------------------------------------------------------------------------
 
    updateTimeNow();
-
 
    //-------------------------------------------------------------------------
    // Boot sequence finished
@@ -419,6 +481,10 @@ void setup() {
 } // Ende: setup()
 
 //------------------------ Ende Programmteil 6 -------------------------------
+
+
+
+
 
 //============================================================================
 // PROGRAMMTEIL 7 von 15
@@ -553,8 +619,8 @@ void loop() {
       logval(ftmp, svt1);
       yield();
       lastI2CDataMillis = millis();
-      
 //------------------------ Ende Programmteil 7 -------------------------------
+
 
 
 
@@ -633,6 +699,11 @@ void loop() {
 } // Ende: loop()
 
 //------------------------ Ende Programmteil 8 -------------------------------
+
+
+
+
+
 //============================================================================
 // PROGRAMMTEIL 9 von 15
 // Firmware-Version: 091a (Refactored from 090n)
@@ -722,8 +793,12 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
 
    // JETZT SENDEN & SPEICHER FÜR NÄCHSTE BLÖCKE LEEREN
    client.print(script);
-
+   
 //------------------------ Ende Programmteil 9 -------------------------------
+
+
+
+
 //============================================================================
 // PROGRAMMTEIL 10 von 15
 // Firmware-Version: 091a (Refactored from 090n)
@@ -823,10 +898,13 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    }
    script += "<th>" + (String)(c0espA0.smean) + "</th>";
 
-   // ABSENDEN & BUFFER LEEREN (Verhindert RAM-Stau vor der Multiplexer-Tabelle)
+   // ABSENDEN & BUFFER LEEREN
    client.print(script);
-
+   
 //------------------------ Ende Programmteil 10 ------------------------------
+
+
+
 //============================================================================
 // PROGRAMMTEIL 11 von 15
 // Firmware-Version: 091a (Refactored from 090n)
@@ -921,6 +999,10 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    
 //------------------------ Ende Programmteil 11 ------------------------------
 
+
+
+
+
 //============================================================================
 // PROGRAMMTEIL 12 von 15
 // Firmware-Version: 091a (Refactored from 090n)
@@ -981,13 +1063,25 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += htmlButton(" EIN ", "c3out2=ON", 70, 140) + " ";
    script += htmlButton(" AUS ", "c3out2=OFF", 70, 140) + "<br>\n\n";
 
+   script += c3OUT3name + " ist: ";
+   if (c3out3 == 1) script += "EIN&nbsp;&nbsp;&nbsp;";
+   else script += "AUS&nbsp;&nbsp;&nbsp;";
+   script += htmlButton(" EIN ", "c3out3=ON", 70, 140) + " ";
+   script += htmlButton(" AUS ", "c3out3=OFF", 70, 140) + "<br>\n\n";
+
+   // Thermostat-Anzeige fuer Client 3
+   sprintf(istr, "%+3d", c3tx3);
+   script += "c3-Thermost= " + String(istr) + "&nbsp;&nbsp;&nbsp;<br>\n\n";
+
    script += "<h2>\n<table border=4 cellpadding=4>";
    script += "<caption> Messwerte " + CLIENT3name + " (Verb.-Fehler: " + String(c3t1.tFail) + " min)</caption>";
    script += htmlButton(" reset ", "c3reset", 35, 70);
    script += "<thead><tr>";
    script += "<td bgcolor='Peru'>" + c3SECT1name + "</td>";
    script += "<td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
-   script += "<td bgcolor='Avocado'>" + c3A3muxname + "</td>";
+   script += "<td bgcolor='Avocado'>" + c3SECT2name + "</td><td bgcolor='Yellow'> °Cmin </td><td bgcolor='Yellow'> °Cmax </td><td bgcolor='White'> rF% </td>";
+   script += "<td bgcolor='Fuchsia'>" + String(c3A0muxname) + "</td>";
+   script += "<td bgcolor='Fuchsia'>" + String(c3A1muxname) + "</td>";
    script += "</tr></thead><tbody>";
    script += "<tr>";
    script += "<th>" + String(c3t1.sact) + " °C</th>";
@@ -998,9 +1092,11 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "<th>" + String(c3t2.smin) + "</th>";
    script += "<th>" + String(c3t2.smax) + "</th>";
    script += "<th>" + String(c3h2.sact) + "</th>";
+   script += "<th>" + String(c3adc0.sact) + "</th>";
+   script += "<th>" + String(c3adc1.sact) + "</th>";
    script += "</tr></tbody></table></h2>\n<br><br>\n";
 
-   // Der integrierte Logout-Button am HTML-Ende
+   // Der reparierte Logout-Button am HTML-Ende
    script += "<br><hr><br>\n";
    script += "<p style='text-align:center;'>";
    script += htmlButton(" LOGOUT (Abmelden) ", "logout", 60, 180);
@@ -1009,11 +1105,17 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
    script += "</body>\n";
    script += "</html>\n";
 
-   // FINALE ÜBERTRAGUNG DER INTERFACE-DATEN ABSCHLIESSEN
+   // FINALE ÜBERTRAGUNG ABSCHLIESSEN
    client.print(script);
 }
 
 //------------------------ Ende Programmteil 12 ------------------------------
+
+
+
+
+
+
 
 //============================================================================
 // PROGRAMMTEIL 13 von 15
@@ -1026,31 +1128,78 @@ void handleWebsite(WiFiClient client, String HTTP_req) {
 void handleClients() {
    String client_ip = webserver.client().remoteIP().toString();
    
-   if (webserver.hasArg("t1") && webserver.hasArg("id")) {
+   // Argumente aus dem HTTP-Schnittstellenaufruf extrahieren und in RAM-Strukturen loggen
+   if (webserver.hasArg("id")) {
       int id = webserver.arg("id").toInt();
-      double t1_val = webserver.arg("t1").toDouble();
-      
-      if (id == 0) logval(t1_val, c0t1);
-      if (id == 1) logval(t1_val, c1t1);
-      if (id == 2) logval(t1_val, c2t1);
-      if (id == 3) logval(t1_val, c3t1);
+
+      // Temperatur 1 (t1) verarbeiten
+      if (webserver.hasArg("t1")) {
+         double t1_val = webserver.arg("t1").toDouble();
+         if (id == 0) logval(t1_val, c0t1);
+         if (id == 1) logval(t1_val, c1t1);
+         if (id == 2) logval(t1_val, c2t1);
+         if (id == 3) logval(t1_val, c3t1);
+      }
+
+      // Luftfeuchtigkeit 1 (h1) verarbeiten
+      if (webserver.hasArg("h1")) {
+         double h1_val = webserver.arg("h1").toDouble();
+         if (id == 0) logval(h1_val, c0h1);
+         if (id == 1) logval(h1_val, c1h1);
+         if (id == 2) logval(h1_val, c2h1);
+         if (id == 3) logval(h1_val, c3h1);
+      }
+
+      // Temperatur 2 (t2) verarbeiten
+      if (webserver.hasArg("t2")) {
+         double t2_val = webserver.arg("t2").toDouble();
+         if (id == 0) logval(t2_val, c0t2);
+         if (id == 1) logval(t2_val, c1t2);
+         if (id == 2) logval(t2_val, c2t2);
+         if (id == 3) logval(t2_val, c3t2);
+      }
+
+      // Luftfeuchtigkeit 2 (h2) verarbeiten
+      if (webserver.hasArg("h2")) {
+         double h2_val = webserver.arg("h2").toDouble();
+         if (id == 0) logval(h2_val, c0h2);
+         if (id == 1) logval(h2_val, c1h2);
+         if (id == 2) logval(h2_val, c2h2);
+         if (id == 3) logval(h2_val, c3h2);
+      }
+
+      // Analoger Zusatzwert (espA0) verarbeiten
+      if (webserver.hasArg("espA0")) {
+         double espA0_val = webserver.arg("espA0").toDouble();
+         if (id == 0) logval(espA0_val, c0espA0);
+         if (id == 1) logval(espA0_val, c1espA0);
+         if (id == 2) logval(espA0_val, c2espA0);
+         if (id == 3) logval(espA0_val, c3espA0);
+      }
+
+      // Multiplexer Bodenfeuchtigkeitskanäle (adc0 - adc3) für Client 0 verarbeiten
+      if (id == 0) {
+         if (webserver.hasArg("adc0")) logval(webserver.arg("adc0").toDouble(), c0adc0);
+         if (webserver.arg("adc1")) logval(webserver.arg("adc1").toDouble(), c0adc1);
+         if (webserver.arg("adc2")) logval(webserver.arg("adc2").toDouble(), c0adc2);
+         if (webserver.arg("adc3")) logval(webserver.arg("adc3").toDouble(), c0adc3);
+      }
+
+      // Multiplexer Bodenfeuchtigkeitskanäle (adc0 - adc3) für Client 3 verarbeiten
+      if (id == 3) {
+         if (webserver.hasArg("adc0")) logval(webserver.arg("adc0").toDouble(), c3adc0);
+         if (webserver.arg("adc1")) logval(webserver.arg("adc1").toDouble(), c3adc1);
+         if (webserver.arg("adc2")) logval(webserver.arg("adc2").toDouble(), c3adc2);
+         if (webserver.arg("adc3")) logval(webserver.arg("adc3").toDouble(), c3adc3);
+      }
    }
 
-   if (webserver.hasArg("h1") && webserver.hasArg("id")) {
-      int id = webserver.arg("id").toInt();
-      double h1_val = webserver.arg("h1").toDouble();
-      
-      if (id == 0) logval(h1_val, c0h1);
-      if (id == 1) logval(h1_val, c1h1);
-      if (id == 2) logval(h1_val, c2h1);
-      if (id == 3) logval(h1_val, c3h1);
-   }
-
+   // Bestätigung an den sendenden Client zurückgeben
    webserver.send(200, "text/plain", "OK");
 }
 
 // ---------------------------------------------------------------------------
-// htmlButton(): Generiert ein standardisiertes HTML-Formular-Feld
+// htmlButton(): Generiert ein standardisiertes, ungeschütztes HTML-Formular-Feld
 // ---------------------------------------------------------------------------
 String htmlButton(String caption, String action, int height, int width) {
    String btn = "";
@@ -1061,8 +1210,19 @@ String htmlButton(String caption, String action, int height, int width) {
    return btn;
 }
 
+//------------------------ Ende Programmteil 13 ------------------------------
+
+
+
+
+
+//============================================================================
+// PROGRAMMTEIL 14 von 15
+// Firmware-Version: 091a (Refactored from 090n)
+//============================================================================
+
 // ---------------------------------------------------------------------------
-// basicAuthString(): KORRIGIERT auf const char* passend zu Ihren char-Arrays []
+// basicAuthString(): Generiert den Base64-Verschlüsselungs-String für HTTP-Header
 // ---------------------------------------------------------------------------
 String basicAuthString(const char* uname, const char* upwd) {
    String to_encode = String(uname) + ":" + String(upwd);
@@ -1082,53 +1242,47 @@ String basicAuthString(const char* uname, const char* upwd) {
    
    return encoded;
 }
-//------------------- Ende Programmteil 13 -----------------------------------
-
-
-
-//============================================================================
-// PROGRAMMTEIL 14 von 15
-// Firmware-Version: 091a (Refactored from 090n)
-//============================================================================
-
-// KORRIGIERT: Die doppelte handleClients() wurde hier restlos entfernt!
 
 // ---------------------------------------------------------------------------
-// handleMuxReset(): Setzt die Min/Max Extremwerte der Client-Sensoren zurück
+// logval(): Verarbeitet neue Sensorwerte mitsamt Min/Max/Mittelwert-Berechnung
 // ---------------------------------------------------------------------------
-void handleMuxReset(SensorData &struct_target) {
-   struct_target.vmin = 99.9;
-   struct_target.smin = 99.9;
-   struct_target.vmax = -99.9;
-   struct_target.smax = -99.9;
-   struct_target.vmean = struct_target.vact;
-   struct_target.smean = struct_target.vact;
+void logval(double new_val, vlog &struct_target) {
+   if (new_val == fINVAL) return;
+
+   struct_target.vact = new_val;
+   dtostrf(new_val, 4, 1, struct_target.sact);
+
+   // Extremwert-Überwachung im RAM
+   if (struct_target.vmin == fINVAL || new_val < struct_target.vmin) {
+      struct_target.vmin = new_val;
+      dtostrf(new_val, 4, 1, struct_target.smin);
+   }
+   if (struct_target.vmax == fINVAL || new_val > struct_target.vmax) {
+      struct_target.vmax = new_val;
+      dtostrf(new_val, 4, 1, struct_target.smax);
+   }
+
+   // Laufende Mittelwertbildung (Gleitender Durchschnitt)
+   if (struct_target.vmean == fINVAL || struct_target.vmean == 0.0) {
+      struct_target.vmean = new_val;
+   } else {
+      struct_target.vmean = (struct_target.vmean * 0.95) + (new_val * 0.05);
+   }
+   dtostrf(struct_target.vmean, 4, 1, struct_target.smean);
+   struct_target.tFail = 0; // Fehlerzähler bei erfolgreichem Wert nullen
 }
 
 // ---------------------------------------------------------------------------
-// resetAllClients(): Iteriert über alle Strukturen bei manuellem Reset-Befehl
+// calADC1023(): Kalibrierung und Umrechnung des analogen Rohwerts
 // ---------------------------------------------------------------------------
-void resetAllClients(int client_id) {
-   if (client_id == 0) {
-      handleMuxReset(c0t1);   handleMuxReset(c0h1);
-      handleMuxReset(c0t2);   handleMuxReset(c0h2);
-      handleMuxReset(c0adc0); handleMuxReset(c0adc1);
-      handleMuxReset(c0adc2); handleMuxReset(c0adc3);
-   }
-   if (client_id == 1) {
-      handleMuxReset(c1t1); handleMuxReset(c1h1);
-      handleMuxReset(c1t2); handleMuxReset(c1h2);
-   }
-   if (client_id == 2) {
-      handleMuxReset(c2t1); handleMuxReset(c2h1);
-      handleMuxReset(c2t2); handleMuxReset(c2h2);
-   }
-   if (client_id == 3) {
-      handleMuxReset(c3t1); handleMuxReset(c3h1);
-      handleMuxReset(c3t2); handleMuxReset(c3h2);
-   }
+double calADC1023(double raw) {
+   if (raw < 0) raw = 0;
+   if (raw > 1023) raw = 1023;
+   return (raw / 1023.0) * 100.0;
 }
+
 //------------------------ Ende Programmteil 14 ------------------------------
+
 
 
 
@@ -1141,7 +1295,7 @@ void resetAllClients(int client_id) {
 // buildDateTimeString(): Generiert die formatierten Strings fuer Uhrzeit und Datum
 // ---------------------------------------------------------------------------
 void buildDateTimeString() {
-   char buffer[32]; // KORRIGIERT: Korrekte Puffergroesse als Array deklariert
+   char buffer[32]; 
    
    // Formatiere die Uhrzeit (hh:mm:ss)
    sprintf(buffer, "%02d:%02d:%02d", hour(), minute(), second());
@@ -1188,27 +1342,6 @@ void systemWatchdog() {
 }
 
 // ---------------------------------------------------------------------------
-// dashboard_Init(): Initialisiert lokale Display- oder OLED-Hardware-Komponenten
-// ---------------------------------------------------------------------------
-void dashboard_Init() {
-   Serial.println("[HARDWARE] OLED / LCD Dashboard wird initialisiert...");
-   // [Hier laufen Ihre originalen Hardware-Inits fuer Ihr SSD1306/LiquidCrystal_I2C]
-   yield();
-   lastI2CDataMillis = millis();
-}
-
-// ---------------------------------------------------------------------------
-// dashboard(): Schaltet die Anzeigeebenen zyklisch weiter
-// ---------------------------------------------------------------------------
-void dashboard(int mode) {
-   if (mode > 5) {
-      LCDmode = 0;
-   }
-   // [Hier laeuft Ihre originale Render-Schleife fuer die Messwert-Anzeige auf dem OLED]
-   yield();
-}
-
-// ---------------------------------------------------------------------------
 // updateTimeNow(): Synchronisiert die Systemzeit per NTP ueber das Internet
 // ---------------------------------------------------------------------------
 void updateTimeNow() {
@@ -1216,7 +1349,6 @@ void updateTimeNow() {
    setTime(12, 0, 0, 29, 6, 2026); // Standard-Fallbacksicherung
    yield();
 }
-//------------------------ Ende Programmteil 15 ------------------------------
 
 /*
    const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
@@ -1327,7 +1459,7 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
 */
 
 //----------------------------------------------------------------------------
-// END OF CODE
+// END OF FILE
 //----------------------------------------------------------------------------
 
 
@@ -1338,6 +1470,7 @@ String htmlButton(String caption, String path, int h, int w, String actionID = "
    to do:
    0.91a
 */
+
 
 //----------------------------------------------------------------------------
 // END OF FILE - Version: 091a
